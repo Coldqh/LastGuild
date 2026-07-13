@@ -10,20 +10,38 @@ import {
   Menu,
   RotateCcw,
   Save,
+  Settings as SettingsIcon,
   Shield,
   Swords,
   Users,
   X,
 } from 'lucide-react'
 import ArchiveView from './components/ArchiveView'
+import ExpeditionDebriefModal from './components/ExpeditionDebriefModal'
+import ExpeditionDecisionModal from './components/ExpeditionDecisionModal'
 import ExpeditionPlanner from './components/ExpeditionPlanner'
 import GuildView from './components/GuildView'
 import RosterView from './components/RosterView'
+import SettingsModal from './components/SettingsModal'
 import WorldMap from './components/WorldMap'
+import WorldSetupModal from './components/WorldSetupModal'
 import { createNewGame } from './game/gameFactory'
-import { advanceDays, createExpeditionFromDraft, dismissCharacter, hireCharacter, payDebt, upgradeRoom, type ExpeditionDraft } from './game/simulation'
+import {
+  advanceDays,
+  assignGuildPosition,
+  createExpeditionFromDraft,
+  dismissCharacter,
+  hireCharacter,
+  payDebt,
+  resolveExpeditionDebrief,
+  resolveExpeditionDecision,
+  upgradeRoom,
+  type DebriefResolution,
+  type ExpeditionDraft,
+} from './game/simulation'
 import { clearSave, loadGame, saveGame } from './game/storage'
-import type { GameState, ViewId } from './types/game'
+import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './game/worldSettings'
+import type { GameState, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
 
 const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
   { id: 'headquarters', label: 'Штаб', icon: Building2 },
@@ -36,7 +54,7 @@ const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
 
 function initialState(): GameState {
-  return loadGame() ?? createNewGame('last-guild-demo')
+  return loadGame() ?? createNewGame('last-guild-demo', DEFAULT_WORLD_SETTINGS)
 }
 
 export default function App() {
@@ -44,7 +62,9 @@ export default function App() {
   const [view, setView] = useState<ViewId>('headquarters')
   const [menuOpen, setMenuOpen] = useState(false)
   const [seedModal, setSeedModal] = useState(false)
+  const [settingsModal, setSettingsModal] = useState(false)
   const [seedInput, setSeedInput] = useState('')
+  const [worldSettings, setWorldSettings] = useState<WorldGenerationSettings>({ ...DEFAULT_WORLD_SETTINGS })
   const [savePulse, setSavePulse] = useState(false)
 
   useEffect(() => {
@@ -60,24 +80,50 @@ export default function App() {
   const urgentCount = useMemo(() => {
     const expiring = state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay - state.day <= 8).length
     const injured = state.characters.filter((character) => character.status === 'recovering' && character.health < 45).length
-    return expiring + injured
+    return expiring + injured + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0)
   }, [state])
 
-  const changeView = (next: ViewId) => {
-    setView(next)
-    setMenuOpen(false)
-  }
-
+  const timeBlocked = Boolean(state.pendingDecision || state.pendingDebrief)
+  const changeView = (next: ViewId) => { setView(next); setMenuOpen(false) }
   const advance = (days: number) => setState((current) => advanceDays(current, days))
   const launch = (draft: ExpeditionDraft) => setState((current) => createExpeditionFromDraft(current, draft))
+  const resolveDebrief = (resolution: DebriefResolution) => setState((current) => resolveExpeditionDebrief(current, resolution))
+  const assignPosition = (positionId: GuildPositionId, holderId?: string) => setState((current) => assignGuildPosition(current, positionId, holderId))
+
+  const openWorldSetup = () => {
+    setWorldSettings({ ...state.settings })
+    setSeedInput('')
+    setSettingsModal(false)
+    setSeedModal(true)
+  }
 
   const createWorld = () => {
-    const next = createNewGame(seedInput || undefined)
+    const next = createNewGame(seedInput || undefined, worldSettings)
     clearSave()
     setState(next)
     setView('headquarters')
     setSeedModal(false)
     setSeedInput('')
+  }
+
+  const forceUpdate = async () => {
+    saveGame(state)
+    try {
+      if ('caches' in window) {
+        const keys = await window.caches.keys()
+        await Promise.all(keys.map((cacheKey) => window.caches.delete(cacheKey)))
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map(async (registration) => {
+          try { await registration.update(); await registration.unregister() } catch { /* a stale worker must not block refresh */ }
+        }))
+      }
+    } finally {
+      const nextUrl = new URL(window.location.href)
+      nextUrl.searchParams.set('force-update', Date.now().toString())
+      window.location.replace(nextUrl.toString())
+    }
   }
 
   const renderView = () => {
@@ -86,7 +132,7 @@ export default function App() {
       case 'roster': return <RosterView state={state} onHire={(characterId) => setState((current) => hireCharacter(current, characterId))} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
       case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={launch} />
       case 'archive': return <ArchiveView state={state} />
-      default: return <GuildView state={state} onUpgrade={(roomId) => setState((current) => upgradeRoom(current, roomId))} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} />
+      default: return <GuildView state={state} onUpgrade={(roomId) => setState((current) => upgradeRoom(current, roomId))} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} />
     }
   }
 
@@ -102,12 +148,8 @@ export default function App() {
         <nav>
           {views.map((item) => {
             const Icon = item.icon
-            const badge = item.id === 'expeditions' ? activeExpeditions.length : item.id === 'headquarters' && urgentCount ? urgentCount : 0
-            return (
-              <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}>
-                <Icon size={19} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={15} />
-              </button>
-            )
+            const badge = item.id === 'expeditions' ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) : item.id === 'headquarters' && urgentCount ? urgentCount : 0
+            return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={19} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={15} /></button>
           })}
         </nav>
 
@@ -115,9 +157,14 @@ export default function App() {
           <p className="eyebrow">Текущий мир</p>
           <strong>{state.seed}</strong>
           <span>{state.world.realms.length} государства · {state.world.sites.length} мест</span>
-          <button className="text-button" onClick={() => setSeedModal(true)}><RotateCcw size={15} />Новый мир</button>
+          <span>{state.settings.preset} · {DIFFICULTY_RULES[state.settings.difficulty].label}</span>
+          <button className="text-button" onClick={openWorldSetup}><RotateCcw size={15} />Новый мир</button>
         </div>
-        <div className="sidebar-footer"><span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span><small>v0.1 · First Expedition</small></div>
+        <div className="sidebar-footer">
+          <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
+          <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
+          <small>v0.3 · People & Consequences</small>
+        </div>
       </aside>
 
       <div className="main-shell">
@@ -126,32 +173,25 @@ export default function App() {
           <div className="topbar-date"><CalendarDays size={18} /><div><strong>{state.year} год · день {state.day}</strong><span>{seasons[state.season]}</span></div></div>
           <div className="time-controls">
             <Clock3 size={17} />
-            <button onClick={() => advance(1)}>+1 день</button>
-            <button onClick={() => advance(7)}>+7 дней</button>
-            <button onClick={() => advance(30)}>+30 дней</button>
+            <button disabled={timeBlocked} onClick={() => advance(1)}>+1 день</button>
+            <button disabled={timeBlocked} onClick={() => advance(7)}>+7 дней</button>
+            <button disabled={timeBlocked} onClick={() => advance(30)}>+30 дней</button>
           </div>
           <div className="topbar-resources">
             <span><b>{state.guild.treasury}</b> крон</span>
             <span><b>{state.guild.supplies}</b> припасов</span>
             <span className={state.guild.debt > state.guild.treasury * 2 ? 'danger-text' : ''}><b>{state.guild.debt}</b> долг</span>
           </div>
+          <button className="topbar-settings" title="Настройки" onClick={() => setSettingsModal(true)}><SettingsIcon size={18} /></button>
         </header>
         <main>{renderView()}</main>
       </div>
 
       {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
-      {seedModal && (
-        <div className="modal-backdrop" onClick={() => setSeedModal(false)}>
-          <article className="seed-modal paper-card" onClick={(event) => event.stopPropagation()}>
-            <button className="icon-button close-detail" onClick={() => setSeedModal(false)}><X size={18} /></button>
-            <p className="eyebrow">Новая кампания</p>
-            <h2>Создать другой мир</h2>
-            <p>Текущее сохранение будет заменено. Одинаковый seed создаёт одинаковую карту, государства, руины и стартовый состав.</p>
-            <label><span>Seed мира</span><input value={seedInput} onChange={(event) => setSeedInput(event.target.value)} placeholder="Оставь пустым для случайного" /></label>
-            <button className="primary-button" onClick={createWorld}>Создать мир</button>
-          </article>
-        </div>
-      )}
+      {seedModal && <WorldSetupModal settings={worldSettings} seed={seedInput} onSeedChange={setSeedInput} onSettingsChange={setWorldSettings} onClose={() => setSeedModal(false)} onCreate={createWorld} />}
+      {settingsModal && <SettingsModal state={state} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}
+      {state.pendingDecision && <ExpeditionDecisionModal decision={state.pendingDecision} state={state} onChoose={(choiceId) => setState((current) => resolveExpeditionDecision(current, choiceId))} />}
+      {state.pendingDebrief && <ExpeditionDebriefModal debrief={state.pendingDebrief} state={state} onResolve={resolveDebrief} />}
     </div>
   )
 }

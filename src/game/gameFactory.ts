@@ -8,82 +8,63 @@ import {
   PROFESSIONS,
   TRAITS,
 } from '../data/content'
-import type { Character, GameState, GuildData, Opportunity, WorldData } from '../types/game'
+import type {
+  Character,
+  ExpeditionRiskProfile,
+  GameState,
+  GuildData,
+  Opportunity,
+  WorldData,
+  WorldGenerationSettings,
+} from '../types/game'
 import { RNG } from './rng'
 import { generateWorld } from './worldGenerator'
+import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './worldSettings'
 
 function skillProfile(profession: string, rng: RNG): Character['skills'] {
   const base = {
-    combat: rng.int(1, 4),
-    survival: rng.int(1, 4),
-    scouting: rng.int(1, 4),
-    medicine: rng.int(0, 3),
-    arcana: rng.int(0, 3),
-    history: rng.int(0, 3),
-    cartography: rng.int(0, 3),
-    diplomacy: rng.int(0, 3),
-    leadership: rng.int(0, 3),
+    combat: rng.int(1, 4), survival: rng.int(1, 4), scouting: rng.int(1, 4),
+    medicine: rng.int(0, 3), arcana: rng.int(0, 3), history: rng.int(0, 3),
+    cartography: rng.int(0, 3), diplomacy: rng.int(0, 3), leadership: rng.int(0, 3),
   }
   const boosts: Record<string, (keyof typeof base)[]> = {
-    Воин: ['combat', 'leadership'],
-    Следопыт: ['survival', 'scouting', 'cartography'],
-    Маг: ['arcana', 'history'],
-    Жрец: ['medicine', 'diplomacy', 'arcana'],
-    Плут: ['scouting', 'combat'],
-    Охотник: ['combat', 'survival', 'scouting'],
-    Картограф: ['cartography', 'history', 'survival'],
-    Археолог: ['history', 'cartography'],
-    Лекарь: ['medicine', 'survival'],
-    Переводчик: ['diplomacy', 'history'],
+    Воин: ['combat', 'leadership'], Следопыт: ['survival', 'scouting', 'cartography'],
+    Маг: ['arcana', 'history'], Жрец: ['medicine', 'diplomacy', 'arcana'],
+    Плут: ['scouting', 'combat'], Охотник: ['combat', 'survival', 'scouting'],
+    Картограф: ['cartography', 'history', 'survival'], Археолог: ['history', 'cartography'],
+    Лекарь: ['medicine', 'survival'], Переводчик: ['diplomacy', 'history'],
     'Искатель реликвий': ['history', 'arcana', 'scouting'],
   }
   for (const key of boosts[profession] ?? []) base[key] = Math.min(10, base[key] + rng.int(2, 4))
   return base
 }
 
-function createCharacters(seed: string, count: number): Character[] {
+function createCharacters(seed: string, count: number, world: WorldData): Character[] {
   const rng = new RNG(`${seed}:characters`)
   const characters: Character[] = []
+  const settlements = world.settlements.length ? world.settlements : [{ id: world.startSettlementId, name: 'неизвестное поселение' } as any]
   for (let index = 0; index < count; index += 1) {
     const profession = rng.pick(PROFESSIONS)
     const level = rng.int(1, 4)
+    const home = rng.pick(settlements)
+    const oldInjury = rng.bool(0.12) ? rng.pick(['старый перелом', 'повреждённое плечо', 'хроническая боль', 'магический ожог']) : undefined
     characters.push({
       id: `character-${index + 1}`,
       name: `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`,
-      portraitSeed: rng.int(1, 999999),
-      age: rng.int(18, 56),
-      ancestry: rng.pick(ANCESTRIES),
-      culture: rng.pick(CULTURES),
-      profession,
-      level,
-      status: index < 8 && rng.bool(0.12) ? 'recovering' : 'available',
-      employed: index < 8,
-      salary: 12 + level * 6 + rng.int(0, 9),
-      health: rng.int(72, 100),
-      fatigue: rng.int(0, 22),
-      stress: rng.int(0, 20),
-      loyalty: rng.int(38, 72),
-      fame: rng.int(0, 14),
-      traits: rng.shuffle(TRAITS).slice(0, 3),
-      ambition: rng.pick(AMBITIONS),
-      fear: rng.pick(FEARS),
-      stats: {
-        strength: rng.int(2, 8),
-        agility: rng.int(2, 8),
-        endurance: rng.int(2, 8),
-        intellect: rng.int(2, 8),
-        will: rng.int(2, 8),
-        presence: rng.int(2, 8),
-      },
+      portraitSeed: rng.int(1, 999999), age: rng.int(18, 56), ancestry: rng.pick(ANCESTRIES), culture: rng.pick(CULTURES), profession,
+      origin: `${home.name}; ${rng.pick(['семья ремесленников', 'бывший солдатский дом', 'бедная улица', 'учёная семья', 'пограничное поселение', 'храмовое воспитание'])}`,
+      homeSettlementId: home.id,
+      level, experience: level * 35 + rng.int(0, 45), careerStage: level >= 4 ? 'veteran' : level >= 2 ? 'field' : 'recruit',
+      status: index < 8 && rng.bool(0.12) ? 'recovering' : 'available', employed: index < 8,
+      salary: 12 + level * 6 + rng.int(0, 9), health: rng.int(72, 100), fatigue: rng.int(0, 22), stress: rng.int(0, 20),
+      loyalty: rng.int(38, 72), fame: rng.int(0, 14), traits: rng.shuffle(TRAITS).slice(0, 3), ambition: rng.pick(AMBITIONS), fear: rng.pick(FEARS),
+      stats: { strength: rng.int(2, 8), agility: rng.int(2, 8), endurance: rng.int(2, 8), intellect: rng.int(2, 8), will: rng.int(2, 8), presence: rng.int(2, 8) },
       skills: skillProfile(profession, rng),
-      injuries: rng.bool(0.12) ? [rng.pick(['старый перелом', 'повреждённое плечо', 'хроническая боль', 'магический ожог'])] : [],
-      relationships: {},
-      memories: [],
-      expeditions: rng.int(0, 3),
-      discoveries: rng.int(0, 1),
+      injuries: oldInjury ? [oldInjury] : [],
+      injuryRecords: oldInjury ? [{ id: `injury-start-${index}`, name: oldInjury, severity: 2, permanent: true, recoveryDays: 0, effect: '−1 к отдельным полевым проверкам', treated: true }] : [],
+      relationships: {}, memories: [], expeditions: rng.int(0, 3), discoveries: rng.int(0, 1),
     })
   }
-
   for (const character of characters) {
     const others = rng.shuffle(characters.filter((candidate) => candidate.id !== character.id)).slice(0, 2)
     for (const other of others) character.relationships[other.id] = rng.int(-35, 55)
@@ -91,28 +72,15 @@ function createCharacters(seed: string, count: number): Character[] {
   return characters
 }
 
-function createGuild(): GuildData {
+function createGuild(settings: WorldGenerationSettings): GuildData {
+  const rules = DIFFICULTY_RULES[settings.difficulty]
   return {
-    name: 'Последняя гильдия',
-    rank: 1,
-    treasury: 820,
-    debt: 2400,
-    debtInterest: 0.03,
-    reputation: 11,
-    scientificAuthority: 6,
-    adventurerPrestige: 9,
-    politicalInfluence: 2,
-    stability: 34,
-    supplies: 150,
-    medicine: 34,
+    name: 'Последняя гильдия', rank: 1, treasury: rules.startingTreasury, debt: rules.startingDebt, debtInterest: 0.03,
+    reputation: 11, scientificAuthority: 6, adventurerPrestige: 9, politicalInfluence: 2, stability: settings.difficulty === 'brutal' ? 26 : 34,
+    supplies: settings.difficulty === 'story' ? 190 : settings.difficulty === 'brutal' ? 115 : 150,
+    medicine: settings.difficulty === 'story' ? 45 : settings.difficulty === 'brutal' ? 25 : 34,
     artifacts: 0,
-    knowledge: {
-      geography: 12,
-      history: 8,
-      monsters: 6,
-      magic: 5,
-      cultures: 4,
-    },
+    knowledge: { geography: 12, history: 8, monsters: 6, magic: settings.magicLevel === 'wild' ? 9 : 5, cultures: 4 },
     rooms: [
       { id: 'hall', name: 'Старый зал', level: 1, condition: 58, capacity: 12, maintenance: 7, description: 'Здесь принимают заказы и новых людей.', effect: '+1 доступный контракт', upgradeCost: 520 },
       { id: 'archive', name: 'Повреждённый архив', level: 1, condition: 43, capacity: 40, maintenance: 5, description: 'Карты и журналы пережили пожар и годы сырости.', effect: '+5% качество сведений', upgradeCost: 680 },
@@ -120,8 +88,15 @@ function createGuild(): GuildData {
       { id: 'infirmary', name: 'Комната лекаря', level: 1, condition: 51, capacity: 3, maintenance: 8, description: 'Три койки и минимальный набор инструментов.', effect: '+10% восстановление', upgradeCost: 760 },
       { id: 'quarters', name: 'Жилые комнаты', level: 1, condition: 55, capacity: 8, maintenance: 5, description: 'Холодные комнаты для постоянного состава.', effect: '+3 лояльность персонала', upgradeCost: 490 },
     ],
-    maxActiveExpeditions: 1,
-    daysSincePayment: 0,
+    positions: [
+      { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
+      { id: 'chief_archivist', name: 'Главный архивист', description: 'Проверяет отчёты и качество доказательств.', effect: '+10 к качеству открытий' },
+      { id: 'quartermaster', name: 'Квартмейстер', description: 'Контролирует склад и закупки.', effect: '−8% месячных расходов' },
+      { id: 'chief_healer', name: 'Главный лекарь', description: 'Руководит лечением и реабилитацией.', effect: '+35% скорость восстановления' },
+      { id: 'mentor', name: 'Наставник новичков', description: 'Передаёт опыт молодому составу.', effect: '+20% опыта после экспедиций' },
+      { id: 'diplomat', name: 'Дипломат гильдии', description: 'Работает с властями и заказчиками.', effect: '+2 репутации при публикации' },
+    ],
+    maxActiveExpeditions: 1, daysSincePayment: 0,
   }
 }
 
@@ -131,63 +106,66 @@ function opportunityTargets(world: WorldData): string[] {
   return world.tiles
     .filter((tile) => tile.biome !== 'ocean' && tile.id !== startTile.id)
     .sort((a, b) => Math.hypot(a.x - startTile.x, a.y - startTile.y) - Math.hypot(b.x - startTile.x, b.y - startTile.y))
-    .slice(25, 180)
+    .slice(Math.min(18, Math.floor(world.tiles.length * 0.03)), Math.min(world.tiles.length, 320))
     .map((tile) => tile.id)
 }
 
-function createOpportunities(seed: string, world: WorldData, day: number): Opportunity[] {
-  const rng = new RNG(`${seed}:opportunities:${day}`)
-  const targets = opportunityTargets(world)
-  const templates = [
-    ['Пропавшие лесорубы', 'спасение', 'Найти людей, не вернувшихся из старого леса.', 'староста'],
-    ['Старая дорога', 'картография', 'Проверить сведения о заброшенном пути через холмы.', 'торговый дом'],
-    ['Шёпот под камнями', 'руины', 'Осмотреть найденный вход в подземный комплекс.', 'местный священник'],
-    ['Следы крупного зверя', 'охота', 'Определить вид существа и найти его логово.', 'охотники'],
-    ['Сломанная печать', 'артефакт', 'Доставить из руин предмет с неизвестными рунами.', 'учёный'],
-    ['Пограничная карта', 'разведка', 'Уточнить положение застав и старых переправ.', 'городской совет'],
-  ] as const
-
-  return rng.shuffle(templates).slice(0, 5).map((template, index) => ({
-    id: `opportunity-${day}-${index}`,
-    title: template[0],
-    type: template[1],
-    description: template[2],
-    source: template[3],
-    targetTileId: rng.pick(targets),
-    reward: rng.int(180, 620),
-    deadlineDay: day + rng.int(18, 55),
-    dangerEstimate: rng.int(2, 7),
-    knowledgeRequirement: rng.int(1, 5),
-    accepted: false,
-  }))
-}
-
-export function createNewGame(seedInput?: string): GameState {
-  const seed = seedInput?.trim() || `guild-${Date.now().toString(36)}`
-  const world = generateWorld(seed)
+function riskFor(world: WorldData, targetTileId: string, type: string, rng: RNG): ExpeditionRiskProfile {
+  const tile = world.tiles.find((candidate) => candidate.id === targetTileId)
+  const realm = world.realms.find((candidate) => candidate.id === tile?.stateId)
+  const base = tile?.danger ?? 4
   return {
-    version: 2,
-    seed,
-    day: 1,
-    year: 912,
-    season: 0,
-    guild: createGuild(),
-    world,
-    characters: createCharacters(seed, 28),
-    expeditions: [],
-    opportunities: createOpportunities(seed, world, 1),
-    chronicle: [
-      {
-        id: 'chronicle-start',
-        day: 1,
-        year: 912,
-        title: 'Последняя гильдия открывает двери',
-        text: 'После нескольких лет упадка старое здание снова принимает контракты. В казне почти ничего, кредиторы ждут платёж, но архив ещё не погиб.',
-        category: 'guild',
-        importance: 5,
-      },
-    ],
+    route: Math.min(10, Math.max(1, Math.round(base * 0.7 + tile!.travelCost + rng.float(-1, 1)))),
+    combat: Math.min(10, Math.max(1, Math.round(base + (type === 'охота' ? 2 : 0) + rng.float(-1, 1)))),
+    climate: Math.min(10, Math.max(1, Math.round((tile?.biome === 'tundra' || tile?.biome === 'desert' || tile?.biome === 'swamp' ? 6 : 3) + rng.float(-1, 1)))),
+    disease: Math.min(10, Math.max(1, Math.round((tile?.biome === 'swamp' || tile?.biome === 'ancient_forest' ? 6 : 2) + rng.float(-1, 1)))),
+    politics: Math.min(10, Math.max(1, Math.round((realm?.stability ? (100 - realm.stability) / 13 : 3) + rng.float(-1, 1)))),
+    magic: Math.min(10, Math.max(1, Math.round((tile?.magic ?? 0.4) * 9 + (type === 'артефакт' || type === 'руины' ? 1 : 0)))),
   }
 }
 
-export { createOpportunities }
+const opportunityTemplates = [
+  ['Пропавшие лесорубы', 'спасение', 'Найти людей, не вернувшихся из старого леса.', 'староста', ['Следопыт', 'Лекарь']],
+  ['Старая дорога', 'картография', 'Проверить сведения о заброшенном пути через холмы.', 'торговый дом', ['Картограф', 'Следопыт']],
+  ['Шёпот под камнями', 'руины', 'Осмотреть найденный вход в подземный комплекс.', 'местный священник', ['Археолог', 'Воин']],
+  ['Следы крупного зверя', 'охота', 'Определить вид существа и найти его логово.', 'охотники', ['Охотник', 'Лекарь']],
+  ['Сломанная печать', 'артефакт', 'Доставить из руин предмет с неизвестными рунами.', 'учёный', ['Маг', 'Искатель реликвий']],
+  ['Пограничная карта', 'разведка', 'Уточнить положение застав и старых переправ.', 'городской совет', ['Следопыт', 'Переводчик']],
+  ['Чужой посол', 'дипломатия', 'Добраться до изолированного поселения и договориться о проходе.', 'канцелярия князя', ['Переводчик', 'Жрец']],
+  ['Чёрная вода', 'исследование', 'Взять образцы из заражённого притока и найти источник.', 'лекарская коллегия', ['Лекарь', 'Маг']],
+  ['След старой экспедиции', 'поиск', 'Проверить найденный дневник и установить судьбу пропавшего отряда.', 'семьи погибших', ['Картограф', 'Археолог']],
+] as const
+
+export function createOpportunities(seed: string, world: WorldData, day: number, settings?: WorldGenerationSettings): Opportunity[] {
+  const activeSettings = settings ?? DEFAULT_WORLD_SETTINGS
+  const rng = new RNG(`${seed}:opportunities:${day}`)
+  const targets = opportunityTargets(world)
+  const rules = DIFFICULTY_RULES[activeSettings.difficulty]
+  return rng.shuffle(opportunityTemplates).slice(0, 6).map((template, index) => {
+    const targetTileId = rng.pick(targets)
+    const riskProfile = riskFor(world, targetTileId, template[1], rng)
+    const dangerEstimate = Math.round(Object.values(riskProfile).reduce((sum, value) => sum + value, 0) / 6)
+    return {
+      id: `opportunity-${day}-${index}`, title: template[0], type: template[1], description: template[2], source: template[3], targetTileId,
+      reward: Math.round(rng.int(180, 660) * rules.rewards), deadlineDay: day + rng.int(18, 55), dangerEstimate,
+      knowledgeRequirement: rng.int(1, 5), accepted: false, requiredRoles: [...template[4]], riskProfile,
+    }
+  })
+}
+
+export function createNewGame(seedInput?: string, requestedSettings?: WorldGenerationSettings): GameState {
+  const seed = seedInput?.trim() || `guild-${Date.now().toString(36)}`
+  const settings = { ...DEFAULT_WORLD_SETTINGS, ...(requestedSettings ?? {}) }
+  const world = generateWorld(seed, settings)
+  const characterCount = settings.mapSize === 'vast' ? 36 : settings.mapSize === 'compact' ? 24 : 30
+  return {
+    version: 4, seed, settings, day: 1, year: 912, season: 0,
+    guild: createGuild(settings), world, characters: createCharacters(seed, characterCount, world), expeditions: [],
+    opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, discoveries: [], consequences: [],
+    chronicle: [{
+      id: 'chronicle-start', day: 1, year: 912, title: 'Последняя гильдия открывает двери',
+      text: `После нескольких лет упадка старое здание снова принимает контракты. Мир создан в режиме «${settings.preset}», государств: ${world.realms.length}, известных руин: ${world.sites.filter((site) => site.state === 'rumored').length}.`,
+      category: 'guild', importance: 5,
+    }],
+  }
+}

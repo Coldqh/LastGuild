@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Activity, Award, HeartPulse, Search, Shield, Star, UserRound, X } from 'lucide-react'
-import type { Character, GameState } from '../types/game'
+import { Activity, Award, HeartPulse, Link2, Search, Shield, Star, UserRound, X } from 'lucide-react'
+import type { Character, CharacterCareerStage, GameState } from '../types/game'
 
 interface Props {
   state: GameState
   onHire: (characterId: string) => void
   onDismiss: (characterId: string) => void
+}
+
+const careerLabels: Record<CharacterCareerStage, string> = {
+  recruit: 'новичок', field: 'исследователь', veteran: 'ветеран', leader: 'лидер', mentor: 'наставник', legend: 'легенда',
 }
 
 function characterGradient(seed: number): string {
@@ -14,22 +18,39 @@ function characterGradient(seed: number): string {
   return `linear-gradient(145deg, hsl(${hueA} 28% 34%), hsl(${hueB} 24% 17%))`
 }
 
+function relationshipLabel(value: number): string {
+  if (value >= 55) return 'сильное доверие'
+  if (value >= 20) return 'уважение'
+  if (value > -20) return 'нейтрально'
+  if (value > -55) return 'обида'
+  return 'вражда'
+}
+
 export default function RosterView({ state, onHire, onDismiss }: Props) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
-  const [selected, setSelected] = useState<Character | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = state.characters.find((character) => character.id === selectedId) ?? null
   const filtered = useMemo(() => state.characters.filter((character) => {
-    const matchesQuery = `${character.name} ${character.profession} ${character.ancestry}`.toLowerCase().includes(query.toLowerCase())
+    const matchesQuery = `${character.name} ${character.profession} ${character.ancestry} ${careerLabels[character.careerStage]}`.toLowerCase().includes(query.toLowerCase())
     return matchesQuery && (status === 'all' || character.status === status)
   }), [state.characters, query, status])
+
+  const selectedRelationships = selected
+    ? Object.entries(selected.relationships)
+      .map(([characterId, value]) => ({ character: state.characters.find((candidate) => candidate.id === characterId), value }))
+      .filter((entry) => entry.character)
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .slice(0, 6)
+    : []
 
   return (
     <section className="view roster-view">
       <header className="view-heading">
-        <div><p className="eyebrow">Личный состав</p><h1>Исследователи гильдии</h1><p>Случайные новички получают историю только через реальные экспедиции, травмы и открытия.</p></div>
+        <div><p className="eyebrow">Личный состав</p><h1>Исследователи гильдии</h1><p>Новички получают характер, связи, травмы и карьеру через реальные походы. Сильные люди могут стать лидерами, наставниками или легендами.</p></div>
       </header>
       <div className="toolbar paper-card">
-        <label className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Имя, народ или профессия" /></label>
+        <label className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Имя, народ, профессия или карьера" /></label>
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="all">Все статусы</option>
           <option value="available">Доступны</option>
@@ -37,13 +58,14 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
           <option value="recovering">Лечатся</option>
           <option value="missing">Пропали</option>
           <option value="dead">Погибли</option>
+          <option value="retired">На покое</option>
         </select>
         <span className="result-count">{filtered.length} человек</span>
       </div>
 
       <div className="character-grid">
         {filtered.map((character) => (
-          <button className="character-card" key={character.id} onClick={() => setSelected(character)}>
+          <button className="character-card" key={character.id} onClick={() => setSelectedId(character.id)}>
             <div className="portrait" style={{ background: characterGradient(character.portraitSeed) }}>
               <UserRound size={42} />
               <span className={`status-dot ${character.status}`} />
@@ -52,7 +74,7 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
               <div className="character-name"><h3>{character.name}</h3><span>ур. {character.level}</span></div>
               <p>{character.ancestry} · {character.age} лет</p>
               <strong>{character.profession}</strong>
-              <span className={`employment-chip ${character.employed ? 'member' : 'candidate'}`}>{character.employed ? 'штат' : 'кандидат'}</span>
+              <div className="character-chip-row"><span className={`employment-chip ${character.employed ? 'member' : 'candidate'}`}>{character.employed ? 'штат' : 'кандидат'}</span><span className={`career-chip stage-${character.careerStage}`}>{careerLabels[character.careerStage]}</span></div>
               <div className="tag-list">{character.traits.slice(0, 2).map((trait) => <span key={trait}>{trait}</span>)}</div>
               <div className="mini-stats"><span><HeartPulse size={14} />{Math.round(character.health)}</span><span><Shield size={14} />{character.skills.combat}</span><span><Star size={14} />{character.fame}</span></div>
             </div>
@@ -61,12 +83,12 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
       </div>
 
       {selected && (
-        <div className="modal-backdrop" onClick={() => setSelected(null)}>
+        <div className="modal-backdrop" onClick={() => setSelectedId(null)}>
           <article className="character-sheet paper-card" onClick={(event) => event.stopPropagation()}>
-            <button className="icon-button close-detail" onClick={() => setSelected(null)}><X size={18} /></button>
+            <button className="icon-button close-detail" onClick={() => setSelectedId(null)}><X size={18} /></button>
             <div className="sheet-header">
               <div className="portrait large" style={{ background: characterGradient(selected.portraitSeed) }}><UserRound size={64} /></div>
-              <div><p className="eyebrow">{selected.profession} · уровень {selected.level}</p><h2>{selected.name}</h2><p>{selected.ancestry}, {selected.culture}, {selected.age} лет</p><div className="tag-list">{selected.traits.map((trait) => <span key={trait}>{trait}</span>)}</div></div>
+              <div><p className="eyebrow">{selected.profession} · {careerLabels[selected.careerStage]} · уровень {selected.level}</p><h2>{selected.name}</h2><p>{selected.ancestry}, {selected.culture}, {selected.age} лет</p><p className="character-origin">{selected.origin}</p><div className="tag-list">{selected.traits.map((trait) => <span key={trait}>{trait}</span>)}</div></div>
             </div>
             <div className="sheet-status-grid">
               <div><HeartPulse /><span>Здоровье</span><strong>{Math.round(selected.health)}%</strong></div>
@@ -74,27 +96,33 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
               <div><Award /><span>Слава</span><strong>{selected.fame}</strong></div>
               <div><Shield /><span>Лояльность</span><strong>{selected.loyalty}%</strong></div>
             </div>
-            <div className="sheet-columns">
+            <div className="career-progress-card"><div><span>Опыт карьеры</span><strong>{selected.experience} XP</strong></div><div className="progress-line"><span style={{ width: `${selected.experience % 100}%` }} /></div><small>Следующий уровень через {100 - (selected.experience % 100)} XP</small></div>
+            <div className="sheet-columns character-deep-columns">
               <div>
                 <h3>Навыки</h3>
                 {Object.entries(selected.skills).map(([name, value]) => <div className="skill-row" key={name}><span>{name}</span><b>{value}</b></div>)}
+                <h3>Отношения</h3>
+                {selectedRelationships.length === 0 ? <p className="muted">Значимых связей пока нет.</p> : selectedRelationships.map(({ character, value }) => <div className="relationship-row" key={character!.id}><Link2 size={14} /><div><strong>{character!.name}</strong><small>{relationshipLabel(value)}</small></div><b className={value < 0 ? 'negative' : 'positive'}>{value > 0 ? '+' : ''}{value}</b></div>)}
               </div>
               <div>
-                <h3>Личность</h3>
+                <h3>Личность и служба</h3>
                 <p><b>Амбиция:</b> {selected.ambition}</p>
                 <p><b>Страх:</b> {selected.fear}</p>
                 <p><b>Экспедиции:</b> {selected.expeditions}</p>
                 <p><b>Открытия:</b> {selected.discoveries}</p>
-                <p><b>Травмы:</b> {selected.injuries.length ? selected.injuries.join(', ') : 'нет'}</p>
                 <p><b>Контракт:</b> {selected.employed ? `постоянный, ${selected.salary} кр./месяц` : `кандидат, подписание ${60 + selected.level * 25} кр.`}</p>
                 {selected.employed ? (
-                  <button className="secondary-button personnel-action" disabled={selected.status === 'expedition'} onClick={() => { onDismiss(selected.id); setSelected(null) }}>Расторгнуть контракт</button>
+                  <button className="secondary-button personnel-action" disabled={selected.status === 'expedition'} onClick={() => { onDismiss(selected.id); setSelectedId(null) }}>Расторгнуть контракт</button>
                 ) : (
-                  <button className="primary-button personnel-action" disabled={state.guild.treasury < 60 + selected.level * 25} onClick={() => { onHire(selected.id); setSelected(null) }}>Нанять · {60 + selected.level * 25} кр.</button>
+                  <button className="primary-button personnel-action" disabled={state.guild.treasury < 60 + selected.level * 25} onClick={() => { onHire(selected.id); setSelectedId(null) }}>Нанять · {60 + selected.level * 25} кр.</button>
                 )}
-                <h3>Память</h3>
-                {selected.memories.length === 0 ? <p className="muted">Пока нет событий, которые определили его жизнь.</p> : selected.memories.map((memory) => <div className="memory-entry" key={memory.id}><strong>{memory.title}</strong><span>{memory.year} год</span></div>)}
+                <h3>Травмы и восстановление</h3>
+                {selected.injuryRecords.length === 0 ? <p className="muted">Серьёзных травм нет.</p> : selected.injuryRecords.map((injury) => <div className={`injury-entry severity-${injury.severity}`} key={injury.id}><div><strong>{injury.name}</strong><span>{injury.effect}</span></div><small>{injury.permanent ? 'необратимая' : injury.treated ? 'вылечена' : `${injury.recoveryDays} дн. лечения`}</small></div>)}
               </div>
+            </div>
+            <div className="memory-section">
+              <h3>Память</h3>
+              {selected.memories.length === 0 ? <p className="muted">Пока нет событий, которые определили его жизнь.</p> : [...selected.memories].reverse().map((memory) => <div className={`memory-entry memory-${memory.valence}`} key={memory.id}><div><strong>{memory.title}</strong><p>{memory.description}</p></div><span>{memory.year} год · день {memory.day}<small>сила {memory.intensity}</small></span></div>)}
             </div>
           </article>
         </div>
