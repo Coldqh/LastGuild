@@ -46,7 +46,7 @@ export default function RosterView({ state, onDismiss }: Props) {
   return (
     <section className="view roster-view">
       <header className="view-heading">
-        <div><p className="eyebrow">Личный состав</p><h1>Исследователи гильдии</h1><p>Здесь хранится действующий состав и история людей, уже связанных с гильдией. Свободные кандидаты перенесены в Штаб → Наём.</p></div>
+        <div><p className="eyebrow">Личный состав</p><h1>Исследователи гильдии</h1><p>Здесь хранится действующий состав и история людей, уже связанных с гильдией. Свободные кандидаты находятся в отдельном разделе «Наём» боковой панели.</p></div>
       </header>
       <div className="toolbar paper-card">
         <label className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Имя, народ, профессия или карьера" /></label>
@@ -116,7 +116,7 @@ export default function RosterView({ state, onDismiss }: Props) {
                 ) : selected.rivalGuildId ? (
                   <div className="rival-employment-note">Сейчас служит в организации: <strong>{state.rivalGuilds.find((guild) => guild.id === selected.rivalGuildId)?.name ?? 'неизвестный конкурент'}</strong></div>
                 ) : (
-                  <div className="rival-employment-note">Персонаж больше не состоит в штате. Новый найм проводится через раздел «Штаб».</div>
+                  <div className="rival-employment-note">Персонаж больше не состоит в штате. Новый найм проводится через раздел «Наём».</div>
                 )}
                 <h3>Травмы и восстановление</h3>
                 {selected.injuryRecords.length === 0 ? <p className="muted">Серьёзных травм нет.</p> : selected.injuryRecords.map((injury) => <div className={`injury-entry severity-${injury.severity}`} key={injury.id}><div><strong>{injury.name}</strong><span>{injury.effect}</span></div><small>{injury.permanent ? 'необратимая' : injury.treated ? 'вылечена' : `${injury.recoveryDays} дн. лечения`}</small></div>)}

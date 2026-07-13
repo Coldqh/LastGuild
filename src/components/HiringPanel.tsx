@@ -12,9 +12,8 @@ export default function HiringPanel({ state, onHire }: Props) {
     return match && (profession === 'all' || entry.profession === profession)
   }), [state.characters, query, profession])
   const professions = [...new Set(state.characters.filter((entry) => !entry.employed && !entry.rivalGuildId).map((entry) => entry.profession))].sort()
-  return <div className="headquarters-tab-content">
-    <div className="section-title"><UserPlus size={20} /><div><p className="eyebrow">Рынок людей</p><h2>Наём исследователей</h2></div></div>
-    <p className="section-note">Здесь находятся только свободные кандидаты. Ученики академии и служащие конкурентов в обычный найм не попадают.</p>
+  return <section className="view focused-view hiring-view">
+    <header className="view-heading compact-heading"><div><p className="eyebrow">Рынок людей</p><h1>Наём исследователей</h1><p>Только свободные кандидаты. Ученики академии и служащие конкурентов сюда не попадают.</p></div><div className="capacity-badge"><Users size={18} /><b>{candidates.length}</b><span>кандидатов</span></div></header>
     <div className="toolbar hiring-toolbar">
       <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Имя, профессия, народ, черта" /></label>
       <select value={profession} onChange={(event) => setProfession(event.target.value)}><option value="all">Все профессии</option>{professions.map((item) => <option key={item}>{item}</option>)}</select>
@@ -34,5 +33,5 @@ export default function HiringPanel({ state, onHire }: Props) {
       })}
       {!candidates.length && <div className="empty-state"><UserPlus size={28} /><h3>Свободных кандидатов нет</h3><p>Рынок обновится со временем или после изменений в мире.</p></div>}
     </div>
-  </div>
+  </section>
 }

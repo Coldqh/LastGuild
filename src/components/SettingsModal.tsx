@@ -114,7 +114,7 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
         <button className="icon-button close-detail" onClick={onClose}><X size={18} /></button>
         <div className="section-title"><Settings size={21} /><div><p className="eyebrow">Система</p><h2>Настройки игры</h2></div></div>
         <div className="settings-version-card">
-          <div><ShieldCheck /><span><strong>THE LAST GUILD v0.7</strong><small>Академия, поколения, совет и внутренняя политика</small></span></div>
+          <div><ShieldCheck /><span><strong>THE LAST GUILD v0.7.1</strong><small>Новая навигация и разгруженный интерфейс</small></span></div>
           <span className="version-chip">save v8</span>
         </div>
 

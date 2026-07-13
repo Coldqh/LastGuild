@@ -1,12 +1,17 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
   BookOpen,
+  BriefcaseBusiness,
   Building2,
   CalendarDays,
   ChevronRight,
   Clock3,
   Compass,
   FastForward,
+  Gavel,
+  GraduationCap,
+  Hammer,
+  History,
   Map,
   Landmark,
   Menu,
@@ -16,6 +21,7 @@ import {
   Settings as SettingsIcon,
   Shield,
   Swords,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react'
@@ -29,6 +35,12 @@ const ExpeditionDebriefModal = lazy(() => import('./components/ExpeditionDebrief
 const ExpeditionDecisionModal = lazy(() => import('./components/ExpeditionDecisionModal'))
 const ExpeditionPlanner = lazy(() => import('./components/ExpeditionPlanner'))
 const GuildView = lazy(() => import('./components/GuildView'))
+const HiringPanel = lazy(() => import('./components/HiringPanel'))
+const RoomsView = lazy(() => import('./components/RoomsView'))
+const PositionsView = lazy(() => import('./components/PositionsView'))
+const AcademyPanel = lazy(() => import('./components/AcademyPanel'))
+const CouncilPanel = lazy(() => import('./components/CouncilPanel'))
+const LegacyView = lazy(() => import('./components/LegacyView'))
 const InfluenceView = lazy(() => import('./components/InfluenceView'))
 const LivingWorldView = lazy(() => import('./components/LivingWorldView'))
 const RosterView = lazy(() => import('./components/RosterView'))
@@ -60,14 +72,26 @@ import { loadPreferences, savePreferences, type AppPreferences } from './game/pr
 import type { TutorialStepId } from './game/onboarding'
 import type { AcademyProgramId, BranchAutonomy, BranchSpecialization, CharacterSkills, CombatCommandType, CouncilVoteChoice, GameState, GuildCharter, GuildMemorial, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
 
-const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
-  { id: 'headquarters', label: 'Штаб', icon: Building2 },
-  { id: 'world', label: 'Карта мира', icon: Map },
-  { id: 'roster', label: 'Персонажи', icon: Users },
-  { id: 'expeditions', label: 'Экспедиции', icon: Compass },
-  { id: 'archive', label: 'Архив', icon: BookOpen },
-  { id: 'influence', label: 'Влияние', icon: Network },
-  { id: 'living_world', label: 'Живой мир', icon: Landmark },
+const viewGroups: Array<{ label: string; items: Array<{ id: ViewId; label: string; icon: typeof Building2 }> }> = [
+  { label: 'Гильдия', items: [
+    { id: 'headquarters', label: 'Штаб', icon: Building2 },
+    { id: 'hiring', label: 'Наём', icon: UserPlus },
+    { id: 'roster', label: 'Персонажи', icon: Users },
+    { id: 'rooms', label: 'Помещения', icon: Hammer },
+    { id: 'positions', label: 'Должности', icon: BriefcaseBusiness },
+    { id: 'academy', label: 'Академия', icon: GraduationCap },
+    { id: 'council', label: 'Совет', icon: Gavel },
+    { id: 'legacy', label: 'Наследие', icon: History },
+  ] },
+  { label: 'Экспедиции', items: [
+    { id: 'world', label: 'Карта мира', icon: Map },
+    { id: 'expeditions', label: 'Экспедиции', icon: Compass },
+    { id: 'archive', label: 'Архив', icon: BookOpen },
+  ] },
+  { label: 'Мир', items: [
+    { id: 'influence', label: 'Влияние', icon: Network },
+    { id: 'living_world', label: 'Живой мир', icon: Landmark },
+  ] },
 ]
 
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
@@ -224,13 +248,19 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'world': return <WorldMap state={state} />
+      case 'hiring': return <HiringPanel state={state} onHire={hireFromHeadquarters} />
       case 'roster': return <RosterView state={state} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
+      case 'rooms': return <RoomsView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} />
+      case 'positions': return <PositionsView state={state} onAssign={assignPosition} />
+      case 'academy': return <AcademyPanel state={state} onEnroll={enrollStudent} onAssignMentor={academyMentor} onExam={academyExam} onGraduate={graduateStudent} onUpgrade={upgradeAcademy} />
+      case 'council': return <CouncilPanel state={state} onSeat={councilSeat} onProposal={proposalVote} onCharter={charterChange} />
+      case 'legacy': return <LegacyView state={state} onFoundDoctrine={foundDoctrine} onMemorial={createMemorial} />
+      case 'world': return <WorldMap state={state} />
       case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={launch} />
       case 'archive': return <ArchiveView state={state} />
       case 'living_world': return <LivingWorldView state={state} />
       case 'influence': return <InfluenceView state={state} onRivalAction={rivalAction} onOpenBranch={createBranch} onChangeBranchAutonomy={setBranchAutonomy} onRespondCrisis={crisisResponse} onAssignMentorship={mentorship} onAppointLeader={appointLeader} />
-      default: return <>{preferences.decisionCenterEnabled && <CommandCenter state={state} onNavigate={changeView} />}<GuildView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} onHire={hireFromHeadquarters} onEnrollStudent={enrollStudent} onAssignAcademyMentor={academyMentor} onAcademyExam={academyExam} onGraduate={graduateStudent} onUpgradeAcademy={upgradeAcademy} onCouncilSeat={councilSeat} onProposal={proposalVote} onCharter={charterChange} onFoundDoctrine={foundDoctrine} onMemorial={createMemorial} /></>
+      default: return <>{preferences.decisionCenterEnabled && <CommandCenter state={state} onNavigate={changeView} />}<GuildView state={state} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} /></>
     }
   }
 
@@ -243,16 +273,24 @@ export default function App() {
           <button className="mobile-close" onClick={() => setMenuOpen(false)}><X /></button>
         </div>
 
-        <nav>
-          {views.map((item) => {
-            const Icon = item.icon
-            const badge = item.id === 'expeditions'
-              ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
-              : item.id === 'influence'
-                ? state.crises.filter((crisis) => crisis.status === 'active').length + (preferences.competitorsEnabled ? state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length : 0)
-                : item.id === 'headquarters' && urgentCount ? urgentCount : 0
-            return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={19} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={15} /></button>
-          })}
+        <nav className="grouped-sidebar-nav">
+          {viewGroups.map((group) => <section className="sidebar-nav-group" key={group.label}>
+            <p>{group.label}</p>
+            {group.items.map((item) => {
+              const Icon = item.icon
+              const badge = item.id === 'expeditions'
+                ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
+                : item.id === 'influence'
+                  ? state.crises.filter((crisis) => crisis.status === 'active').length + (preferences.competitorsEnabled ? state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length : 0)
+                  : item.id === 'headquarters' ? urgentCount
+                  : item.id === 'hiring' ? state.characters.filter((entry) => !entry.employed && !entry.rivalGuildId && !entry.academyEnrollmentId && !['dead', 'missing', 'retired'].includes(entry.status)).length
+                  : item.id === 'academy' ? state.academy.enrollments.filter((entry) => ['training', 'ready'].includes(entry.status)).length
+                  : item.id === 'council' ? state.councilProposals.filter((entry) => entry.status === 'pending').length
+                  : item.id === 'positions' ? state.guild.positions.filter((entry) => !entry.holderId).length
+                  : 0
+              return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={18} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={14} /></button>
+            })}
+          </section>)}
         </nav>
 
         <div className="sidebar-world">
@@ -265,7 +303,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.7 · Academy & Politics</small>
+          <small>v0.7.1 · Interface Rework</small>
         </div>
       </aside>
 
