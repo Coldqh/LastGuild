@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Clock3,
   Compass,
+  FastForward,
   Map,
   Menu,
   Network,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react'
 import ArchiveView from './components/ArchiveView'
 import CombatModal from './components/CombatModal'
+import CommandCenter from './components/CommandCenter'
 import DungeonExplorationModal from './components/DungeonExplorationModal'
 import ExpeditionDebriefModal from './components/ExpeditionDebriefModal'
 import ExpeditionDecisionModal from './components/ExpeditionDecisionModal'
@@ -27,6 +29,7 @@ import GuildView from './components/GuildView'
 import InfluenceView from './components/InfluenceView'
 import RosterView from './components/RosterView'
 import SettingsModal from './components/SettingsModal'
+import TutorialPanel from './components/TutorialPanel'
 import WorldMap from './components/WorldMap'
 import WorldSetupModal from './components/WorldSetupModal'
 import { createNewGame } from './game/gameFactory'
@@ -47,7 +50,9 @@ import { clearSave, loadGame, saveGame } from './game/storage'
 import { autoResolveCombat, finalizeCombat, issueCombatCommand, stepCombat } from './game/combat'
 import { establishDungeonCamp, exploreDungeonZone, leaveDungeon } from './game/dungeon'
 import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './game/worldSettings'
-import { appointGuildLeader, assignMentorship, changeBranchAutonomy, conductRivalAction, openBranch, respondToCrisis } from './game/strategy'
+import { appointGuildLeader, assignMentorship, changeBranchAutonomy, conductRivalAction, createStrategicLayer, openBranch, respondToCrisis } from './game/strategy'
+import { loadPreferences, savePreferences, type AppPreferences } from './game/preferences'
+import type { TutorialStepId } from './game/onboarding'
 import type { BranchAutonomy, BranchSpecialization, CharacterSkills, CombatCommandType, GameState, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
 
 const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
@@ -60,9 +65,27 @@ const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
 ]
 
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
+const TUTORIAL_KEY = 'last-guild-tutorial-v1'
+
+function applyCompetitors(state: GameState, enabled: boolean): GameState {
+  if (!enabled) return {
+    ...state,
+    rivalGuilds: [],
+    rivalExpeditions: [],
+    opportunities: state.opportunities.map((entry) => ({ ...entry, contestedByIds: [] })),
+  }
+  if (state.rivalGuilds.length) return state
+  const strategic = createStrategicLayer(state.seed, state.world, state.characters)
+  return { ...state, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [] }
+}
 
 function initialState(): GameState {
-  return loadGame() ?? createNewGame('last-guild-demo', DEFAULT_WORLD_SETTINGS)
+  const preferences = loadPreferences()
+  return applyCompetitors(loadGame() ?? createNewGame('last-guild-demo', DEFAULT_WORLD_SETTINGS), preferences.competitorsEnabled)
+}
+
+function loadTutorialProgress(): TutorialStepId[] {
+  try { return JSON.parse(localStorage.getItem(TUTORIAL_KEY) ?? '[]') } catch { return [] }
 }
 
 export default function App() {
@@ -74,6 +97,8 @@ export default function App() {
   const [seedInput, setSeedInput] = useState('')
   const [worldSettings, setWorldSettings] = useState<WorldGenerationSettings>({ ...DEFAULT_WORLD_SETTINGS })
   const [savePulse, setSavePulse] = useState(false)
+  const [preferences, setPreferences] = useState<AppPreferences>(loadPreferences)
+  const [tutorialCompleted, setTutorialCompleted] = useState<TutorialStepId[]>(loadTutorialProgress)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -84,6 +109,15 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [state])
 
+  useEffect(() => {
+    if (!tutorialCompleted.includes('headquarters')) {
+      setTutorialCompleted((steps) => [...steps, 'headquarters'])
+    }
+  }, [tutorialCompleted])
+
+  useEffect(() => { localStorage.setItem(TUTORIAL_KEY, JSON.stringify(tutorialCompleted)) }, [tutorialCompleted])
+
+  const markTutorial = (step: TutorialStepId) => setTutorialCompleted((steps) => steps.includes(step) ? steps : [...steps, step])
   const activeExpeditions = state.expeditions.filter((expedition) => expedition.status === 'active' || expedition.status === 'returning')
   const urgentCount = useMemo(() => {
     const expiring = state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay - state.day <= 8).length
@@ -92,10 +126,34 @@ export default function App() {
   }, [state])
 
   const timeBlocked = Boolean(state.pendingDecision || state.pendingDebrief || state.pendingCombat || state.pendingDungeon)
-  const changeView = (next: ViewId) => { setView(next); setMenuOpen(false) }
-  const advance = (days: number) => setState((current) => advanceDays(current, days))
-  const launch = (draft: ExpeditionDraft) => setState((current) => createExpeditionFromDraft(current, draft))
-  const resolveDebrief = (resolution: DebriefResolution) => setState((current) => resolveExpeditionDebrief(current, resolution))
+  const blockedReason = state.pendingCombat ? 'бой' : state.pendingDecision ? 'решение экспедиции' : state.pendingDungeon ? 'подземелье' : state.pendingDebrief ? 'разбор возвращения' : ''
+
+  const changeView = (next: ViewId) => {
+    setView(next)
+    setMenuOpen(false)
+    if (next === 'roster') markTutorial('roster')
+    if (next === 'expeditions') markTutorial('expeditions')
+  }
+
+  const advance = (days: number) => {
+    markTutorial('time')
+    setState((current) => advanceDays(current, days))
+  }
+
+  const advanceUntilEvent = () => {
+    markTutorial('time')
+    setState((current) => {
+      let next = current
+      for (let index = 0; index < 30; index += 1) {
+        if (next.pendingDecision || next.pendingDebrief || next.pendingCombat || next.pendingDungeon) break
+        next = advanceDays(next, 1)
+      }
+      return next
+    })
+  }
+
+  const launch = (draft: ExpeditionDraft) => { markTutorial('launch'); setState((current) => createExpeditionFromDraft(current, draft)) }
+  const resolveDebrief = (resolution: DebriefResolution) => { markTutorial('debrief'); setState((current) => resolveExpeditionDebrief(current, resolution)) }
   const assignPosition = (positionId: GuildPositionId, holderId?: string) => setState((current) => assignGuildPosition(current, positionId, holderId))
   const combatCommand = (command: CombatCommandType, targetId?: string) => setState((current) => issueCombatCommand(current, command, targetId))
   const rivalAction = (rivalId: string, action: 'cooperate' | 'exchange' | 'pressure') => setState((current) => conductRivalAction(current, rivalId, action))
@@ -105,6 +163,13 @@ export default function App() {
   const mentorship = (mentorId: string, apprenticeId: string, skill: keyof CharacterSkills) => setState((current) => assignMentorship(current, mentorId, apprenticeId, skill))
   const appointLeader = (characterId: string) => setState((current) => appointGuildLeader(current, characterId))
 
+  const updatePreferences = (next: AppPreferences) => {
+    setPreferences(next)
+    savePreferences(next)
+    setState((current) => applyCompetitors(current, next.competitorsEnabled))
+    if (!next.tutorialEnabled) setTutorialCompleted([])
+  }
+
   const openWorldSetup = () => {
     setWorldSettings({ ...state.settings })
     setSeedInput('')
@@ -113,9 +178,10 @@ export default function App() {
   }
 
   const createWorld = () => {
-    const next = createNewGame(seedInput || undefined, worldSettings)
+    const next = applyCompetitors(createNewGame(seedInput || undefined, worldSettings), preferences.competitorsEnabled)
     clearSave()
     setState(next)
+    setTutorialCompleted([])
     setView('headquarters')
     setSeedModal(false)
     setSeedInput('')
@@ -131,7 +197,7 @@ export default function App() {
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations()
         await Promise.all(registrations.map(async (registration) => {
-          try { await registration.update(); await registration.unregister() } catch { /* a stale worker must not block refresh */ }
+          try { await registration.update(); await registration.unregister() } catch { /* stale worker must not block refresh */ }
         }))
       }
     } finally {
@@ -144,11 +210,11 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'world': return <WorldMap state={state} />
-      case 'roster': return <RosterView state={state} onHire={(characterId) => setState((current) => hireCharacter(current, characterId))} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
+      case 'roster': return <RosterView state={state} onHire={(characterId) => { markTutorial('hire'); setState((current) => hireCharacter(current, characterId)) }} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
       case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={launch} />
       case 'archive': return <ArchiveView state={state} />
       case 'influence': return <InfluenceView state={state} onRivalAction={rivalAction} onOpenBranch={createBranch} onChangeBranchAutonomy={setBranchAutonomy} onRespondCrisis={crisisResponse} onAssignMentorship={mentorship} onAppointLeader={appointLeader} />
-      default: return <GuildView state={state} onUpgrade={(roomId) => setState((current) => upgradeRoom(current, roomId))} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} />
+      default: return <>{preferences.decisionCenterEnabled && <CommandCenter state={state} onNavigate={changeView} />}<GuildView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} /></>
     }
   }
 
@@ -167,7 +233,7 @@ export default function App() {
             const badge = item.id === 'expeditions'
               ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
               : item.id === 'influence'
-                ? state.crises.filter((crisis) => crisis.status === 'active').length + state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length
+                ? state.crises.filter((crisis) => crisis.status === 'active').length + (preferences.competitorsEnabled ? state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length : 0)
                 : item.id === 'headquarters' && urgentCount ? urgentCount : 0
             return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={19} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={15} /></button>
           })}
@@ -176,14 +242,14 @@ export default function App() {
         <div className="sidebar-world">
           <p className="eyebrow">Текущий мир</p>
           <strong>{state.seed}</strong>
-          <span>{state.world.realms.length} государства · {state.rivalGuilds.length} конкурентов</span>
+          <span>{state.world.realms.length} государства · {preferences.competitorsEnabled ? `${state.rivalGuilds.length} конкурентов` : 'без конкурентов'}</span>
           <span>{state.settings.preset} · {DIFFICULTY_RULES[state.settings.difficulty].label}</span>
           <button className="text-button" onClick={openWorldSetup}><RotateCcw size={15} />Новый мир</button>
         </div>
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.5 · Guilds & Politics</small>
+          <small>v0.5.1 · Core Loop & UX</small>
         </div>
       </aside>
 
@@ -196,8 +262,9 @@ export default function App() {
             <button disabled={timeBlocked} onClick={() => advance(1)}>+1 день</button>
             <button disabled={timeBlocked} onClick={() => advance(7)}>+7 дней</button>
             <button disabled={timeBlocked} onClick={() => advance(30)}>+30 дней</button>
-            <button disabled={timeBlocked} onClick={() => advance(360)}>+1 год</button>
+            <button disabled={timeBlocked} onClick={advanceUntilEvent}><FastForward size={14} />До события</button>
           </div>
+          {timeBlocked && <span className="time-blocked">Время остановлено: {blockedReason}</span>}
           <div className="topbar-resources">
             <span><b>{state.guild.treasury}</b> крон</span>
             <span><b>{state.guild.supplies}</b> припасов</span>
@@ -208,9 +275,10 @@ export default function App() {
         <main>{renderView()}</main>
       </div>
 
+      {preferences.tutorialEnabled && <TutorialPanel completed={tutorialCompleted} onNavigate={changeView} onDismiss={() => updatePreferences({ ...preferences, tutorialEnabled: false })} />}
       {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
       {seedModal && <WorldSetupModal settings={worldSettings} seed={seedInput} onSeedChange={setSeedInput} onSettingsChange={setWorldSettings} onClose={() => setSeedModal(false)} onCreate={createWorld} />}
-      {settingsModal && <SettingsModal state={state} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}
+      {settingsModal && <SettingsModal state={state} preferences={preferences} onPreferencesChange={updatePreferences} onLoadState={(next) => setState(applyCompetitors(next, preferences.competitorsEnabled))} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}
       {state.pendingDecision && <ExpeditionDecisionModal decision={state.pendingDecision} state={state} onChoose={(choiceId) => setState((current) => resolveExpeditionDecision(current, choiceId))} />}
       {state.pendingDebrief && <ExpeditionDebriefModal debrief={state.pendingDebrief} state={state} onResolve={resolveDebrief} />}
       {state.pendingDungeon && <DungeonExplorationModal state={state} onExplore={(zoneId) => setState((current) => exploreDungeonZone(current, zoneId))} onCamp={() => setState((current) => establishDungeonCamp(current))} onLeave={() => setState((current) => leaveDungeon(current))} />}

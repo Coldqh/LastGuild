@@ -94,6 +94,7 @@ export default function InfluenceView({ state, onRivalAction, onOpenBranch, onCh
       </div>
 
       {tab === 'rivals' && <div className="rival-grid">
+        {state.rivalGuilds.length === 0 && <article className="paper-card empty-rivals-card"><Swords /><div><h2>Конкуренты отключены</h2><p>Чужие гильдии, гонки за контрактами и переманивание людей выключены в настройках. Политика государств, кризисы, филиалы и поколения продолжают работать.</p></div></article>}
         {state.rivalGuilds.map((rival) => {
           const settlement = state.world.settlements.find((entry) => entry.id === rival.headquartersSettlementId)
           const active = state.rivalExpeditions.find((entry) => entry.rivalGuildId === rival.id && ['preparing', 'traveling'].includes(entry.status))

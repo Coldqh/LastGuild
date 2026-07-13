@@ -15,6 +15,7 @@ import type {
   WorldData,
 } from '../types/game'
 import { RNG } from './rng'
+import { loadPreferences } from './preferences'
 
 const GUILD_FIRST = ['Северная', 'Лазурная', 'Королевская', 'Пепельная', 'Золотая', 'Вольная', 'Тихая', 'Чёрная', 'Серебряная', 'Старая']
 const GUILD_SECOND = ['экспедиция', 'компания', 'палата', 'коллегия', 'стража', 'артель', 'лига', 'канцелярия', 'обсерватория', 'дружина']
@@ -405,7 +406,7 @@ function spawnGreatContract(state: GameState, rng: RNG): GameState {
   const site = rng.pick(state.world.sites.filter((entry) => entry.danger >= 6 && entry.state !== 'cleared'))
   if (!site) return state
   const realm = state.world.realms.find((entry) => entry.id === state.world.tiles.find((tile) => tile.id === site.tileId)?.stateId)
-  const rivalIds = rng.shuffle(state.rivalGuilds).slice(0, Math.min(2, state.rivalGuilds.length)).map((guild) => guild.id)
+  const rivalIds = loadPreferences().competitorsEnabled ? rng.shuffle(state.rivalGuilds).slice(0, Math.min(2, state.rivalGuilds.length)).map((guild) => guild.id) : []
   const opportunity = {
     id: `great-contract-${state.year}-${state.day}`,
     title: `Великая экспедиция: ${site.name}`,
@@ -434,15 +435,18 @@ export function strategicDayTick(state: GameState): GameState {
     next = { ...next, guild: { ...next.guild, rank, maxActiveExpeditions: Math.max(next.guild.maxActiveExpeditions, rank) }, chronicle: [...next.chronicle, { id: `chronicle-rank-${rank}-${next.year}-${next.day}`, day: next.day, year: next.year, title: `Гильдия получает ${rank} ранг`, text: 'Известность, архив и политические связи открыли новый уровень контрактов и регионального присутствия.', category: 'guild', importance: 4 }] }
   }
   const rng = new RNG(`${next.seed}:strategy-day:${next.year}:${next.day}`)
-  next = tickRivalExpeditions(next, rng)
-  if (next.day % 45 === 0) {
-    for (const guild of next.rivalGuilds) if (rng.bool(0.65)) next = launchRivalExpedition(next, guild, rng)
+  const competitorsEnabled = loadPreferences().competitorsEnabled
+  if (competitorsEnabled) {
+    next = tickRivalExpeditions(next, rng)
+    if (next.day % 45 === 0) {
+      for (const guild of next.rivalGuilds) if (rng.bool(0.65)) next = launchRivalExpedition(next, guild, rng)
+    }
   }
   if (next.day % 30 === 0) {
     next = tickBranches(next, rng)
     next = tickCrises(next, rng)
     next = tickMentorships(next)
-    next = poachCharacters(next, rng)
+    if (competitorsEnabled) next = poachCharacters(next, rng)
   }
   if (next.day % 90 === 0) next = spawnGreatContract(next, rng)
   if (next.day % 120 === 0) next = spawnCrisis(next, rng)

@@ -1,9 +1,12 @@
 import type { Character, GameState, GuildPosition } from '../types/game'
 import { DEFAULT_WORLD_SETTINGS } from './worldSettings'
 import { createStrategicLayer } from './strategy'
+import { loadPreferences } from './preferences'
 
 const SAVE_KEY = 'last-guild-save-v6'
 const LEGACY_KEYS = ['last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SLOT_PREFIX = 'last-guild-slot-v1-'
+const BACKUP_KEY = 'last-guild-backup-v6'
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -112,9 +115,12 @@ function normalizeState(parsed: any): GameState | null {
     crises: parsed.crises ?? [],
     mentorships: parsed.mentorships ?? [],
   }
-  if (normalized.rivalGuilds.length === 0 || normalized.politicalFactions.length === 0) {
+  const competitorsEnabled = loadPreferences().competitorsEnabled
+  if ((competitorsEnabled && normalized.rivalGuilds.length === 0) || normalized.politicalFactions.length === 0) {
     const strategic = createStrategicLayer(normalized.seed, normalized.world, normalized.characters)
-    normalized.rivalGuilds = normalized.rivalGuilds.length ? normalized.rivalGuilds : strategic.rivalGuilds
+    normalized.rivalGuilds = competitorsEnabled ? (normalized.rivalGuilds.length ? normalized.rivalGuilds : strategic.rivalGuilds) : []
+    normalized.rivalExpeditions = competitorsEnabled ? normalized.rivalExpeditions : []
+    if (!competitorsEnabled) normalized.opportunities = normalized.opportunities.map((entry) => ({ ...entry, contestedByIds: [] }))
     normalized.politicalFactions = normalized.politicalFactions.length ? normalized.politicalFactions : strategic.politicalFactions
     normalized.crises = normalized.crises.length ? normalized.crises : strategic.crises
     normalized.guild.leaderId = normalized.guild.leaderId ?? strategic.leaderId
@@ -127,6 +133,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(key)
     if (!raw) continue
     try {
+      if (key !== SAVE_KEY) localStorage.setItem(BACKUP_KEY, raw)
       const normalized = normalizeState(JSON.parse(raw))
       if (normalized) {
         saveGame(normalized)
@@ -140,4 +147,74 @@ export function loadGame(): GameState | null {
 export function clearSave(): void {
   localStorage.removeItem(SAVE_KEY)
   for (const key of LEGACY_KEYS) localStorage.removeItem(key)
+}
+
+
+export interface SaveSlotInfo {
+  id: string
+  name: string
+  seed: string
+  year: number
+  day: number
+  savedAt: number
+}
+
+export function saveToSlot(state: GameState, id: string, name?: string): void {
+  const payload = { name: name || `Слот ${id}`, savedAt: Date.now(), state }
+  localStorage.setItem(`${SLOT_PREFIX}${id}`, JSON.stringify(payload))
+}
+
+export function listSaveSlots(): SaveSlotInfo[] {
+  const result: SaveSlotInfo[] = []
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index)
+    if (!key?.startsWith(SLOT_PREFIX)) continue
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || '')
+      result.push({ id: key.slice(SLOT_PREFIX.length), name: parsed.name ?? 'Сохранение', seed: parsed.state?.seed ?? '—', year: parsed.state?.year ?? 0, day: parsed.state?.day ?? 0, savedAt: parsed.savedAt ?? 0 })
+    } catch { /* damaged slot is ignored */ }
+  }
+  return result.sort((a, b) => b.savedAt - a.savedAt)
+}
+
+export function loadFromSlot(id: string): GameState | null {
+  const raw = localStorage.getItem(`${SLOT_PREFIX}${id}`)
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    const normalized = normalizeState(parsed.state)
+    if (normalized) saveGame(normalized)
+    return normalized
+  } catch { return null }
+}
+
+export function deleteSaveSlot(id: string): void {
+  localStorage.removeItem(`${SLOT_PREFIX}${id}`)
+}
+
+export function downloadGameSave(state: GameState): void {
+  const blob = new Blob([JSON.stringify({ format: 'last-guild-save', exportedAt: new Date().toISOString(), state }, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `last-guild-${state.seed}-${state.year}-${state.day}.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+export function importGameSave(raw: string): GameState | null {
+  try {
+    const parsed = JSON.parse(raw)
+    const normalized = normalizeState(parsed.state ?? parsed)
+    if (!normalized) return null
+    localStorage.setItem(BACKUP_KEY, localStorage.getItem(SAVE_KEY) ?? '')
+    saveGame(normalized)
+    return normalized
+  } catch { return null }
+}
+
+export function loadBackup(): GameState | null {
+  const raw = localStorage.getItem(BACKUP_KEY)
+  if (!raw) return null
+  try { return normalizeState(JSON.parse(raw)) } catch { return null }
 }

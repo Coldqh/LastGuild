@@ -71,7 +71,7 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
     characters.push({
       id: `character-${index + 1}`,
       name: `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`,
-      portraitSeed: rng.int(1, 999999), age: rng.int(18, 56), ancestry: rng.pick(ANCESTRIES), culture: rng.pick(CULTURES), profession,
+      portraitSeed: rng.int(1, 999999), age: index === 0 ? rng.int(49, 63) : rng.int(18, 56), ancestry: rng.pick(ANCESTRIES), culture: rng.pick(CULTURES), profession,
       origin: `${home.name}; ${rng.pick(['семья ремесленников', 'бывший солдатский дом', 'бедная улица', 'учёная семья', 'пограничное поселение', 'храмовое воспитание'])}`,
       homeSettlementId: home.id,
       level, experience: level * 35 + rng.int(0, 45), careerStage: level >= 4 ? 'veteran' : level >= 2 ? 'field' : 'recruit',
@@ -82,7 +82,7 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
       skills: skillProfile(profession, rng),
       injuries: oldInjury ? [oldInjury] : [],
       injuryRecords: oldInjury ? [{ id: `injury-start-${index}`, name: oldInjury, severity: 2, permanent: true, recoveryDays: 0, effect: '−1 к отдельным полевым проверкам', treated: true }] : [],
-      relationships: {}, memories: [], expeditions: rng.int(0, 3), discoveries: rng.int(0, 1), combatBehavior: combatBehavior(profession, traits), apprenticeIds: [],
+      relationships: {}, memories: index === 0 ? [{ id: 'memory-last-expedition', title: 'Гибель старого состава', description: 'Пережил последнюю катастрофическую экспедицию прежнего руководителя и вернулся один.', intensity: 82, valence: 'negative', type: 'expedition', year: 911, day: 317, relatedCharacterIds: [] }] : [], expeditions: index === 0 ? 7 : rng.int(0, 3), discoveries: rng.int(0, 1), combatBehavior: combatBehavior(profession, traits), apprenticeIds: [],
     })
   }
   for (const character of characters) {
@@ -188,6 +188,8 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], branches: [], crises: strategic.crises, mentorships: [],
     chronicle: [{
+      id: 'chronicle-collapse', day: 317, year: 911, title: 'Последняя экспедиция прежнего главы', text: 'Отряд ушёл к северным руинам и не вернулся. Казна опустела, кредиторы забрали часть имущества, а имя гильдии стало предупреждением.', category: 'guild', importance: 5,
+    }, {
       id: 'chronicle-start', day: 1, year: 912, title: 'Последняя гильдия открывает двери',
       text: `После нескольких лет упадка старое здание снова принимает контракты. Мир создан в режиме «${settings.preset}», государств: ${world.realms.length}, известных руин: ${world.sites.filter((site) => site.state === 'rumored').length}.`,
       category: 'guild', importance: 5,
