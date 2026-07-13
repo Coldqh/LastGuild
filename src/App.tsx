@@ -15,6 +15,7 @@ import {
   History,
   Map,
   Landmark,
+  LibraryBig,
   Menu,
   Network,
   RotateCcw,
@@ -45,6 +46,7 @@ const CouncilPanel = lazy(() => import('./components/CouncilPanel'))
 const LegacyView = lazy(() => import('./components/LegacyView'))
 const InfluenceView = lazy(() => import('./components/InfluenceView'))
 const LivingWorldView = lazy(() => import('./components/LivingWorldView'))
+const LoreCodexView = lazy(() => import('./components/LoreCodexView'))
 const RosterView = lazy(() => import('./components/RosterView'))
 const SettingsModal = lazy(() => import('./components/SettingsModal'))
 const WorldMap = lazy(() => import('./components/WorldMap'))
@@ -94,6 +96,7 @@ const viewGroups: Array<{ label: string; items: Array<{ id: ViewId; label: strin
   { label: 'Мир', items: [
     { id: 'influence', label: 'Влияние', icon: Network },
     { id: 'living_world', label: 'Живой мир', icon: Landmark },
+    { id: 'lore', label: 'Энциклопедия', icon: LibraryBig },
   ] },
 ]
 
@@ -263,6 +266,7 @@ export default function App() {
       case 'active_expeditions': return <ActiveExpeditionsView state={state} onOpenContracts={() => changeView('expeditions')} />
       case 'archive': return <ArchiveView state={state} />
       case 'living_world': return <LivingWorldView state={state} />
+      case 'lore': return <LoreCodexView state={state} />
       case 'influence': return <InfluenceView state={state} onRivalAction={rivalAction} onOpenBranch={createBranch} onChangeBranchAutonomy={setBranchAutonomy} onRespondCrisis={crisisResponse} onAssignMentorship={mentorship} onAppointLeader={appointLeader} />
       default: return <>{preferences.decisionCenterEnabled && <CommandCenter state={state} onNavigate={changeView} />}<GuildView state={state} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} /></>
     }
@@ -309,7 +313,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.7.2 · Expedition UX</small>
+          <small>v0.8 · Procedural Stories</small>
         </div>
       </aside>
 

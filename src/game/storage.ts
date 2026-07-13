@@ -4,11 +4,12 @@ import { createStrategicLayer } from './strategy'
 import { initializeLivingWorld } from './livingWorld'
 import { loadPreferences } from './preferences'
 import { createGuildInstitutions, DEFAULT_CHARTER, ACADEMY_PROGRAMS } from './guildPolitics'
+import { ensureStoryOpportunities, initializeContentEngine, validateContent } from './contentEngine'
 
-const SAVE_KEY = 'last-guild-save-v8'
-const LEGACY_KEYS = ['last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v9'
+const LEGACY_KEYS = ['last-guild-save-v8', 'last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 const SLOT_PREFIX = 'last-guild-slot-v1-'
-const BACKUP_KEY = 'last-guild-backup-v8'
+const BACKUP_KEY = 'last-guild-backup-v9'
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -69,11 +70,11 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4, 5, 6, 7, 8].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5, 6, 7, 8, 9].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
   const normalized: GameState = {
     ...parsed,
-    version: 8,
+    version: 9,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
@@ -101,7 +102,7 @@ function normalizeState(parsed: any): GameState | null {
         const zones = site.zones ?? Array.from({ length: Math.max(3, (site.depth ?? 1) + 2) }, (_, index) => ({
           id: `${site.id}-zone-${index + 1}`, name: index === 0 ? 'Старый вход' : `Неизвестная зона ${index + 1}`, kind: index === 0 ? 'entrance' : index >= (site.depth ?? 1) ? 'depths' : 'hall', danger: Math.min(10, (site.danger ?? 3) + index), historyLayer: layers[Math.min(layers.length - 1, Math.floor(index / 2))], description: 'Зона создана при обновлении старого сохранения.', connections: [`${site.id}-zone-${index}`, `${site.id}-zone-${index + 2}`].filter((id, position) => position === 0 ? index > 0 : index < Math.max(3, (site.depth ?? 1) + 2) - 1), guardSpeciesId: index > 1 ? site.monsterTags?.[0] : undefined, rewards: index > 1 ? ['неизвестная находка'] : [], explored: index === 0, secured: index === 0,
         }))
-        return { ...site, layers, zones, exploration: site.exploration ?? 8, campEstablished: site.campEstablished ?? false }
+        return { ...site, layers, zones, exploration: site.exploration ?? 8, campEstablished: site.campEstablished ?? false, civilizationId: site.civilizationId, regionalIdentityId: site.regionalIdentityId }
       }),
       monsterSpecies: (parsed.world?.monsterSpecies ?? []).map((species: any) => ({ ...species, abilities: species.abilities ?? ['особая атака'], trophy: species.trophy ?? 'неизвестный трофей', armor: species.armor ?? Math.max(0, Math.floor((species.threat ?? 2) / 2)), movement: species.movement ?? 2 })),
       monsterPopulations: (parsed.world?.monsterPopulations ?? []).map((population: any) => ({ ...population, legendary: population.legendary ?? false, scars: population.scars ?? [] })),
@@ -118,6 +119,7 @@ function normalizeState(parsed: any): GameState | null {
       reports: expedition.reports ?? [],
       battles: expedition.battles ?? 0,
       dungeonSiteIds: expedition.dungeonSiteIds ?? [],
+      opportunityId: expedition.opportunityId, storyChainId: expedition.storyChainId, storyStageId: expedition.storyStageId, contentEventIds: expedition.contentEventIds ?? [],
     })),
     politicalFactions: parsed.politicalFactions ?? [],
     rivalGuilds: parsed.rivalGuilds ?? [],
@@ -136,7 +138,25 @@ function normalizeState(parsed: any): GameState | null {
     guildFactions: parsed.guildFactions ?? [],
     charter: { ...DEFAULT_CHARTER, ...(parsed.charter ?? {}) },
     memorials: parsed.memorials ?? [],
+    civilizations: parsed.civilizations ?? [],
+    artifactsCatalog: parsed.artifactsCatalog ?? [],
+    storyChains: parsed.storyChains ?? [],
+    regionalIdentities: parsed.regionalIdentities ?? [],
+    contentValidation: parsed.contentValidation ?? [],
   }
+
+  if (normalized.civilizations.length === 0 || normalized.artifactsCatalog.length === 0 || normalized.storyChains.length === 0 || normalized.regionalIdentities.length === 0) {
+    const content = initializeContentEngine(normalized.seed, normalized.world, normalized.settings)
+    normalized.world = content.world
+    normalized.civilizations = content.civilizations
+    normalized.artifactsCatalog = content.artifactsCatalog
+    normalized.storyChains = content.storyChains
+    normalized.regionalIdentities = content.regionalIdentities
+    normalized.contentValidation = content.contentValidation
+  } else {
+    normalized.contentValidation = validateContent(normalized)
+  }
+
   if (normalized.generations.length === 0 || normalized.council.length === 0 || normalized.guildFactions.length === 0) {
     const institutions = createGuildInstitutions(normalized.seed, { characters: normalized.characters, guild: normalized.guild, year: normalized.year, day: normalized.day, branches: normalized.branches })
     normalized.academy = parsed.academy ?? institutions.academy
@@ -165,7 +185,7 @@ function normalizeState(parsed: any): GameState | null {
     normalized.knowledgeSpreads = normalized.knowledgeSpreads.length ? normalized.knowledgeSpreads : living.knowledgeSpreads
     normalized.historySnapshots = normalized.historySnapshots.length ? normalized.historySnapshots : living.historySnapshots
   }
-  return normalized
+  return ensureStoryOpportunities(normalized)
 }
 
 export function loadGame(): GameState | null {

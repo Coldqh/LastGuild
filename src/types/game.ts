@@ -15,7 +15,7 @@ export type KnowledgeLevel = 0 | 1 | 2 | 3 | 4 | 5
 export type CharacterStatus = 'available' | 'expedition' | 'recovering' | 'missing' | 'dead' | 'retired'
 export type CharacterCareerStage = 'recruit' | 'field' | 'veteran' | 'leader' | 'mentor' | 'legend'
 export type ExpeditionStatus = 'planned' | 'active' | 'returning' | 'completed' | 'missing' | 'failed'
-export type ViewId = 'headquarters' | 'hiring' | 'roster' | 'rooms' | 'positions' | 'academy' | 'council' | 'legacy' | 'world' | 'expeditions' | 'active_expeditions' | 'archive' | 'influence' | 'living_world'
+export type ViewId = 'headquarters' | 'hiring' | 'roster' | 'rooms' | 'positions' | 'academy' | 'council' | 'legacy' | 'world' | 'expeditions' | 'active_expeditions' | 'archive' | 'influence' | 'living_world' | 'lore'
 export type DifficultyId = 'story' | 'standard' | 'hard' | 'brutal'
 export type MapSizeId = 'compact' | 'regional' | 'vast'
 export type DensityId = 'sparse' | 'normal' | 'dense'
@@ -60,6 +60,13 @@ export type MissingExpeditionRule = 'mandatory' | 'case_by_case' | 'optional'
 export type ArchiveAccessRule = 'open' | 'ranked' | 'restricted'
 export type FamilyCompensationRule = 'none' | 'standard' | 'generous'
 export type BranchAuthorityRule = 'centralized' | 'limited' | 'autonomous'
+export type StoryChainKind = 'lost_expedition' | 'fallen_civilization' | 'legendary_monster' | 'artifact' | 'religious_secret' | 'lost_route' | 'vanished_city' | 'state_conspiracy'
+export type StoryChainRarity = 'common' | 'uncommon' | 'rare' | 'legendary'
+export type StoryChainStatus = 'dormant' | 'active' | 'completed' | 'failed'
+export type StoryStageStatus = 'locked' | 'available' | 'active' | 'completed' | 'failed'
+export type ArtifactStatus = 'rumored' | 'lost' | 'located' | 'partial' | 'recovered' | 'destroyed'
+export type ArtifactOwnerType = 'lost' | 'guild' | 'realm' | 'rival' | 'faith'
+export type ContentValidationSeverity = 'error' | 'warning'
 
 export interface WorldGenerationSettings {
   preset: WorldPresetId
@@ -174,6 +181,8 @@ export interface Site {
   zones: DungeonZone[]
   exploration: number
   campEstablished: boolean
+  civilizationId?: string
+  regionalIdentityId?: string
 }
 
 export interface MonsterSpecies {
@@ -445,6 +454,10 @@ export interface Expedition {
   officialReportId?: string
   leadDiscovererId?: string
   discoveryDisposition?: DiscoveryDisposition
+  opportunityId?: string
+  storyChainId?: string
+  storyStageId?: string
+  contentEventIds?: string[]
 }
 
 export interface Opportunity {
@@ -463,6 +476,9 @@ export interface Opportunity {
   riskProfile: ExpeditionRiskProfile
   contestedByIds?: string[]
   greatContract?: boolean
+  storyChainId?: string
+  storyStageId?: string
+  contentTags?: string[]
 }
 
 export interface ChronicleEntry {
@@ -491,6 +507,10 @@ export interface DiscoveryRecord {
   disposition: DiscoveryDisposition
   summary: string
   consequenceIds: string[]
+  civilizationId?: string
+  artifactId?: string
+  storyChainId?: string
+  loreTags?: string[]
 }
 
 export interface WorldConsequence {
@@ -561,6 +581,7 @@ export interface ExpeditionDecisionChoice {
 
 export interface ExpeditionDecision {
   id: string
+  contentEventId?: string
   expeditionId: string
   title: string
   text: string
@@ -914,6 +935,108 @@ export interface GuildMemorial {
   effect: string
 }
 
+
+
+export interface AncientCivilization {
+  id: string
+  templateId: string
+  name: string
+  people: string
+  era: string
+  architecture: string
+  religion: string
+  magicTradition: string
+  riseCause: string
+  fallCause: string
+  legacy: string[]
+  siteIds: string[]
+  territoryTileIds: string[]
+  artifactIds: string[]
+  knownLevel: number
+  publicHistory: string
+  hiddenTruth: string
+}
+
+export interface ArtifactRecord {
+  id: string
+  name: string
+  civilizationId?: string
+  creator: string
+  originalPurpose: string
+  power: string
+  cost: string
+  publicLegend: string
+  hiddenTruth: string
+  currentSiteId?: string
+  ownerType: ArtifactOwnerType
+  ownerId?: string
+  parts: number
+  recoveredParts: number
+  status: ArtifactStatus
+  relatedDiscoveryIds: string[]
+  knownLevel: number
+}
+
+export interface RegionalIdentity {
+  id: string
+  name: string
+  centerTileId: string
+  tileIds: string[]
+  dominantBiomes: BiomeId[]
+  cultures: string[]
+  architecture: string
+  goods: string[]
+  threats: string[]
+  politicalProblem: string
+  legends: string[]
+  siteIds: string[]
+  knownLevel: number
+}
+
+export interface StoryStage {
+  id: string
+  title: string
+  description: string
+  objectiveType: string
+  requiredRoles: string[]
+  reward: number
+  dangerModifier: number
+  targetTileId: string
+  siteId?: string
+  artifactId?: string
+  civilizationId?: string
+  status: StoryStageStatus
+  opportunityId?: string
+  completionText: string
+}
+
+export interface StoryChain {
+  id: string
+  title: string
+  summary: string
+  kind: StoryChainKind
+  rarity: StoryChainRarity
+  status: StoryChainStatus
+  civilizationId?: string
+  artifactId?: string
+  stages: StoryStage[]
+  currentStageIndex: number
+  startedYear?: number
+  startedDay?: number
+  completedYear?: number
+  completedDay?: number
+  endingId?: string
+  flags: Record<string, string | number | boolean>
+}
+
+export interface ContentValidationIssue {
+  id: string
+  severity: ContentValidationSeverity
+  sourceType: 'civilization' | 'artifact' | 'story' | 'region' | 'site'
+  sourceId: string
+  message: string
+}
+
 export interface GameState {
   version: number
   seed: string
@@ -951,4 +1074,9 @@ export interface GameState {
   guildFactions: GuildInternalFaction[]
   charter: GuildCharter
   memorials: GuildMemorial[]
+  civilizations: AncientCivilization[]
+  artifactsCatalog: ArtifactRecord[]
+  storyChains: StoryChain[]
+  regionalIdentities: RegionalIdentity[]
+  contentValidation: ContentValidationIssue[]
 }

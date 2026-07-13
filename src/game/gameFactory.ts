@@ -23,6 +23,7 @@ import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './worldSettings'
 import { createStrategicLayer } from './strategy'
 import { initializeLivingWorld } from './livingWorld'
 import { createGuildInstitutions } from './guildPolitics'
+import { ensureStoryOpportunities, initializeContentEngine } from './contentEngine'
 
 function skillProfile(profession: string, rng: RNG): Character['skills'] {
   const base = {
@@ -178,7 +179,9 @@ export function createOpportunities(seed: string, world: WorldData, day: number,
 export function createNewGame(seedInput?: string, requestedSettings?: WorldGenerationSettings): GameState {
   const seed = seedInput?.trim() || `guild-${Date.now().toString(36)}`
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(requestedSettings ?? {}) }
-  const world = generateWorld(seed, settings)
+  const generatedWorld = generateWorld(seed, settings)
+  const content = initializeContentEngine(seed, generatedWorld, settings)
+  const world = content.world
   const characterCount = settings.mapSize === 'vast' ? 36 : settings.mapSize === 'compact' ? 24 : 30
   const characters = createCharacters(seed, characterCount, world)
   const guild = createGuild(settings)
@@ -192,13 +195,14 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
     character.familyName = character.name.split(' ').at(-1) ?? character.name
     if (character.employed) character.generationId = foundingGeneration.id
   }
-  return {
-    version: 8, seed, settings, day: 1, year: 912, season: 0,
+  const state: GameState = {
+    version: 9, seed, settings, day: 1, year: 912, season: 0,
     guild, world, characters, expeditions: [],
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], branches: [], crises: strategic.crises, mentorships: [],
     wars: living.wars, knowledgeSpreads: living.knowledgeSpreads, historySnapshots: living.historySnapshots,
     academy: institutions.academy, doctrines: institutions.doctrines, generations: institutions.generations, council: institutions.council, councilProposals: institutions.councilProposals, guildFactions: institutions.guildFactions, charter: institutions.charter, memorials: institutions.memorials,
+    civilizations: content.civilizations, artifactsCatalog: content.artifactsCatalog, storyChains: content.storyChains, regionalIdentities: content.regionalIdentities, contentValidation: content.contentValidation,
     chronicle: [{
       id: 'chronicle-collapse', day: 317, year: 911, title: 'Последняя экспедиция прежнего главы', text: 'Отряд ушёл к северным руинам и не вернулся. Казна опустела, кредиторы забрали часть имущества, а имя гильдии стало предупреждением.', category: 'guild', importance: 5,
     }, {
@@ -207,4 +211,5 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
       category: 'guild', importance: 5,
     }],
   }
+  return ensureStoryOpportunities(state)
 }

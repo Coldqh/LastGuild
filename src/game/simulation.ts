@@ -25,6 +25,7 @@ import { startDungeonExploration } from './dungeon'
 import { stanceFromRelation, strategicDayTick } from './strategy'
 import { livingWorldDayTick } from './livingWorld'
 import { loadPreferences } from './preferences'
+import { advanceStoryAfterDebrief, contentDayTick, pickContentExpeditionDecision } from './contentEngine'
 
 const neighborOffsets = (x: number): number[][] =>
   x % 2 === 0
@@ -296,6 +297,10 @@ export function createExpeditionFromDraft(state: GameState, draft: ExpeditionDra
     reports: [],
     battles: 0,
     dungeonSiteIds: [],
+    opportunityId: draft.opportunity.id,
+    storyChainId: draft.opportunity.storyChainId,
+    storyStageId: draft.opportunity.storyStageId,
+    contentEventIds: [],
   }
   const competingGuildIds = draft.opportunity.contestedByIds ?? []
 
@@ -313,6 +318,7 @@ export function createExpeditionFromDraft(state: GameState, draft: ExpeditionDra
     opportunities: state.opportunities.map((opportunity) =>
       opportunity.id === draft.opportunity.id ? { ...opportunity, accepted: true } : opportunity,
     ),
+    storyChains: draft.opportunity.storyChainId ? state.storyChains.map((chain) => chain.id === draft.opportunity.storyChainId ? { ...chain, startedYear: chain.startedYear ?? state.year, startedDay: chain.startedDay ?? state.day, stages: chain.stages.map((stage) => stage.id === draft.opportunity.storyStageId ? { ...stage, status: 'active' as const, opportunityId: draft.opportunity.id } : stage) } : chain) : state.storyChains,
     expeditions: [...state.expeditions, expedition],
     rivalGuilds: state.rivalGuilds.map((rival) => {
       if (!competingGuildIds.includes(rival.id)) return rival
@@ -356,6 +362,8 @@ function createExpeditionDecision(state: GameState, expedition: Expedition, tile
   const site = tile.siteId ? state.world.sites.find((candidate) => candidate.id === tile.siteId) : undefined
   const population = tile.monsterPopulationId ? state.world.monsterPopulations.find((candidate) => candidate.id === tile.monsterPopulationId) : undefined
   const species = population ? state.world.monsterSpecies.find((candidate) => candidate.id === population.speciesId) : undefined
+  const contentDecision = pickContentExpeditionDecision(state, expedition, tile, rng)
+  if (contentDecision) return contentDecision
 
   if (site && !expedition.discoveries.includes(site.id)) {
     return {
@@ -452,6 +460,7 @@ function generateFieldEvent(state: GameState, expedition: Expedition, tile: Worl
     const decision = createExpeditionDecision(state, expedition, tile, rng)
     if (decision) {
       updatedExpedition.logs.push({ day: state.day, title: decision.title, text: 'Отряд ждёт решения штаба или приказа лидера.', type: 'event' })
+      if (decision.contentEventId) updatedExpedition.contentEventIds = [...new Set([...(updatedExpedition.contentEventIds ?? []), decision.contentEventId])]
       return { expedition: updatedExpedition, characters, decision }
     }
   }
@@ -643,6 +652,36 @@ function completeExpedition(state: GameState, expedition: Expedition): GameState
       summary: `Экспедиция собрала доказательства по задаче «${expedition.objectiveText}».`,
       consequenceIds: [],
     })
+  }
+
+  const storyChain = expedition.storyChainId ? state.storyChains.find((chain) => chain.id === expedition.storyChainId) : undefined
+  const storyStage = storyChain?.stages.find((stage) => stage.id === expedition.storyStageId)
+  if (success && storyStage) {
+    const existingStoryDiscovery = newDiscoveries.find((discovery) => discovery.storyChainId === storyChain?.id || (storyStage.artifactId ? discovery.artifactId === storyStage.artifactId : false))
+    if (!existingStoryDiscovery) {
+      const civilization = state.civilizations.find((entry) => entry.id === (storyStage.civilizationId ?? storyChain?.civilizationId))
+      const artifact = state.artifactsCatalog.find((entry) => entry.id === (storyStage.artifactId ?? storyChain?.artifactId))
+      newDiscoveries.push({
+        id: `discovery-${expedition.id}-story`,
+        title: artifact?.name ?? civilization?.name ?? storyStage.title,
+        type: artifact ? 'artifact' : storyChain?.kind === 'lost_route' ? 'route' : storyChain?.kind === 'legendary_monster' ? 'monster' : 'document',
+        expeditionId: expedition.id,
+        tileId: expedition.targetTileId,
+        siteId: storyStage.siteId,
+        createdDay: state.day,
+        createdYear: state.year,
+        discovererIds: survivingMembers.map((member) => member.id),
+        evidenceQuality: Math.min(100, evidenceQuality + 8),
+        value: Math.max(180, Math.round(reward * 0.55)),
+        disposition: 'unreviewed',
+        summary: `${storyStage.completionText} ${civilization ? `Связано с цивилизацией ${civilization.name}.` : ''}`,
+        consequenceIds: [],
+        civilizationId: civilization?.id,
+        artifactId: artifact?.id,
+        storyChainId: storyChain?.id,
+        loreTags: ['story', storyChain?.kind ?? 'knowledge', storyChain?.rarity ?? 'common'],
+      })
+    }
   }
 
   const casualtyNames = state.characters.filter((character) => expedition.casualties.includes(character.id)).map((character) => character.name)
@@ -967,7 +1006,7 @@ export function resolveExpeditionDebrief(state: GameState, resolution: DebriefRe
     consequenceIds: allConsequences.filter((consequence) => consequence.discoveryId === discovery.id).map((consequence) => consequence.id),
   } : discovery)
 
-  return {
+  const resolvedState: GameState = {
     ...state,
     pendingDebrief: undefined,
     guild: {
@@ -991,6 +1030,7 @@ export function resolveExpeditionDebrief(state: GameState, resolution: DebriefRe
       importance: 3,
     }],
   }
+  return advanceStoryAfterDebrief(resolvedState, debrief.expeditionId, resolution.disposition, debrief.success)
 }
 
 function processConsequences(state: GameState): GameState {
@@ -1180,6 +1220,7 @@ export function advanceDay(state: GameState): GameState {
   next = processConsequences(next)
   next = strategicDayTick(next)
   next = livingWorldDayTick(next)
+  next = contentDayTick(next)
   if (next.day % 30 === 0 || next.day === 1) next = pruneSimulationState(next)
   return next
 }

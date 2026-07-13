@@ -431,7 +431,7 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
             const mainRisk = (Object.entries(opportunity.riskProfile) as Array<[keyof ExpeditionRiskProfile, number]>).sort((a, b) => b[1] - a[1])[0]
             return (
               <article className="contract-row paper-card" key={opportunity.id}>
-                <div className="contract-row-main"><div className="opportunity-top"><span className="type-chip">{opportunity.type}</span><span className="deadline">до дня {opportunity.deadlineDay}</span></div><h2>{opportunity.title}</h2><p>{opportunity.description}</p><small>Источник: {opportunity.source}</small></div>
+                <div className="contract-row-main"><div className="opportunity-top"><span className="type-chip">{opportunity.type}</span>{opportunity.storyChainId && <span className="story-contract-chip">цепочка</span>}<span className="deadline">до дня {opportunity.deadlineDay}</span></div><h2>{opportunity.title}</h2><p>{opportunity.description}</p><small>Источник: {opportunity.source}</small></div>
                 <div className="contract-row-meta">
                   <span><Skull size={14} /><b>{opportunity.dangerEstimate}/10</b><small>общий риск</small></span>
                   <span><AlertTriangle size={14} /><b>{riskLabels[mainRisk[0]]}</b><small>{mainRisk[1]}/10</small></span>
