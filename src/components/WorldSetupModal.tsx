@@ -1,4 +1,4 @@
-import { Castle, Dice5, Flame, Globe2, History, Mountain, ShieldAlert, Sparkles, Swords, Trees, X } from 'lucide-react'
+import { Activity, Castle, Dice5, Flame, Globe2, History, Mountain, ShieldAlert, Sparkles, Swords, Trees, X } from 'lucide-react'
 import type { WorldGenerationSettings, WorldPresetId } from '../types/game'
 import { applyPreset, DIFFICULTY_RULES, markCustom, worldSize } from '../game/worldSettings'
 
@@ -26,6 +26,7 @@ const optionLabel: Record<string, string> = {
   rare: 'Редкая', common: 'Распространённая', wild: 'Дикая',
   temperate: 'Умеренный', varied: 'Разнообразный', harsh: 'Суровый',
   story: 'История', standard: 'Стандарт', hard: 'Тяжело', brutal: 'Жестоко',
+  slow: 'Медленно', fast: 'Быстро', frequent: 'Часто', stable: 'Стабильно', limited: 'Ограниченно', dramatic: 'Резко',
 }
 
 export default function WorldSetupModal({ settings, seed, onSeedChange, onSettingsChange, onClose, onCreate }: Props) {
@@ -38,7 +39,7 @@ export default function WorldSetupModal({ settings, seed, onSeedChange, onSettin
       <article className="world-setup-modal paper-card" onClick={(event) => event.stopPropagation()}>
         <button className="icon-button close-detail" onClick={onClose}><X size={18} /></button>
         <header className="world-setup-header">
-          <div><p className="eyebrow">Новая кампания · World Generator v0.2</p><h2>Какой мир получит гильдия?</h2><p>Все параметры реально участвуют в генерации карты, истории, государств, руин, монстров и сложности экспедиций.</p></div>
+          <div><p className="eyebrow">Новая кампания · World Generator v0.6</p><h2>Какой мир получит гильдия?</h2><p>Все параметры реально участвуют в генерации карты, истории, государств, руин, монстров и сложности экспедиций.</p></div>
           <div className="world-build-summary"><strong>{size.width}×{size.height}</strong><span>{settings.realmCount} государств</span><small>{DIFFICULTY_RULES[settings.difficulty].label}</small></div>
         </header>
 
@@ -71,6 +72,17 @@ export default function WorldSetupModal({ settings, seed, onSeedChange, onSettin
             <label><span>Распространённость магии</span><select value={settings.magicLevel} onChange={(e) => set('magicLevel', e.target.value as WorldGenerationSettings['magicLevel'])}>{['rare', 'common', 'wild'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
             <label><span>Плотность монстров</span><select value={settings.monsterDensity} onChange={(e) => set('monsterDensity', e.target.value as WorldGenerationSettings['monsterDensity'])}>{['sparse', 'normal', 'dense'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
             <div className="setting-warning"><Flame size={18} /><p>Дикая магия создаёт больше пепельных земель, аномалий и опасных решений в пути.</p></div>
+          </section>
+
+
+          <section className="living-world-settings">
+            <h3><Activity size={17} /> Живой мир после старта</h3>
+            <label><span>Скорость исторических изменений</span><select value={settings.worldChangeSpeed} onChange={(e) => set('worldChangeSpeed', e.target.value as WorldGenerationSettings['worldChangeSpeed'])}>{['slow', 'normal', 'fast'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
+            <label><span>Частота войн</span><select value={settings.warFrequency} onChange={(e) => set('warFrequency', e.target.value as WorldGenerationSettings['warFrequency'])}>{['rare', 'normal', 'frequent'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
+            <label><span>Экономическая нестабильность</span><select value={settings.economyVolatility} onChange={(e) => set('economyVolatility', e.target.value as WorldGenerationSettings['economyVolatility'])}>{['stable', 'normal', 'harsh'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
+            <label><span>Рост городов</span><select value={settings.cityGrowth} onChange={(e) => set('cityGrowth', e.target.value as WorldGenerationSettings['cityGrowth'])}>{['slow', 'normal', 'fast'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
+            <label><span>Катастрофы</span><select value={settings.catastropheFrequency} onChange={(e) => set('catastropheFrequency', e.target.value as WorldGenerationSettings['catastropheFrequency'])}>{['rare', 'normal', 'frequent'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
+            <label><span>Сила последствий открытий</span><select value={settings.discoveryImpact} onChange={(e) => set('discoveryImpact', e.target.value as WorldGenerationSettings['discoveryImpact'])}>{['limited', 'normal', 'dramatic'].map((value) => <option value={value} key={value}>{optionLabel[value]}</option>)}</select></label>
           </section>
 
           <section>

@@ -23,6 +23,7 @@ import { DIFFICULTY_RULES } from './worldSettings'
 import { startCombatEncounter } from './combat'
 import { startDungeonExploration } from './dungeon'
 import { stanceFromRelation, strategicDayTick } from './strategy'
+import { livingWorldDayTick } from './livingWorld'
 
 const neighborOffsets = (x: number): number[][] =>
   x % 2 === 0
@@ -1138,6 +1139,7 @@ export function advanceDay(state: GameState): GameState {
   }
   next = processConsequences(next)
   next = strategicDayTick(next)
+  next = livingWorldDayTick(next)
   return next
 }
 

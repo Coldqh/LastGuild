@@ -1,12 +1,13 @@
 import type { Character, GameState, GuildPosition } from '../types/game'
 import { DEFAULT_WORLD_SETTINGS } from './worldSettings'
 import { createStrategicLayer } from './strategy'
+import { initializeLivingWorld } from './livingWorld'
 import { loadPreferences } from './preferences'
 
-const SAVE_KEY = 'last-guild-save-v6'
-const LEGACY_KEYS = ['last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v7'
+const LEGACY_KEYS = ['last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 const SLOT_PREFIX = 'last-guild-slot-v1-'
-const BACKUP_KEY = 'last-guild-backup-v6'
+const BACKUP_KEY = 'last-guild-backup-v7'
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -61,11 +62,11 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4, 5, 6].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5, 6, 7].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
   const normalized: GameState = {
     ...parsed,
-    version: 6,
+    version: 7,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
@@ -82,9 +83,10 @@ function normalizeState(parsed: any): GameState | null {
     },
     world: {
       ...parsed.world,
-      routes: parsed.world?.routes ?? [],
+      routes: (parsed.world?.routes ?? []).map((route: any) => ({ ...route, goods: route.goods ?? [], income: route.income ?? (route.importance ?? 1) * 18, safety: route.safety ?? 65, seasonality: route.seasonality ?? 20, status: route.status ?? 'active', establishedYear: route.establishedYear ?? 780 })),
       tiles: (parsed.world?.tiles ?? []).map((tile: any) => ({ ...tile, magic: tile.magic ?? 0.35, hasRoad: tile.hasRoad ?? false, hasRiver: tile.hasRiver ?? false })),
       realms: (parsed.world?.realms ?? []).map((realm: any) => ({ ...realm, dominantFaith: realm.dominantFaith ?? 'местные культы', currentIssue: realm.currentIssue ?? 'пограничные споры', relations: realm.relations ?? {} })),
+      settlements: (parsed.world?.settlements ?? []).map((settlement: any) => ({ ...settlement, foundedYear: settlement.foundedYear ?? 700, status: settlement.status ?? 'active', production: settlement.production ?? ['зерно'], demand: settlement.demand ?? ['железо', 'соль'], tradeBalance: settlement.tradeBalance ?? 0, growth: settlement.growth ?? 0, foodSecurity: settlement.foodSecurity ?? 55, unrest: settlement.unrest ?? 20 })),
       sites: (parsed.world?.sites ?? []).map((site: any) => {
         const layers = site.layers ?? ['первоначальный комплекс', 'следы поздних обитателей']
         const zones = site.zones ?? Array.from({ length: Math.max(3, (site.depth ?? 1) + 2) }, (_, index) => ({
@@ -114,6 +116,9 @@ function normalizeState(parsed: any): GameState | null {
     branches: parsed.branches ?? [],
     crises: parsed.crises ?? [],
     mentorships: parsed.mentorships ?? [],
+    wars: parsed.wars ?? [],
+    knowledgeSpreads: parsed.knowledgeSpreads ?? [],
+    historySnapshots: parsed.historySnapshots ?? [],
   }
   const competitorsEnabled = loadPreferences().competitorsEnabled
   if ((competitorsEnabled && normalized.rivalGuilds.length === 0) || normalized.politicalFactions.length === 0) {
@@ -124,6 +129,12 @@ function normalizeState(parsed: any): GameState | null {
     normalized.politicalFactions = normalized.politicalFactions.length ? normalized.politicalFactions : strategic.politicalFactions
     normalized.crises = normalized.crises.length ? normalized.crises : strategic.crises
     normalized.guild.leaderId = normalized.guild.leaderId ?? strategic.leaderId
+  }
+  if (normalized.historySnapshots.length === 0 || normalized.wars.length === 0) {
+    const living = initializeLivingWorld(normalized.seed, normalized.world, normalized.settings)
+    normalized.wars = normalized.wars.length ? normalized.wars : living.wars
+    normalized.knowledgeSpreads = normalized.knowledgeSpreads.length ? normalized.knowledgeSpreads : living.knowledgeSpreads
+    normalized.historySnapshots = normalized.historySnapshots.length ? normalized.historySnapshots : living.historySnapshots
   }
   return normalized
 }

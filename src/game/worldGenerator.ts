@@ -210,6 +210,24 @@ function findWorldPath(tiles: WorldTile[], fromId: string, toId: string, river =
   return path
 }
 
+
+const BIOME_GOODS: Record<BiomeId, string[]> = {
+  ocean: ['рыба', 'соль'], coast: ['рыба', 'соль', 'корабельный лес'], plains: ['зерно', 'скот', 'лошади'],
+  forest: ['древесина', 'меха', 'лекарственные травы'], ancient_forest: ['редкие травы', 'магическая древесина', 'смолы'],
+  hills: ['камень', 'овцы', 'железо'], mountains: ['железо', 'серебро', 'драгоценные камни'],
+  swamp: ['алхимические травы', 'торф', 'ядовитые железы'], desert: ['соль', 'стекло', 'пряности'],
+  tundra: ['меха', 'рыба', 'кости чудовищ'], ashlands: ['пепельные кристаллы', 'обсидиан', 'магические останки'],
+}
+
+const SETTLEMENT_DEMAND = ['зерно', 'древесина', 'железо', 'лекарства', 'соль', 'ткань', 'магические реагенты']
+
+function economyForSettlement(rng: RNG, tile: WorldTile, kind: Settlement['kind']) {
+  const base = BIOME_GOODS[tile.biome] ?? ['зерно']
+  const production = rng.shuffle([...base, ...(kind === 'capital' || kind === 'city' ? ['ремесленные товары', 'книги'] : [])]).slice(0, kind === 'capital' ? 3 : 2)
+  const demand = rng.shuffle(SETTLEMENT_DEMAND.filter((good) => !production.includes(good))).slice(0, kind === 'capital' ? 3 : 2)
+  return { production, demand }
+}
+
 function createRoutes(seed: string, tiles: WorldTile[], settlements: Settlement[]): WorldRoute[] {
   const rng = new RNG(`${seed}:routes`)
   const tileMap = new Map(tiles.map((tile) => [tile.id, tile]))
@@ -246,6 +264,14 @@ function createRoutes(seed: string, tiles: WorldTile[], settlements: Settlement[
         type: settlement.kind === 'capital' || target.settlement.kind === 'capital' ? 'trade' : 'road',
         tileIds: path,
         importance: settlement.kind === 'capital' ? 3 : 1,
+        originSettlementId: settlement.id,
+        destinationSettlementId: target.settlement.id,
+        goods: Array.from(new Set([...settlement.production, ...target.settlement.production])).slice(0, 4),
+        income: rng.int(25, settlement.kind === 'capital' || target.settlement.kind === 'capital' ? 95 : 58),
+        safety: Math.round(100 - path.reduce((sum, id) => sum + (tileMap.get(id)?.danger ?? 0), 0) / path.length * 7),
+        seasonality: rng.int(5, 35),
+        status: 'active',
+        establishedYear: rng.int(680, 900),
       })
     }
   }
@@ -263,7 +289,21 @@ function createRoutes(seed: string, tiles: WorldTile[], settlements: Settlement[
       const tile = tileMap.get(id)
       if (tile) tile.hasRiver = true
     }
-    routes.push({ id: `river-${routes.length + 1}`, name: `Река ${rng.pick(['Серая', 'Длинная', 'Лунная', 'Каменная', 'Тихая', 'Красная'])}`, type: 'river', tileIds: path, importance: 2 })
+    routes.push({ id: `river-${routes.length + 1}`, name: `Река ${rng.pick(['Серая', 'Длинная', 'Лунная', 'Каменная', 'Тихая', 'Красная'])}`, type: 'river', tileIds: path, importance: 2, goods: [], income: 0, safety: 70, seasonality: 30, status: 'active', establishedYear: 0 })
+  }
+  if (!routes.some((route) => route.type === 'river')) {
+    const source = [...tiles].filter((tile) => tile.biome !== 'ocean').sort((a, b) => b.elevation - a.elevation)[0]
+    const mouth = [...tiles].sort((a, b) => a.elevation - b.elevation)[0]
+    if (source && mouth) {
+      const path = findWorldPath(tiles, source.id, mouth.id, true)
+      if (path.length >= 3) {
+        for (const id of path) {
+          const tile = tileMap.get(id)
+          if (tile) tile.hasRiver = true
+        }
+        routes.push({ id: `river-${routes.length + 1}`, name: `Река ${rng.pick(['Серая', 'Длинная', 'Лунная', 'Каменная', 'Тихая', 'Красная'])}`, type: 'river', tileIds: path, importance: 2, goods: [], income: 0, safety: 70, seasonality: 30, status: 'active', establishedYear: 0 })
+      }
+    }
   }
   return routes
 }
@@ -314,6 +354,12 @@ function createHistory(
       description,
       tags: [...templateTags, realm.id, site.id],
       severity: templateTags.includes('catastrophe') || templateTags.includes('war') ? rng.int(3, 5) : rng.int(1, 4),
+      kind: templateTags.includes('war') ? 'war' : templateTags.includes('trade') ? 'trade' : templateTags.includes('religion') ? 'religion' : templateTags.includes('catastrophe') ? 'catastrophe' : templateTags.includes('migration') ? 'migration' : templateTags.includes('state') ? 'state' : 'settlement',
+      cause: rng.pick(['борьба за ресурсы', 'династический кризис', 'изменение торговых путей', 'религиозный спор', 'магический эксперимент', 'голод и миграция']),
+      consequence: rng.pick(['границы были пересмотрены', 'город потерял прежнее значение', 'возник новый культ', 'дороги сместились', 'появились руины и беженцы']),
+      publicVersion: description,
+      hiddenTruth: rng.pick(['свидетели скрыли участие правителя', 'официальная дата неверна', 'катастрофу вызвал украденный артефакт', 'победитель уничтожил архивы проигравших']),
+      realmIds: [realm.id, ...(rival ? [rival.id] : [])], settlementIds: [], siteIds: [site.id],
     })
   }
   return events.sort((a, b) => a.year - b.year)
@@ -408,6 +454,9 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
       prosperity: rng.int(60, 90),
       safety: rng.int(60, 88),
       traits: rng.shuffle(['рынок артефактов', 'старые стены', 'университет', 'великий храм', 'речной порт']).slice(0, 2),
+      foundedYear: rng.int(120, 760), status: 'active',
+      ...economyForSettlement(rng, capital, 'capital'),
+      tradeBalance: rng.int(-10, 35), growth: rng.int(-2, 8), foodSecurity: rng.int(55, 92), unrest: rng.int(5, 30),
     }
     settlements.push(settlement)
     capital.settlementId = settlement.id
@@ -427,6 +476,9 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
       name: createSettlementName(rng), tileId: tile.id, realmId, kind, population,
       prosperity: rng.int(25, 75), safety: rng.int(25, 80),
       traits: rng.shuffle(['лесопилки', 'серебряный рудник', 'паломники', 'пограничный рынок', 'старый мост', 'охотники', 'болотные травы', 'магическая школа']).slice(0, rng.int(1, 2)),
+      foundedYear: rng.int(420, 880), status: 'active',
+      ...economyForSettlement(rng, tile, kind),
+      tradeBalance: rng.int(-18, 22), growth: rng.int(-4, 6), foodSecurity: rng.int(35, 82), unrest: rng.int(8, 45),
     }
     settlements.push(settlement)
     tile.settlementId = settlement.id

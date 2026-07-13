@@ -21,6 +21,7 @@ import { RNG } from './rng'
 import { generateWorld } from './worldGenerator'
 import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './worldSettings'
 import { createStrategicLayer } from './strategy'
+import { initializeLivingWorld } from './livingWorld'
 
 function skillProfile(profession: string, rng: RNG): Character['skills'] {
   const base = {
@@ -181,12 +182,14 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
   const characters = createCharacters(seed, characterCount, world)
   const guild = createGuild(settings)
   const strategic = createStrategicLayer(seed, world, characters)
+  const living = initializeLivingWorld(seed, world, settings)
   guild.leaderId = strategic.leaderId
   return {
-    version: 6, seed, settings, day: 1, year: 912, season: 0,
+    version: 7, seed, settings, day: 1, year: 912, season: 0,
     guild, world, characters, expeditions: [],
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], branches: [], crises: strategic.crises, mentorships: [],
+    wars: living.wars, knowledgeSpreads: living.knowledgeSpreads, historySnapshots: living.historySnapshots,
     chronicle: [{
       id: 'chronicle-collapse', day: 317, year: 911, title: 'Последняя экспедиция прежнего главы', text: 'Отряд ушёл к северным руинам и не вернулся. Казна опустела, кредиторы забрали часть имущества, а имя гильдии стало предупреждением.', category: 'guild', importance: 5,
     }, {

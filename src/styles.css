@@ -909,3 +909,71 @@ body {
   .save-slot-list > div { grid-template-columns: 1fr auto; }
   .save-slot-list > div .icon-button { grid-column: 2; }
 }
+
+/* v0.6 — living world */
+.living-world-view { display: grid; gap: 16px; }
+.living-world-metrics { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; }
+.living-world-metrics span { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); background: rgba(255,255,255,.018); color: var(--text-soft); font-size: .65rem; }
+.living-world-metrics svg { color: var(--accent); }
+.living-tabs { justify-self: start; flex-wrap: wrap; }
+.living-tabs button { display: inline-flex; align-items: center; gap: 5px; }
+.living-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+.living-panel { padding: 17px; min-width: 0; }
+.wide-panel { grid-column: 1 / -1; }
+.route-economy-list, .settlement-economy-list, .knowledge-spread-list, .world-history-list { display: grid; gap: 8px; }
+.route-economy-row { display: grid; grid-template-columns: minmax(0,1.6fr) auto auto auto; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.018); }
+.route-economy-row > span { display: grid; }
+.route-economy-row small { color: var(--text-dim); }
+.route-economy-row em { font-style: normal; text-transform: uppercase; letter-spacing: .08em; font-size: .56rem; color: var(--success); }
+.route-economy-row.disrupted { border-left: 3px solid #b98245; }
+.route-economy-row.disrupted em { color: #d5a45f; }
+.route-economy-row.abandoned { border-left: 3px solid var(--danger); opacity: .72; }
+.route-economy-row.abandoned em { color: var(--danger); }
+.living-warning { display: flex; align-items: center; gap: 7px; margin: 12px 0 0; padding: 9px; color: #d7a66d; background: rgba(185,130,69,.06); border: 1px solid rgba(185,130,69,.22); }
+.settlement-economy-list > div { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; padding: 9px; border: 1px solid var(--line); }
+.settlement-economy-list span { display: grid; }
+.settlement-economy-list small { color: var(--text-dim); }
+.settlement-economy-list b { color: var(--accent); }
+.war-card { padding: 18px; }
+.war-card.active { border-left: 3px solid var(--danger); }
+.war-card.preparing { border-left: 3px solid #b98245; }
+.war-card.ended { opacity: .74; border-left: 3px solid #59616a; }
+.war-card-head { display: flex; justify-content: space-between; gap: 12px; }
+.war-card-head svg { color: var(--danger); }
+.war-progress, .knowledge-progress { height: 6px; margin: 12px 0; overflow: hidden; background: rgba(255,255,255,.06); }
+.war-progress span { display: block; height: 100%; background: linear-gradient(90deg,#7a5a4c,#bd6b58); }
+.war-stats { display: flex; flex-wrap: wrap; gap: 7px; }
+.war-stats span { padding: 6px 8px; border: 1px solid var(--line); color: var(--text-soft); font-size: .62rem; }
+.war-last-event { color: #d7a66d; }
+.knowledge-spread-card { padding: 16px; display: grid; grid-template-columns: minmax(0,1.3fr) minmax(260px,.8fr); gap: 14px; }
+.knowledge-spread-meta { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; }
+.knowledge-spread-meta span { display: grid; padding: 8px; border: 1px solid var(--line); color: var(--text-dim); font-size: .62rem; }
+.knowledge-spread-meta b { color: var(--text); }
+.knowledge-progress { grid-column: 1 / -1; margin: 0; }
+.knowledge-progress span { display: block; height: 100%; background: linear-gradient(90deg,#4b6380,#9bb3ca); }
+.history-event-card { display: grid; grid-template-columns: 78px 1fr; gap: 14px; padding: 15px; }
+.history-year { font-family: 'Cormorant Garamond',serif; font-size: 1.7rem; color: var(--accent); border-right: 1px solid var(--line); }
+.history-event-card p { margin: 5px 0; }
+.history-event-card details { margin-top: 8px; color: var(--text-soft); }
+.historical-map-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 14px; }
+.historical-map-card, .snapshot-sidebar { padding: 16px; min-width: 0; }
+.historical-map-scroll { overflow: auto; max-height: 70vh; border: 1px solid var(--line); background: #111611; }
+.historical-map-svg { display: block; }
+.snapshot-list { display: grid; gap: 7px; }
+.snapshot-list button { display: grid; grid-template-columns: 58px 1fr; gap: 8px; text-align: left; padding: 9px; color: var(--text); background: rgba(255,255,255,.018); border: 1px solid var(--line); cursor: pointer; }
+.snapshot-list button.active { border-color: rgba(185,145,85,.45); background: rgba(185,145,85,.08); }
+.snapshot-list strong { color: var(--accent); }
+.snapshot-sidebar > p { color: var(--text-soft); }
+.living-world-settings { grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px 14px; }
+.living-world-settings h3 { grid-column: 1 / -1; }
+@media (max-width: 980px) {
+  .living-grid, .historical-map-layout { grid-template-columns: 1fr; }
+  .knowledge-spread-card { grid-template-columns: 1fr; }
+  .living-world-settings { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 620px) {
+  .route-economy-row { grid-template-columns: 1fr 1fr; }
+  .route-economy-row > span:first-child { grid-column: 1 / -1; }
+  .living-world-settings { grid-template-columns: 1fr; }
+  .history-event-card { grid-template-columns: 54px 1fr; }
+}

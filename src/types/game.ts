@@ -15,7 +15,7 @@ export type KnowledgeLevel = 0 | 1 | 2 | 3 | 4 | 5
 export type CharacterStatus = 'available' | 'expedition' | 'recovering' | 'missing' | 'dead' | 'retired'
 export type CharacterCareerStage = 'recruit' | 'field' | 'veteran' | 'leader' | 'mentor' | 'legend'
 export type ExpeditionStatus = 'planned' | 'active' | 'returning' | 'completed' | 'missing' | 'failed'
-export type ViewId = 'headquarters' | 'world' | 'roster' | 'expeditions' | 'archive' | 'influence'
+export type ViewId = 'headquarters' | 'world' | 'roster' | 'expeditions' | 'archive' | 'influence' | 'living_world'
 export type DifficultyId = 'story' | 'standard' | 'hard' | 'brutal'
 export type MapSizeId = 'compact' | 'regional' | 'vast'
 export type DensityId = 'sparse' | 'normal' | 'dense'
@@ -38,6 +38,16 @@ export type BranchSpecialization = 'cartography' | 'archaeology' | 'monsters' | 
 export type CrisisKind = 'war' | 'succession' | 'epidemic' | 'religious' | 'monster_migration' | 'trade_collapse' | 'magical_storm' | 'rebellion'
 export type CrisisStatus = 'emerging' | 'active' | 'resolved' | 'collapsed'
 export type RivalExpeditionStatus = 'preparing' | 'traveling' | 'completed' | 'failed'
+export type WorldChangeSpeedId = 'slow' | 'normal' | 'fast'
+export type WarFrequencyId = 'rare' | 'normal' | 'frequent'
+export type EconomyVolatilityId = 'stable' | 'normal' | 'harsh'
+export type CityGrowthId = 'slow' | 'normal' | 'fast'
+export type CatastropheFrequencyId = 'rare' | 'normal' | 'frequent'
+export type DiscoveryImpactId = 'limited' | 'normal' | 'dramatic'
+export type SettlementStatus = 'active' | 'declining' | 'ruined'
+export type RouteStatus = 'active' | 'disrupted' | 'abandoned'
+export type WarStatus = 'preparing' | 'active' | 'truce' | 'ended'
+export type KnowledgeSpreadStage = 'found' | 'verified' | 'published' | 'contested' | 'spreading' | 'used'
 
 export interface WorldGenerationSettings {
   preset: WorldPresetId
@@ -52,6 +62,12 @@ export interface WorldGenerationSettings {
   climate: ClimateId
   difficulty: DifficultyId
   startingKnowledge: 1 | 2 | 3
+  worldChangeSpeed: WorldChangeSpeedId
+  warFrequency: WarFrequencyId
+  economyVolatility: EconomyVolatilityId
+  cityGrowth: CityGrowthId
+  catastropheFrequency: CatastropheFrequencyId
+  discoveryImpact: DiscoveryImpactId
 }
 
 export interface WorldTile {
@@ -103,6 +119,15 @@ export interface Settlement {
   safety: number
   traits: string[]
   isGuildHome?: boolean
+  foundedYear: number
+  status: SettlementStatus
+  production: string[]
+  demand: string[]
+  tradeBalance: number
+  growth: number
+  foodSecurity: number
+  unrest: number
+  lastOwnerRealmId?: string
 }
 
 export interface DungeonZone {
@@ -173,6 +198,14 @@ export interface WorldRoute {
   type: 'road' | 'trade' | 'river'
   tileIds: string[]
   importance: number
+  originSettlementId?: string
+  destinationSettlementId?: string
+  goods: string[]
+  income: number
+  safety: number
+  seasonality: number
+  status: RouteStatus
+  establishedYear: number
 }
 
 export interface WorldData {
@@ -197,6 +230,14 @@ export interface HistoricalEvent {
   description: string
   tags: string[]
   severity?: number
+  kind?: 'state' | 'war' | 'trade' | 'religion' | 'catastrophe' | 'migration' | 'settlement' | 'discovery'
+  cause?: string
+  consequence?: string
+  publicVersion?: string
+  hiddenTruth?: string
+  realmIds?: string[]
+  settlementIds?: string[]
+  siteIds?: string[]
 }
 
 export interface CharacterStats {
@@ -589,6 +630,53 @@ export interface BestiaryEntry {
   legendaryNames: string[]
 }
 
+
+export interface WorldWar {
+  id: string
+  name: string
+  attackerRealmId: string
+  defenderRealmId: string
+  cause: string
+  goal: string
+  status: WarStatus
+  startedYear: number
+  startedDay: number
+  progress: number
+  attackerExhaustion: number
+  defenderExhaustion: number
+  attackerSupply: number
+  defenderSupply: number
+  frontSettlementIds: string[]
+  capturedSettlementIds: string[]
+  casualties: number
+  lastEvent?: string
+}
+
+export interface KnowledgeSpread {
+  id: string
+  discoveryId: string
+  title: string
+  stage: KnowledgeSpreadStage
+  progress: number
+  credibility: number
+  controversy: number
+  knownRealmIds: string[]
+  interestedFactionIds: string[]
+  startedYear: number
+  startedDay: number
+  lastUpdate: string
+}
+
+export interface HistoricalMapSnapshot {
+  id: string
+  year: number
+  title: string
+  realmByTile: Record<string, string | undefined>
+  settlementStates: Record<string, { realmId: string; population: number; prosperity: number; status: SettlementStatus }>
+  routeStates: Record<string, RouteStatus>
+  eventIds: string[]
+}
+
 export interface PoliticalFaction {
   id: string
   realmId: string
@@ -710,4 +798,7 @@ export interface GameState {
   branches: GuildBranch[]
   crises: WorldCrisis[]
   mentorships: Mentorship[]
+  wars: WorldWar[]
+  knowledgeSpreads: KnowledgeSpread[]
+  historySnapshots: HistoricalMapSnapshot[]
 }

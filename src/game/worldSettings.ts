@@ -13,6 +13,12 @@ export const DEFAULT_WORLD_SETTINGS: WorldGenerationSettings = {
   climate: 'varied',
   difficulty: 'standard',
   startingKnowledge: 2,
+  worldChangeSpeed: 'normal',
+  warFrequency: 'normal',
+  economyVolatility: 'normal',
+  cityGrowth: 'normal',
+  catastropheFrequency: 'normal',
+  discoveryImpact: 'normal',
 }
 
 export const WORLD_PRESETS: Record<Exclude<WorldPresetId, 'custom'>, WorldGenerationSettings> = {
@@ -30,6 +36,12 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetId, 'custom'>, WorldGenera
     climate: 'varied',
     difficulty: 'hard',
     startingKnowledge: 2,
+    worldChangeSpeed: 'slow',
+    warFrequency: 'rare',
+    economyVolatility: 'harsh',
+    cityGrowth: 'slow',
+    catastropheFrequency: 'frequent',
+    discoveryImpact: 'dramatic',
   },
   wild_frontier: {
     preset: 'wild_frontier',
@@ -44,6 +56,12 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetId, 'custom'>, WorldGenera
     climate: 'harsh',
     difficulty: 'hard',
     startingKnowledge: 1,
+    worldChangeSpeed: 'fast',
+    warFrequency: 'rare',
+    economyVolatility: 'harsh',
+    cityGrowth: 'fast',
+    catastropheFrequency: 'frequent',
+    discoveryImpact: 'dramatic',
   },
   age_of_war: {
     preset: 'age_of_war',
@@ -58,6 +76,12 @@ export const WORLD_PRESETS: Record<Exclude<WorldPresetId, 'custom'>, WorldGenera
     climate: 'varied',
     difficulty: 'brutal',
     startingKnowledge: 2,
+    worldChangeSpeed: 'fast',
+    warFrequency: 'frequent',
+    economyVolatility: 'harsh',
+    cityGrowth: 'normal',
+    catastropheFrequency: 'frequent',
+    discoveryImpact: 'dramatic',
   },
 }
 

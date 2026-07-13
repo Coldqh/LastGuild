@@ -8,6 +8,7 @@ import {
   Compass,
   FastForward,
   Map,
+  Landmark,
   Menu,
   Network,
   RotateCcw,
@@ -27,6 +28,7 @@ import ExpeditionDecisionModal from './components/ExpeditionDecisionModal'
 import ExpeditionPlanner from './components/ExpeditionPlanner'
 import GuildView from './components/GuildView'
 import InfluenceView from './components/InfluenceView'
+import LivingWorldView from './components/LivingWorldView'
 import RosterView from './components/RosterView'
 import SettingsModal from './components/SettingsModal'
 import TutorialPanel from './components/TutorialPanel'
@@ -62,6 +64,7 @@ const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
   { id: 'expeditions', label: 'Экспедиции', icon: Compass },
   { id: 'archive', label: 'Архив', icon: BookOpen },
   { id: 'influence', label: 'Влияние', icon: Network },
+  { id: 'living_world', label: 'Живой мир', icon: Landmark },
 ]
 
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
@@ -213,6 +216,7 @@ export default function App() {
       case 'roster': return <RosterView state={state} onHire={(characterId) => { markTutorial('hire'); setState((current) => hireCharacter(current, characterId)) }} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
       case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={launch} />
       case 'archive': return <ArchiveView state={state} />
+      case 'living_world': return <LivingWorldView state={state} />
       case 'influence': return <InfluenceView state={state} onRivalAction={rivalAction} onOpenBranch={createBranch} onChangeBranchAutonomy={setBranchAutonomy} onRespondCrisis={crisisResponse} onAssignMentorship={mentorship} onAppointLeader={appointLeader} />
       default: return <>{preferences.decisionCenterEnabled && <CommandCenter state={state} onNavigate={changeView} />}<GuildView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} /></>
     }
@@ -249,7 +253,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.5.1 · Core Loop & UX</small>
+          <small>v0.6 · Living World</small>
         </div>
       </aside>
 
