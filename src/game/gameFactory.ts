@@ -22,6 +22,7 @@ import { generateWorld } from './worldGenerator'
 import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './worldSettings'
 import { createStrategicLayer } from './strategy'
 import { initializeLivingWorld } from './livingWorld'
+import { createGuildInstitutions } from './guildPolitics'
 
 function skillProfile(profession: string, rng: RNG): Character['skills'] {
   const base = {
@@ -83,7 +84,7 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
       skills: skillProfile(profession, rng),
       injuries: oldInjury ? [oldInjury] : [],
       injuryRecords: oldInjury ? [{ id: `injury-start-${index}`, name: oldInjury, severity: 2, permanent: true, recoveryDays: 0, effect: '−1 к отдельным полевым проверкам', treated: true }] : [],
-      relationships: {}, memories: index === 0 ? [{ id: 'memory-last-expedition', title: 'Гибель старого состава', description: 'Пережил последнюю катастрофическую экспедицию прежнего руководителя и вернулся один.', intensity: 82, valence: 'negative', type: 'expedition', year: 911, day: 317, relatedCharacterIds: [] }] : [], expeditions: index === 0 ? 7 : rng.int(0, 3), discoveries: rng.int(0, 1), combatBehavior: combatBehavior(profession, traits), apprenticeIds: [],
+      relationships: {}, memories: index === 0 ? [{ id: 'memory-last-expedition', title: 'Гибель старого состава', description: 'Пережил последнюю катастрофическую экспедицию прежнего руководителя и вернулся один.', intensity: 82, valence: 'negative', type: 'expedition', year: 911, day: 317, relatedCharacterIds: [] }] : [], expeditions: index === 0 ? 7 : rng.int(0, 3), discoveries: rng.int(0, 1), combatBehavior: combatBehavior(profession, traits), apprenticeIds: [], relativeIds: [], councilInfluence: 0, familyName: '',
     })
   }
   for (const character of characters) {
@@ -117,7 +118,7 @@ function createGuild(settings: WorldGenerationSettings): GuildData {
       { id: 'mentor', name: 'Наставник новичков', description: 'Передаёт опыт молодому составу.', effect: '+20% опыта после экспедиций' },
       { id: 'diplomat', name: 'Дипломат гильдии', description: 'Работает с властями и заказчиками.', effect: '+2 репутации при публикации' },
     ],
-    maxActiveExpeditions: 1, daysSincePayment: 0, leaderId: undefined, charterInfluence: 0,
+    maxActiveExpeditions: 1, daysSincePayment: 0, leaderId: undefined, charterInfluence: 0, academyReputation: 0, institutionalMemory: 1,
   }
 }
 
@@ -184,12 +185,20 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
   const strategic = createStrategicLayer(seed, world, characters)
   const living = initializeLivingWorld(seed, world, settings)
   guild.leaderId = strategic.leaderId
+  const institutionSeedState = { characters, guild, year: 912, day: 1, branches: [] as GameState['branches'] }
+  const institutions = createGuildInstitutions(seed, institutionSeedState)
+  const foundingGeneration = institutions.generations[0]
+  for (const character of characters) {
+    character.familyName = character.name.split(' ').at(-1) ?? character.name
+    if (character.employed) character.generationId = foundingGeneration.id
+  }
   return {
-    version: 7, seed, settings, day: 1, year: 912, season: 0,
+    version: 8, seed, settings, day: 1, year: 912, season: 0,
     guild, world, characters, expeditions: [],
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], branches: [], crises: strategic.crises, mentorships: [],
     wars: living.wars, knowledgeSpreads: living.knowledgeSpreads, historySnapshots: living.historySnapshots,
+    academy: institutions.academy, doctrines: institutions.doctrines, generations: institutions.generations, council: institutions.council, councilProposals: institutions.councilProposals, guildFactions: institutions.guildFactions, charter: institutions.charter, memorials: institutions.memorials,
     chronicle: [{
       id: 'chronicle-collapse', day: 317, year: 911, title: 'Последняя экспедиция прежнего главы', text: 'Отряд ушёл к северным руинам и не вернулся. Казна опустела, кредиторы забрали часть имущества, а имя гильдии стало предупреждением.', category: 'guild', importance: 5,
     }, {

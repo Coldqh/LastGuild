@@ -3,11 +3,12 @@ import { DEFAULT_WORLD_SETTINGS } from './worldSettings'
 import { createStrategicLayer } from './strategy'
 import { initializeLivingWorld } from './livingWorld'
 import { loadPreferences } from './preferences'
+import { createGuildInstitutions, DEFAULT_CHARTER, ACADEMY_PROGRAMS } from './guildPolitics'
 
-const SAVE_KEY = 'last-guild-save-v7'
-const LEGACY_KEYS = ['last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v8'
+const LEGACY_KEYS = ['last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 const SLOT_PREFIX = 'last-guild-slot-v1-'
-const BACKUP_KEY = 'last-guild-backup-v7'
+const BACKUP_KEY = 'last-guild-backup-v8'
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -46,6 +47,12 @@ function normalizeCharacter(character: any, state: any): Character {
     apprenticeIds: character.apprenticeIds ?? [],
     rivalGuildId: character.rivalGuildId,
     assignedBranchId: character.assignedBranchId,
+    generationId: character.generationId,
+    familyName: character.familyName ?? (character.name?.split(' ').at(-1) ?? character.name),
+    relativeIds: character.relativeIds ?? [],
+    academyEnrollmentId: character.academyEnrollmentId,
+    academyGraduate: character.academyGraduate ?? false,
+    councilInfluence: character.councilInfluence ?? 0,
     memories: (character.memories ?? []).map((memory: any, index: number) => ({
       id: memory.id ?? `legacy-memory-${character.id}-${index}`,
       title: memory.title ?? 'Старое воспоминание',
@@ -62,11 +69,11 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4, 5, 6, 7].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5, 6, 7, 8].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
   const normalized: GameState = {
     ...parsed,
-    version: 7,
+    version: 8,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
@@ -80,6 +87,8 @@ function normalizeState(parsed: any): GameState | null {
       positions: parsed.guild?.positions ?? defaultPositions(),
       leaderId: parsed.guild?.leaderId,
       charterInfluence: parsed.guild?.charterInfluence ?? 0,
+      academyReputation: parsed.guild?.academyReputation ?? 0,
+      institutionalMemory: parsed.guild?.institutionalMemory ?? 1,
     },
     world: {
       ...parsed.world,
@@ -119,6 +128,26 @@ function normalizeState(parsed: any): GameState | null {
     wars: parsed.wars ?? [],
     knowledgeSpreads: parsed.knowledgeSpreads ?? [],
     historySnapshots: parsed.historySnapshots ?? [],
+    academy: parsed.academy ?? { level: 1, seats: 4, reputation: 4, monthlyCost: 24, programs: ACADEMY_PROGRAMS, enrollments: [] },
+    doctrines: parsed.doctrines ?? [],
+    generations: parsed.generations ?? [],
+    council: parsed.council ?? [],
+    councilProposals: parsed.councilProposals ?? [],
+    guildFactions: parsed.guildFactions ?? [],
+    charter: { ...DEFAULT_CHARTER, ...(parsed.charter ?? {}) },
+    memorials: parsed.memorials ?? [],
+  }
+  if (normalized.generations.length === 0 || normalized.council.length === 0 || normalized.guildFactions.length === 0) {
+    const institutions = createGuildInstitutions(normalized.seed, { characters: normalized.characters, guild: normalized.guild, year: normalized.year, day: normalized.day, branches: normalized.branches })
+    normalized.academy = parsed.academy ?? institutions.academy
+    normalized.doctrines = normalized.doctrines.length ? normalized.doctrines : institutions.doctrines
+    normalized.generations = normalized.generations.length ? normalized.generations : institutions.generations
+    normalized.council = normalized.council.length ? normalized.council : institutions.council
+    normalized.guildFactions = normalized.guildFactions.length ? normalized.guildFactions : institutions.guildFactions
+    normalized.charter = { ...DEFAULT_CHARTER, ...(parsed.charter ?? {}) }
+    normalized.memorials = normalized.memorials.length ? normalized.memorials : institutions.memorials
+    const currentGenerationId = normalized.generations.find((entry) => !entry.endedYear)?.id
+    normalized.characters = normalized.characters.map((entry) => entry.employed && !entry.generationId ? { ...entry, generationId: currentGenerationId } : entry)
   }
   const competitorsEnabled = loadPreferences().competitorsEnabled
   if ((competitorsEnabled && normalized.rivalGuilds.length === 0) || normalized.politicalFactions.length === 0) {

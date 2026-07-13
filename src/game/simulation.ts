@@ -1255,7 +1255,7 @@ export function hireCharacter(state: GameState, characterId: string): GameState 
   return {
     ...state,
     guild: { ...state.guild, treasury: state.guild.treasury - signingCost, adventurerPrestige: state.guild.adventurerPrestige + 1 },
-    characters: state.characters.map((candidate) => candidate.id === characterId ? { ...candidate, employed: true, loyalty: Math.max(45, candidate.loyalty) } : candidate),
+    characters: state.characters.map((candidate) => candidate.id === characterId ? { ...candidate, employed: true, loyalty: Math.max(45, candidate.loyalty), generationId: candidate.generationId ?? state.generations.find((entry) => !entry.endedYear)?.id } : candidate),
     chronicle: [...state.chronicle, { id: `chronicle-hire-${characterId}-${state.day}`, day: state.day, year: state.year, title: `${character.name} вступает в гильдию`, text: `Подписан постоянный контракт. Вступительный платёж составил ${signingCost} крон.`, category: 'character', importance: 1 }],
   }
 }

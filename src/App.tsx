@@ -55,9 +55,10 @@ import { autoResolveCombat, finalizeCombat, issueCombatCommand, stepCombat } fro
 import { establishDungeonCamp, exploreDungeonZone, leaveDungeon } from './game/dungeon'
 import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './game/worldSettings'
 import { appointGuildLeader, assignMentorship, changeBranchAutonomy, conductRivalAction, createStrategicLayer, openBranch, respondToCrisis } from './game/strategy'
+import { appointCouncilSeat, assignAcademyMentor, changeGuildCharter, createGuildMemorial, enrollAcademyStudent, foundGuildDoctrine, graduateAcademyStudent, holdAcademyExam, resolveCouncilProposal, upgradeGuildAcademy } from './game/guildPolitics'
 import { loadPreferences, savePreferences, type AppPreferences } from './game/preferences'
 import type { TutorialStepId } from './game/onboarding'
-import type { BranchAutonomy, BranchSpecialization, CharacterSkills, CombatCommandType, GameState, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
+import type { AcademyProgramId, BranchAutonomy, BranchSpecialization, CharacterSkills, CombatCommandType, CouncilVoteChoice, GameState, GuildCharter, GuildMemorial, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
 
 const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
   { id: 'headquarters', label: 'Штаб', icon: Building2 },
@@ -165,6 +166,17 @@ export default function App() {
   const crisisResponse = (crisisId: string, mode: 'fund' | 'expedition' | 'neutral') => setState((current) => respondToCrisis(current, crisisId, mode))
   const mentorship = (mentorId: string, apprenticeId: string, skill: keyof CharacterSkills) => setState((current) => assignMentorship(current, mentorId, apprenticeId, skill))
   const appointLeader = (characterId: string) => setState((current) => appointGuildLeader(current, characterId))
+  const hireFromHeadquarters = (characterId: string) => { markTutorial('hire'); setState((current) => hireCharacter(current, characterId)) }
+  const enrollStudent = (characterId: string, programId: AcademyProgramId, mentorId?: string) => setState((current) => enrollAcademyStudent(current, characterId, programId, mentorId))
+  const academyMentor = (enrollmentId: string, mentorId?: string) => setState((current) => assignAcademyMentor(current, enrollmentId, mentorId))
+  const academyExam = (enrollmentId: string) => setState((current) => holdAcademyExam(current, enrollmentId))
+  const graduateStudent = (enrollmentId: string) => setState((current) => graduateAcademyStudent(current, enrollmentId))
+  const upgradeAcademy = () => setState((current) => upgradeGuildAcademy(current))
+  const councilSeat = (seatId: string, holderId?: string) => setState((current) => appointCouncilSeat(current, seatId, holderId))
+  const proposalVote = (proposalId: string, choice: CouncilVoteChoice) => setState((current) => resolveCouncilProposal(current, proposalId, choice))
+  const charterChange = <K extends keyof GuildCharter>(key: K, value: GuildCharter[K]) => setState((current) => changeGuildCharter(current, key, value))
+  const foundDoctrine = (founderId: string) => setState((current) => foundGuildDoctrine(current, founderId))
+  const createMemorial = (characterId: string, type: GuildMemorial['type']) => setState((current) => createGuildMemorial(current, characterId, type))
 
   const updatePreferences = (next: AppPreferences) => {
     setPreferences(next)
@@ -213,12 +225,12 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'world': return <WorldMap state={state} />
-      case 'roster': return <RosterView state={state} onHire={(characterId) => { markTutorial('hire'); setState((current) => hireCharacter(current, characterId)) }} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
+      case 'roster': return <RosterView state={state} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
       case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={launch} />
       case 'archive': return <ArchiveView state={state} />
       case 'living_world': return <LivingWorldView state={state} />
       case 'influence': return <InfluenceView state={state} onRivalAction={rivalAction} onOpenBranch={createBranch} onChangeBranchAutonomy={setBranchAutonomy} onRespondCrisis={crisisResponse} onAssignMentorship={mentorship} onAppointLeader={appointLeader} />
-      default: return <>{preferences.decisionCenterEnabled && <CommandCenter state={state} onNavigate={changeView} />}<GuildView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} /></>
+      default: return <>{preferences.decisionCenterEnabled && <CommandCenter state={state} onNavigate={changeView} />}<GuildView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} onHire={hireFromHeadquarters} onEnrollStudent={enrollStudent} onAssignAcademyMentor={academyMentor} onAcademyExam={academyExam} onGraduate={graduateStudent} onUpgradeAcademy={upgradeAcademy} onCouncilSeat={councilSeat} onProposal={proposalVote} onCharter={charterChange} onFoundDoctrine={foundDoctrine} onMemorial={createMemorial} /></>
     }
   }
 
@@ -253,7 +265,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.6.1 · Stability</small>
+          <small>v0.7 · Academy & Politics</small>
         </div>
       </aside>
 

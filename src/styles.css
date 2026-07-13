@@ -1072,3 +1072,113 @@ body.compact-ui p { margin-top: 4px; margin-bottom: 4px; }
   .audit-controls { align-items: stretch; }
   .audit-controls > * { flex: 1 1 160px; }
 }
+
+/* v0.7 — headquarters tabs, academy and guild politics */
+.headquarters-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 5px 0 14px;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+}
+.headquarters-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--text-soft);
+  background: rgba(255,255,255,.025);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.headquarters-tabs button:hover { color: var(--text); border-color: rgba(185,145,85,.32); }
+.headquarters-tabs button.active { color: var(--accent); background: rgba(185,145,85,.09); border-color: rgba(185,145,85,.45); }
+.headquarters-tabs button b { min-width: 19px; padding: 2px 5px; border-radius: 10px; background: var(--danger); color: white; font-size: .72rem; text-align: center; }
+.headquarters-tab-content { display: grid; gap: 14px; }
+.headquarters-quick-actions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.headquarters-action { display: flex; align-items: center; gap: 12px; padding: 15px; text-align: left; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--text); cursor: pointer; }
+.headquarters-action.primary { border-color: rgba(185,145,85,.42); background: rgba(185,145,85,.08); }
+.headquarters-action svg { color: var(--accent); flex: 0 0 auto; }
+.headquarters-action div { display: grid; gap: 3px; }
+.headquarters-action span { color: var(--text-soft); font-size: .82rem; }
+.guild-status-card, .generations-summary { padding: 16px; }
+.guild-status-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.guild-status-list span { display: flex; justify-content: space-between; gap: 10px; padding: 9px; background: rgba(255,255,255,.025); border: 1px solid var(--line); }
+
+.hiring-toolbar { display: grid; grid-template-columns: minmax(240px,1fr) 210px auto; gap: 10px; align-items: center; }
+.hiring-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(245px,1fr)); gap: 11px; }
+.hire-card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.hire-card-head { display: flex; justify-content: space-between; gap: 12px; }
+.hire-card-head h3 { margin: 0; }
+.hire-card-head p { margin: 3px 0 0; color: var(--text-soft); font-size: .82rem; }
+.hire-card-head > span { color: var(--accent); }
+.hire-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+.hire-stats span { padding: 6px; text-align: center; font-size: .76rem; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+
+.academy-header-card { padding: 16px; border: 1px solid rgba(185,145,85,.28); border-radius: 12px; background: linear-gradient(135deg,rgba(185,145,85,.09),rgba(255,255,255,.015)); }
+.academy-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin: 13px 0; }
+.academy-metrics span { display: grid; gap: 2px; padding: 10px; background: rgba(0,0,0,.16); border: 1px solid var(--line); }
+.academy-metrics b { color: var(--accent); font-size: 1.15rem; }
+.academy-grid, .council-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.academy-enroll-card, .academy-students-card, .doctrine-panel, .council-seats, .proposal-card, .factions-panel, .charter-panel, .generations-panel, .memorial-panel { padding: 16px; }
+.academy-enroll-card > label { display: grid; gap: 5px; margin: 10px 0; color: var(--text-soft); }
+.academy-candidate-list, .student-list { display: grid; gap: 8px; margin-top: 12px; }
+.academy-candidate-list article { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+.academy-candidate-list article div { display: grid; gap: 3px; }
+.academy-candidate-list span { color: var(--text-soft); font-size: .78rem; }
+.student-card { display: grid; gap: 8px; padding: 11px; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+.student-card.status-ready { border-color: rgba(76,175,126,.45); }
+.student-top, .student-meta { display: flex; justify-content: space-between; gap: 10px; }
+.student-top div { display: grid; gap: 3px; }
+.student-top span, .student-meta { color: var(--text-soft); font-size: .78rem; }
+.student-top b { color: var(--accent); }
+.student-card select { width: 100%; }
+.doctrine-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap: 10px; }
+.doctrine-grid article { display: grid; gap: 7px; padding: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+.doctrine-grid svg { color: var(--accent); }
+.doctrine-grid h4, .doctrine-grid p { margin: 0; }
+.doctrine-grid small { color: var(--text-soft); }
+.doctrine-founder { border-style: dashed !important; }
+
+.council-seats article { display: grid; grid-template-columns: minmax(150px,1fr) minmax(180px,1fr); gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.council-seats article > div { display: grid; gap: 2px; }
+.council-seats article span { color: var(--text-soft); font-size: .78rem; }
+.proposal-card > h3 { margin: 10px 0 6px; }
+.proposal-score { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; padding: 10px; border: 1px solid var(--line); }
+.vote-list { display: grid; gap: 5px; margin-bottom: 12px; color: var(--text-soft); font-size: .82rem; }
+.faction-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(235px,1fr)); gap: 10px; }
+.faction-grid article { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+.faction-top { display: flex; justify-content: space-between; gap: 10px; }
+.faction-top h3 { margin: 0; }
+.faction-top span { color: var(--accent); }
+.faction-grid p { margin: 0; color: var(--text-soft); }
+.faction-grid small { color: var(--text-soft); }
+.faction-bars { display: grid; gap: 4px; }
+.faction-bars > span { display: flex; justify-content: space-between; font-size: .78rem; }
+.faction-bars .progress-line { height: 5px; }
+.faction-bars .progress-line i { display: block; height: 100%; background: var(--accent); }
+.faction-bars .progress-line.loyalty i { background: var(--success); }
+.charter-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.charter-grid label { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.018); }
+.charter-grid label > span { color: var(--text-soft); font-size: .78rem; }
+.generations-panel article, .memorial-panel article { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.generations-panel article > div { display: flex; justify-content: space-between; gap: 10px; }
+.generations-panel article p, .generations-panel article small, .memorial-panel article span { margin: 0; color: var(--text-soft); }
+.memorial-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 12px; }
+.danger-button { min-height: 38px; padding: 0 13px; border: 1px solid rgba(204,86,86,.45); background: rgba(204,86,86,.08); color: #e59a9a; cursor: pointer; }
+
+@media (max-width: 980px) {
+  .headquarters-quick-actions, .academy-grid, .council-grid { grid-template-columns: 1fr; }
+  .academy-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 680px) {
+  .hiring-toolbar, .charter-grid, .guild-status-list { grid-template-columns: 1fr; }
+  .hire-stats { grid-template-columns: 1fr; }
+  .academy-metrics { grid-template-columns: 1fr 1fr; }
+  .council-seats article { grid-template-columns: 1fr; }
+  .memorial-form { grid-template-columns: 1fr; }
+}

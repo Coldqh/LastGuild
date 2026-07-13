@@ -16,6 +16,7 @@ import type {
 } from '../types/game'
 import { RNG } from './rng'
 import { loadPreferences, type AppPreferences } from './preferences'
+import { guildInstitutionDayTick } from './guildPolitics'
 
 const GUILD_FIRST = ['Северная', 'Лазурная', 'Королевская', 'Пепельная', 'Золотая', 'Вольная', 'Тихая', 'Чёрная', 'Серебряная', 'Старая']
 const GUILD_SECOND = ['экспедиция', 'компания', 'палата', 'коллегия', 'стража', 'артель', 'лига', 'канцелярия', 'обсерватория', 'дружина']
@@ -315,12 +316,34 @@ function tickMentorships(state: GameState): GameState {
 function ensureGuildLeader(state: GameState): GameState {
   const current = state.characters.find((character) => character.id === state.guild.leaderId)
   if (current && current.employed && !current.assignedBranchId && !['dead', 'missing', 'retired'].includes(current.status)) return state
-  const candidate = state.characters.filter((character) => character.employed && !character.assignedBranchId && !['dead', 'missing', 'retired'].includes(character.status)).sort((a, b) => (b.skills.leadership * 10 + b.fame + b.loyalty / 2) - (a.skills.leadership * 10 + a.fame + a.loyalty / 2))[0]
-  if (!candidate) return state
+  const eligible = state.characters.filter((character) => character.employed && !character.assignedBranchId && !['dead', 'missing', 'retired', 'expedition'].includes(character.status))
+  if (!eligible.length) return state
+  const baseScore = (character: Character) => character.skills.leadership * 10 + character.fame + character.loyalty / 2 + character.councilInfluence
+  let pool = eligible
+  let methodText = 'старшие сотрудники признали нового главу'
+  if (state.charter?.leadershipSelection === 'council') {
+    const councilIds = new Set(state.council.filter((seat) => seat.holderId).map((seat) => seat.holderId!))
+    const councilPool = eligible.filter((character) => councilIds.has(character.id))
+    if (councilPool.length) pool = councilPool
+    methodText = 'решение принято голосованием совета'
+  } else if (state.charter?.leadershipSelection === 'veterans') {
+    const veterans = eligible.filter((character) => ['veteran', 'leader', 'mentor', 'legend'].includes(character.careerStage) || character.expeditions >= 5)
+    if (veterans.length) pool = veterans
+    methodText = 'ветераны выбрали преемника из опытного состава'
+  } else {
+    const apprenticeIds = new Set(current?.apprenticeIds ?? [])
+    const appointed = eligible.filter((character) => apprenticeIds.has(character.id) || character.id === state.guild.positions.find((position) => position.id === 'expedition_master')?.holderId)
+    if (appointed.length) pool = appointed
+    methodText = 'сработал порядок назначенного преемника'
+  }
+  const candidate = [...pool].sort((a, b) => baseScore(b) - baseScore(a))[0]
+  const loserIds = eligible.filter((entry) => entry.id !== candidate.id).sort((a, b) => baseScore(b) - baseScore(a)).slice(0, 2).map((entry) => entry.id)
   return {
     ...state,
-    guild: { ...state.guild, leaderId: candidate.id, stability: Math.max(5, state.guild.stability - 3) },
-    chronicle: [...state.chronicle, { id: `chronicle-leader-${state.year}-${state.day}-${candidate.id}`, day: state.day, year: state.year, title: `${candidate.name} возглавляет гильдию`, text: 'После кризиса руководства старшие сотрудники признали нового главу.', category: 'guild', importance: 4 }],
+    guild: { ...state.guild, leaderId: candidate.id, stability: Math.max(5, state.guild.stability - (state.charter?.leadershipSelection === 'council' ? 1 : 3)) },
+    characters: state.characters.map((entry) => entry.id === candidate.id ? { ...entry, careerStage: entry.careerStage === 'legend' ? 'legend' : 'leader', fame: entry.fame + 6, councilInfluence: entry.councilInfluence + 5 } : loserIds.includes(entry.id) ? { ...entry, loyalty: Math.max(0, entry.loyalty - 4) } : entry),
+    guildFactions: state.guildFactions.map((faction) => loserIds.includes(faction.leaderId ?? '') ? { ...faction, loyalty: Math.max(0, faction.loyalty - 5), relationToLeader: Math.max(-100, faction.relationToLeader - 8) } : faction),
+    chronicle: [...state.chronicle, { id: `chronicle-leader-${state.year}-${state.day}-${candidate.id}`, day: state.day, year: state.year, title: `${candidate.name} возглавляет гильдию`, text: `После кризиса руководства ${methodText}. Проигравшие кандидаты сохраняют влияние.`, category: 'guild', importance: 5 }],
   }
 }
 
@@ -459,6 +482,7 @@ export function strategicDayTick(state: GameState): GameState {
     const archive = next.rivalExpeditions.filter((expedition) => !['preparing', 'traveling'].includes(expedition.status)).slice(-400)
     next = { ...next, rivalExpeditions: [...archive, ...active] }
   }
+  next = guildInstitutionDayTick(next)
   return next
 }
 

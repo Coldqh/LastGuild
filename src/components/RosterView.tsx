@@ -4,7 +4,6 @@ import type { Character, CharacterCareerStage, GameState } from '../types/game'
 
 interface Props {
   state: GameState
-  onHire: (characterId: string) => void
   onDismiss: (characterId: string) => void
 }
 
@@ -26,12 +25,12 @@ function relationshipLabel(value: number): string {
   return 'вражда'
 }
 
-export default function RosterView({ state, onHire, onDismiss }: Props) {
+export default function RosterView({ state, onDismiss }: Props) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = state.characters.find((character) => character.id === selectedId) ?? null
-  const filtered = useMemo(() => state.characters.filter((character) => {
+  const filtered = useMemo(() => state.characters.filter((character) => character.employed || character.expeditions > 0 || ['dead', 'missing', 'retired'].includes(character.status)).filter((character) => {
     const matchesQuery = `${character.name} ${character.profession} ${character.ancestry} ${careerLabels[character.careerStage]}`.toLowerCase().includes(query.toLowerCase())
     return matchesQuery && (status === 'all' || character.status === status)
   }), [state.characters, query, status])
@@ -47,7 +46,7 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
   return (
     <section className="view roster-view">
       <header className="view-heading">
-        <div><p className="eyebrow">Личный состав</p><h1>Исследователи гильдии</h1><p>Новички получают характер, связи, травмы и карьеру через реальные походы. Сильные люди могут стать лидерами, наставниками или легендами.</p></div>
+        <div><p className="eyebrow">Личный состав</p><h1>Исследователи гильдии</h1><p>Здесь хранится действующий состав и история людей, уже связанных с гильдией. Свободные кандидаты перенесены в Штаб → Наём.</p></div>
       </header>
       <div className="toolbar paper-card">
         <label className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Имя, народ, профессия или карьера" /></label>
@@ -74,7 +73,7 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
               <div className="character-name"><h3>{character.name}</h3><span>ур. {character.level}</span></div>
               <p>{character.ancestry} · {character.age} лет</p>
               <strong>{character.profession}</strong>
-              <div className="character-chip-row"><span className={`employment-chip ${character.employed ? 'member' : character.rivalGuildId ? 'rival' : 'candidate'}`}>{character.employed ? 'штат' : character.rivalGuildId ? 'конкурент' : 'кандидат'}</span><span className={`career-chip stage-${character.careerStage}`}>{careerLabels[character.careerStage]}</span></div>
+              <div className="character-chip-row"><span className={`employment-chip ${character.employed ? 'member' : character.rivalGuildId ? 'rival' : 'candidate'}`}>{character.employed ? 'штат' : character.status === 'retired' ? 'ветеран' : character.status === 'dead' ? 'погиб' : character.status === 'missing' ? 'пропал' : 'бывший сотрудник'}</span><span className={`career-chip stage-${character.careerStage}`}>{careerLabels[character.careerStage]}</span></div>
               <div className="tag-list">{character.traits.slice(0, 2).map((trait) => <span key={trait}>{trait}</span>)}</div>
               <div className="mini-stats"><span><HeartPulse size={14} />{Math.round(character.health)}</span><span><Shield size={14} />{character.skills.combat}</span><span><Star size={14} />{character.fame}</span></div>
             </div>
@@ -110,14 +109,14 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
                 <p><b>Страх:</b> {selected.fear}</p>
                 <p><b>Экспедиции:</b> {selected.expeditions}</p>
                 <p><b>Открытия:</b> {selected.discoveries}</p>
-                <p><b>Контракт:</b> {selected.employed ? `постоянный, ${selected.salary} кр./месяц` : `кандидат, подписание ${60 + selected.level * 25} кр.`}</p>{selected.assignedBranchId && <p><b>Назначение:</b> руководитель филиала «{state.branches.find((branch) => branch.id === selected.assignedBranchId)?.name ?? 'неизвестный филиал'}»</p>}
+                <p><b>Контракт:</b> {selected.employed ? `постоянный, ${selected.salary} кр./месяц` : 'не состоит в штате'}</p>{selected.assignedBranchId && <p><b>Назначение:</b> руководитель филиала «{state.branches.find((branch) => branch.id === selected.assignedBranchId)?.name ?? 'неизвестный филиал'}»</p>}
                 <div className="combat-behavior-card"><strong>Поведение в бою</strong><span>Роль: {selected.combatBehavior.role}</span><span>Дистанция: {selected.combatBehavior.preferredRange}</span><span>Агрессивность: {selected.combatBehavior.aggression}%</span><span>Отступление при {selected.combatBehavior.retreatAt}% здоровья</span><span>{selected.combatBehavior.protectWeak ? 'прикрывает слабых' : 'держит личную позицию'}</span></div>
                 {selected.employed ? (
                   <button className="secondary-button personnel-action" disabled={selected.status === 'expedition'} onClick={() => { onDismiss(selected.id); setSelectedId(null) }}>Расторгнуть контракт</button>
                 ) : selected.rivalGuildId ? (
                   <div className="rival-employment-note">Сейчас служит в организации: <strong>{state.rivalGuilds.find((guild) => guild.id === selected.rivalGuildId)?.name ?? 'неизвестный конкурент'}</strong></div>
                 ) : (
-                  <button className="primary-button personnel-action" disabled={state.guild.treasury < 60 + selected.level * 25} onClick={() => { onHire(selected.id); setSelectedId(null) }}>Нанять · {60 + selected.level * 25} кр.</button>
+                  <div className="rival-employment-note">Персонаж больше не состоит в штате. Новый найм проводится через раздел «Штаб».</div>
                 )}
                 <h3>Травмы и восстановление</h3>
                 {selected.injuryRecords.length === 0 ? <p className="muted">Серьёзных травм нет.</p> : selected.injuryRecords.map((injury) => <div className={`injury-entry severity-${injury.severity}`} key={injury.id}><div><strong>{injury.name}</strong><span>{injury.effect}</span></div><small>{injury.permanent ? 'необратимая' : injury.treated ? 'вылечена' : `${injury.recoveryDays} дн. лечения`}</small></div>)}

@@ -11,8 +11,8 @@ export interface TutorialStep {
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
   { id: 'headquarters', title: 'Осмотри старый штаб', description: 'Проверь долг, помещения и стартовые проблемы гильдии.', targetView: 'headquarters' },
-  { id: 'roster', title: 'Открой список людей', description: 'Посмотри, кто уже служит гильдии и кто ищет работу.', targetView: 'roster' },
-  { id: 'hire', title: 'Найми первого новичка', description: 'Увеличь состав перед первой серьёзной экспедицией.', targetView: 'roster' },
+  { id: 'roster', title: 'Открой список людей', description: 'Посмотри действующий состав и историю службы.', targetView: 'roster' },
+  { id: 'hire', title: 'Найми первого новичка', description: 'Вернись в штаб и открой внутреннюю вкладку «Наём».', targetView: 'headquarters' },
   { id: 'expeditions', title: 'Выбери первый контракт', description: 'Открой планировщик и изучи доступные цели.', targetView: 'expeditions' },
   { id: 'launch', title: 'Отправь отряд', description: 'Назначь лидера, собери припасы и утверди маршрут.', targetView: 'expeditions' },
   { id: 'time', title: 'Продвинь время', description: 'Дай экспедиции выйти в путь. Время остановится при важном событии.', targetView: 'headquarters' },
