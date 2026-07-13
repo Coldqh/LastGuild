@@ -15,7 +15,7 @@ export type KnowledgeLevel = 0 | 1 | 2 | 3 | 4 | 5
 export type CharacterStatus = 'available' | 'expedition' | 'recovering' | 'missing' | 'dead' | 'retired'
 export type CharacterCareerStage = 'recruit' | 'field' | 'veteran' | 'leader' | 'mentor' | 'legend'
 export type ExpeditionStatus = 'planned' | 'active' | 'returning' | 'completed' | 'missing' | 'failed'
-export type ViewId = 'headquarters' | 'world' | 'roster' | 'expeditions' | 'archive'
+export type ViewId = 'headquarters' | 'world' | 'roster' | 'expeditions' | 'archive' | 'influence'
 export type DifficultyId = 'story' | 'standard' | 'hard' | 'brutal'
 export type MapSizeId = 'compact' | 'regional' | 'vast'
 export type DensityId = 'sparse' | 'normal' | 'dense'
@@ -31,6 +31,13 @@ export type CombatRole = 'frontline' | 'skirmisher' | 'ranged' | 'support' | 'co
 export type CombatStatus = 'active' | 'victory' | 'retreated' | 'defeat'
 export type CombatCommandType = 'focus' | 'protect' | 'rally' | 'retreat'
 export type CombatUnitStatus = 'ready' | 'wounded' | 'panicked' | 'down' | 'dead'
+export type RivalGuildArchetype = 'royal' | 'academic' | 'hunters' | 'traders' | 'relic_raiders' | 'religious' | 'free_company' | 'secret'
+export type RivalGuildStance = 'allied' | 'cooperative' | 'neutral' | 'competitive' | 'hostile'
+export type BranchAutonomy = 'controlled' | 'limited' | 'autonomous'
+export type BranchSpecialization = 'cartography' | 'archaeology' | 'monsters' | 'diplomacy' | 'magic' | 'trade'
+export type CrisisKind = 'war' | 'succession' | 'epidemic' | 'religious' | 'monster_migration' | 'trade_collapse' | 'magical_storm' | 'rebellion'
+export type CrisisStatus = 'emerging' | 'active' | 'resolved' | 'collapsed'
+export type RivalExpeditionStatus = 'preparing' | 'traveling' | 'completed' | 'failed'
 
 export interface WorldGenerationSettings {
   preset: WorldPresetId
@@ -279,6 +286,10 @@ export interface Character {
   expeditions: number
   discoveries: number
   combatBehavior: CombatBehavior
+  mentorId?: string
+  apprenticeIds: string[]
+  rivalGuildId?: string
+  assignedBranchId?: string
 }
 
 export interface GuildRoom {
@@ -320,6 +331,8 @@ export interface GuildData {
   positions: GuildPosition[]
   maxActiveExpeditions: number
   daysSincePayment: number
+  leaderId?: string
+  charterInfluence: number
 }
 
 export interface ExpeditionLogEntry {
@@ -387,6 +400,8 @@ export interface Opportunity {
   accepted: boolean
   requiredRoles: string[]
   riskProfile: ExpeditionRiskProfile
+  contestedByIds?: string[]
+  greatContract?: boolean
 }
 
 export interface ChronicleEntry {
@@ -574,6 +589,101 @@ export interface BestiaryEntry {
   legendaryNames: string[]
 }
 
+export interface PoliticalFaction {
+  id: string
+  realmId: string
+  name: string
+  kind: 'court' | 'army' | 'faith' | 'merchants' | 'academy' | 'local'
+  influence: number
+  attitude: number
+  agenda: string
+  currentDemand: string
+}
+
+export interface RivalGuild {
+  id: string
+  name: string
+  archetype: RivalGuildArchetype
+  headquartersSettlementId: string
+  leaderName: string
+  leaderTrait: string
+  specialization: BranchSpecialization
+  budget: number
+  reputation: number
+  scientificAuthority: number
+  fieldStrength: number
+  secrecy: number
+  ethics: number
+  relation: number
+  stance: RivalGuildStance
+  methods: string[]
+  favoredRealmId: string
+  discoveries: number
+  losses: number
+  activeExpeditionIds: string[]
+}
+
+export interface RivalExpedition {
+  id: string
+  rivalGuildId: string
+  opportunityId: string
+  targetTileId: string
+  title: string
+  status: RivalExpeditionStatus
+  startedDay: number
+  startedYear: number
+  etaDays: number
+  progress: number
+  strength: number
+  secrecy: number
+}
+
+export interface GuildBranch {
+  id: string
+  name: string
+  settlementId: string
+  leaderId: string
+  specialization: BranchSpecialization
+  autonomy: BranchAutonomy
+  level: number
+  treasury: number
+  reputation: number
+  loyalty: number
+  staff: number
+  upkeep: number
+  income: number
+  openedYear: number
+  openedDay: number
+  hiddenFunds: number
+}
+
+export interface WorldCrisis {
+  id: string
+  kind: CrisisKind
+  title: string
+  description: string
+  realmIds: string[]
+  settlementIds: string[]
+  severity: number
+  progress: number
+  status: CrisisStatus
+  startedYear: number
+  startedDay: number
+  playerContribution: number
+  effects: string[]
+}
+
+export interface Mentorship {
+  id: string
+  mentorId: string
+  apprenticeId: string
+  startedYear: number
+  startedDay: number
+  progress: number
+  inheritedSkill: keyof CharacterSkills
+  doctrine: string
+}
+
 export interface GameState {
   version: number
   seed: string
@@ -594,4 +704,10 @@ export interface GameState {
   pendingCombat?: CombatEncounter
   pendingDungeon?: DungeonExploration
   bestiary: BestiaryEntry[]
+  politicalFactions: PoliticalFaction[]
+  rivalGuilds: RivalGuild[]
+  rivalExpeditions: RivalExpedition[]
+  branches: GuildBranch[]
+  crises: WorldCrisis[]
+  mentorships: Mentorship[]
 }

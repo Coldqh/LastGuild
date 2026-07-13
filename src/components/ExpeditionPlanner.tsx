@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Check, Clock3, Compass, MapPinned, Package, Plus, ScrollText, Shield, Skull, Users, X } from 'lucide-react'
+import { AlertTriangle, Check, Clock3, Compass, MapPinned, Package, Plus, ScrollText, Shield, Skull, Swords, Users, X } from 'lucide-react'
 import { findRoute, type ExpeditionDraft } from '../game/simulation'
 import type { Character, ExpeditionRiskProfile, GameState, Opportunity } from '../types/game'
 
@@ -35,7 +35,7 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
 
   const opportunities = state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day)
   const selectedOpportunity = opportunities.find((opportunity) => opportunity.id === selectedOpportunityId)
-  const availableCharacters = state.characters.filter((character) => character.employed && character.status === 'available')
+  const availableCharacters = state.characters.filter((character) => character.employed && character.status === 'available' && !character.assignedBranchId)
   const selectedMembers = availableCharacters.filter((character) => memberIds.includes(character.id))
   const home = state.world.settlements.find((settlement) => settlement.id === state.world.startSettlementId)
   const route = useMemo(() => selectedOpportunity && home ? findRoute(state, home.tileId, selectedOpportunity.targetTileId) : [], [selectedOpportunity, home, state])
@@ -105,6 +105,7 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
               <p>{opportunity.description}</p>
               <div className="opportunity-source">Источник: {opportunity.source}</div>
               <div className="required-role-line">Нужны: {opportunity.requiredRoles.join(', ')}</div>
+              {(opportunity.contestedByIds?.length ?? 0) > 0 && <div className="contested-line"><Swords size={15} /><span>За цель уже борются: {opportunity.contestedByIds!.map((id) => state.rivalGuilds.find((guild) => guild.id === id)?.name).filter(Boolean).join(', ')}</span></div>}
               <div className="opportunity-stats">
                 <span><Skull size={15} /> риск {opportunity.dangerEstimate}/10</span>
                 <span><Package size={15} /> {opportunity.reward} кр.</span>

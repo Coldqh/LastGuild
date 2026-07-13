@@ -20,6 +20,7 @@ import type {
 import { RNG } from './rng'
 import { generateWorld } from './worldGenerator'
 import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './worldSettings'
+import { createStrategicLayer } from './strategy'
 
 function skillProfile(profession: string, rng: RNG): Character['skills'] {
   const base = {
@@ -63,7 +64,7 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
   const settlements = world.settlements.length ? world.settlements : [{ id: world.startSettlementId, name: 'неизвестное поселение' } as any]
   for (let index = 0; index < count; index += 1) {
     const profession = rng.pick(PROFESSIONS)
-    const level = rng.int(1, 4)
+    const level = index === 0 ? 4 : rng.int(1, 4)
     const home = rng.pick(settlements)
     const oldInjury = rng.bool(0.12) ? rng.pick(['старый перелом', 'повреждённое плечо', 'хроническая боль', 'магический ожог']) : undefined
     const traits = rng.shuffle(TRAITS).slice(0, 3)
@@ -81,7 +82,7 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
       skills: skillProfile(profession, rng),
       injuries: oldInjury ? [oldInjury] : [],
       injuryRecords: oldInjury ? [{ id: `injury-start-${index}`, name: oldInjury, severity: 2, permanent: true, recoveryDays: 0, effect: '−1 к отдельным полевым проверкам', treated: true }] : [],
-      relationships: {}, memories: [], expeditions: rng.int(0, 3), discoveries: rng.int(0, 1), combatBehavior: combatBehavior(profession, traits),
+      relationships: {}, memories: [], expeditions: rng.int(0, 3), discoveries: rng.int(0, 1), combatBehavior: combatBehavior(profession, traits), apprenticeIds: [],
     })
   }
   for (const character of characters) {
@@ -115,7 +116,7 @@ function createGuild(settings: WorldGenerationSettings): GuildData {
       { id: 'mentor', name: 'Наставник новичков', description: 'Передаёт опыт молодому составу.', effect: '+20% опыта после экспедиций' },
       { id: 'diplomat', name: 'Дипломат гильдии', description: 'Работает с властями и заказчиками.', effect: '+2 репутации при публикации' },
     ],
-    maxActiveExpeditions: 1, daysSincePayment: 0,
+    maxActiveExpeditions: 1, daysSincePayment: 0, leaderId: undefined, charterInfluence: 0,
   }
 }
 
@@ -177,10 +178,15 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(requestedSettings ?? {}) }
   const world = generateWorld(seed, settings)
   const characterCount = settings.mapSize === 'vast' ? 36 : settings.mapSize === 'compact' ? 24 : 30
+  const characters = createCharacters(seed, characterCount, world)
+  const guild = createGuild(settings)
+  const strategic = createStrategicLayer(seed, world, characters)
+  guild.leaderId = strategic.leaderId
   return {
-    version: 5, seed, settings, day: 1, year: 912, season: 0,
-    guild: createGuild(settings), world, characters: createCharacters(seed, characterCount, world), expeditions: [],
+    version: 6, seed, settings, day: 1, year: 912, season: 0,
+    guild, world, characters, expeditions: [],
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
+    politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], branches: [], crises: strategic.crises, mentorships: [],
     chronicle: [{
       id: 'chronicle-start', day: 1, year: 912, title: 'Последняя гильдия открывает двери',
       text: `После нескольких лет упадка старое здание снова принимает контракты. Мир создан в режиме «${settings.preset}», государств: ${world.realms.length}, известных руин: ${world.sites.filter((site) => site.state === 'rumored').length}.`,

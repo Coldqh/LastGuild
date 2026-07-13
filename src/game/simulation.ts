@@ -22,6 +22,7 @@ import { createOpportunities } from './gameFactory'
 import { DIFFICULTY_RULES } from './worldSettings'
 import { startCombatEncounter } from './combat'
 import { startDungeonExploration } from './dungeon'
+import { stanceFromRelation, strategicDayTick } from './strategy'
 
 const neighborOffsets = (x: number): number[][] =>
   x % 2 === 0
@@ -269,6 +270,7 @@ export function createExpeditionFromDraft(state: GameState, draft: ExpeditionDra
     battles: 0,
     dungeonSiteIds: [],
   }
+  const competingGuildIds = draft.opportunity.contestedByIds ?? []
 
   return {
     ...state,
@@ -285,6 +287,11 @@ export function createExpeditionFromDraft(state: GameState, draft: ExpeditionDra
       opportunity.id === draft.opportunity.id ? { ...opportunity, accepted: true } : opportunity,
     ),
     expeditions: [...state.expeditions, expedition],
+    rivalGuilds: state.rivalGuilds.map((rival) => {
+      if (!competingGuildIds.includes(rival.id)) return rival
+      const relation = Math.max(-100, rival.relation - 5)
+      return { ...rival, relation, stance: stanceFromRelation(relation) }
+    }),
     chronicle: [
       ...state.chronicle,
       {
@@ -1130,6 +1137,7 @@ export function advanceDay(state: GameState): GameState {
     opportunities: next.opportunities.filter((opportunity) => opportunity.accepted || opportunity.deadlineDay >= next.day),
   }
   next = processConsequences(next)
+  next = strategicDayTick(next)
   return next
 }
 
@@ -1190,7 +1198,7 @@ export function payDebt(state: GameState, amount: number): GameState {
 
 export function hireCharacter(state: GameState, characterId: string): GameState {
   const character = state.characters.find((candidate) => candidate.id === characterId)
-  if (!character || character.employed || character.status === 'dead' || character.status === 'missing') return state
+  if (!character || character.employed || character.rivalGuildId || character.status === 'dead' || character.status === 'missing') return state
   const signingCost = 60 + character.level * 25
   if (state.guild.treasury < signingCost) return state
   return {

@@ -48,6 +48,9 @@ export default function WorldMap({ state }: Props) {
   const expeditionPositions = state.expeditions
     .filter((expedition) => expedition.status === 'active' || expedition.status === 'returning')
     .map((expedition) => ({ expedition, tileId: expedition.route[expedition.routeIndex] }))
+  const rivalPositions = state.rivalExpeditions
+    .filter((expedition) => expedition.status === 'preparing' || expedition.status === 'traveling')
+    .map((expedition) => ({ expedition, tileId: expedition.targetTileId }))
 
   const selectedSettlement = tile?.settlementId ? settlementMap.get(tile.settlementId) : undefined
   const selectedSite = tile?.siteId ? siteMap.get(tile.siteId) : undefined
@@ -117,10 +120,16 @@ export default function WorldMap({ state }: Props) {
                 const [cx, cy] = center(current)
                 return <g key={expedition.id} className="expedition-marker"><circle cx={cx} cy={cy} r="7" fill="#d5ae55" stroke="#241708" strokeWidth="2" /><circle cx={cx} cy={cy} r="2.6" fill="#241708" /></g>
               })}
+              {rivalPositions.map(({ expedition, tileId }) => {
+                const current = tileMap.get(tileId)
+                if (!current || current.knowledge === 0 || expedition.secrecy > 82) return null
+                const [cx, cy] = center(current)
+                return <g key={expedition.id} className="rival-expedition-marker"><path d={`M ${cx} ${cy - 8} L ${cx + 7} ${cy + 6} L ${cx - 7} ${cy + 6} Z`} fill="#b65c57" stroke="#120c0b" strokeWidth="1.5" /><circle cx={cx} cy={cy + 1} r="1.8" fill="#f1d7d3" /></g>
+              })}
             </svg>
           </div>
           <div className="map-legend">
-            <span><i className="legend-road" />дорога</span><span><i className="legend-trade" />торговый путь</span><span><i className="legend-river" />река</span><span><i className="legend-settlement" />поселение</span><span><i className="legend-site" />руины</span>
+            <span><i className="legend-road" />дорога</span><span><i className="legend-trade" />торговый путь</span><span><i className="legend-river" />река</span><span><i className="legend-settlement" />поселение</span><span><i className="legend-site" />руины</span><span><i className="legend-rival" />чужая экспедиция</span>
           </div>
         </div>
 

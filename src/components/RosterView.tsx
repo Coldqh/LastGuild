@@ -74,7 +74,7 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
               <div className="character-name"><h3>{character.name}</h3><span>ур. {character.level}</span></div>
               <p>{character.ancestry} · {character.age} лет</p>
               <strong>{character.profession}</strong>
-              <div className="character-chip-row"><span className={`employment-chip ${character.employed ? 'member' : 'candidate'}`}>{character.employed ? 'штат' : 'кандидат'}</span><span className={`career-chip stage-${character.careerStage}`}>{careerLabels[character.careerStage]}</span></div>
+              <div className="character-chip-row"><span className={`employment-chip ${character.employed ? 'member' : character.rivalGuildId ? 'rival' : 'candidate'}`}>{character.employed ? 'штат' : character.rivalGuildId ? 'конкурент' : 'кандидат'}</span><span className={`career-chip stage-${character.careerStage}`}>{careerLabels[character.careerStage]}</span></div>
               <div className="tag-list">{character.traits.slice(0, 2).map((trait) => <span key={trait}>{trait}</span>)}</div>
               <div className="mini-stats"><span><HeartPulse size={14} />{Math.round(character.health)}</span><span><Shield size={14} />{character.skills.combat}</span><span><Star size={14} />{character.fame}</span></div>
             </div>
@@ -110,10 +110,12 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
                 <p><b>Страх:</b> {selected.fear}</p>
                 <p><b>Экспедиции:</b> {selected.expeditions}</p>
                 <p><b>Открытия:</b> {selected.discoveries}</p>
-                <p><b>Контракт:</b> {selected.employed ? `постоянный, ${selected.salary} кр./месяц` : `кандидат, подписание ${60 + selected.level * 25} кр.`}</p>
+                <p><b>Контракт:</b> {selected.employed ? `постоянный, ${selected.salary} кр./месяц` : `кандидат, подписание ${60 + selected.level * 25} кр.`}</p>{selected.assignedBranchId && <p><b>Назначение:</b> руководитель филиала «{state.branches.find((branch) => branch.id === selected.assignedBranchId)?.name ?? 'неизвестный филиал'}»</p>}
                 <div className="combat-behavior-card"><strong>Поведение в бою</strong><span>Роль: {selected.combatBehavior.role}</span><span>Дистанция: {selected.combatBehavior.preferredRange}</span><span>Агрессивность: {selected.combatBehavior.aggression}%</span><span>Отступление при {selected.combatBehavior.retreatAt}% здоровья</span><span>{selected.combatBehavior.protectWeak ? 'прикрывает слабых' : 'держит личную позицию'}</span></div>
                 {selected.employed ? (
                   <button className="secondary-button personnel-action" disabled={selected.status === 'expedition'} onClick={() => { onDismiss(selected.id); setSelectedId(null) }}>Расторгнуть контракт</button>
+                ) : selected.rivalGuildId ? (
+                  <div className="rival-employment-note">Сейчас служит в организации: <strong>{state.rivalGuilds.find((guild) => guild.id === selected.rivalGuildId)?.name ?? 'неизвестный конкурент'}</strong></div>
                 ) : (
                   <button className="primary-button personnel-action" disabled={state.guild.treasury < 60 + selected.level * 25} onClick={() => { onHire(selected.id); setSelectedId(null) }}>Нанять · {60 + selected.level * 25} кр.</button>
                 )}

@@ -1,8 +1,9 @@
 import type { Character, GameState, GuildPosition } from '../types/game'
 import { DEFAULT_WORLD_SETTINGS } from './worldSettings'
+import { createStrategicLayer } from './strategy'
 
-const SAVE_KEY = 'last-guild-save-v5'
-const LEGACY_KEYS = ['last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v6'
+const LEGACY_KEYS = ['last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -37,6 +38,10 @@ function normalizeCharacter(character: any, state: any): Character {
     })),
     relationships: character.relationships ?? {},
     combatBehavior: character.combatBehavior ?? { role: ['Воин'].includes(character.profession) ? 'frontline' : ['Маг', 'Следопыт', 'Охотник'].includes(character.profession) ? 'ranged' : ['Жрец', 'Лекарь'].includes(character.profession) ? 'support' : 'skirmisher', preferredRange: ['Маг', 'Следопыт', 'Охотник'].includes(character.profession) ? 4 : 1, aggression: 50, protectWeak: ['Воин', 'Жрец', 'Лекарь'].includes(character.profession), retreatAt: 38, conserveAbilities: true },
+    mentorId: character.mentorId,
+    apprenticeIds: character.apprenticeIds ?? [],
+    rivalGuildId: character.rivalGuildId,
+    assignedBranchId: character.assignedBranchId,
     memories: (character.memories ?? []).map((memory: any, index: number) => ({
       id: memory.id ?? `legacy-memory-${character.id}-${index}`,
       title: memory.title ?? 'Старое воспоминание',
@@ -53,11 +58,11 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4, 5].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5, 6].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
   const normalized: GameState = {
     ...parsed,
-    version: 5,
+    version: 6,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
@@ -69,6 +74,8 @@ function normalizeState(parsed: any): GameState | null {
     guild: {
       ...parsed.guild,
       positions: parsed.guild?.positions ?? defaultPositions(),
+      leaderId: parsed.guild?.leaderId,
+      charterInfluence: parsed.guild?.charterInfluence ?? 0,
     },
     world: {
       ...parsed.world,
@@ -98,6 +105,19 @@ function normalizeState(parsed: any): GameState | null {
       battles: expedition.battles ?? 0,
       dungeonSiteIds: expedition.dungeonSiteIds ?? [],
     })),
+    politicalFactions: parsed.politicalFactions ?? [],
+    rivalGuilds: parsed.rivalGuilds ?? [],
+    rivalExpeditions: parsed.rivalExpeditions ?? [],
+    branches: parsed.branches ?? [],
+    crises: parsed.crises ?? [],
+    mentorships: parsed.mentorships ?? [],
+  }
+  if (normalized.rivalGuilds.length === 0 || normalized.politicalFactions.length === 0) {
+    const strategic = createStrategicLayer(normalized.seed, normalized.world, normalized.characters)
+    normalized.rivalGuilds = normalized.rivalGuilds.length ? normalized.rivalGuilds : strategic.rivalGuilds
+    normalized.politicalFactions = normalized.politicalFactions.length ? normalized.politicalFactions : strategic.politicalFactions
+    normalized.crises = normalized.crises.length ? normalized.crises : strategic.crises
+    normalized.guild.leaderId = normalized.guild.leaderId ?? strategic.leaderId
   }
   return normalized
 }

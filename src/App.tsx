@@ -8,6 +8,7 @@ import {
   Compass,
   Map,
   Menu,
+  Network,
   RotateCcw,
   Save,
   Settings as SettingsIcon,
@@ -23,6 +24,7 @@ import ExpeditionDebriefModal from './components/ExpeditionDebriefModal'
 import ExpeditionDecisionModal from './components/ExpeditionDecisionModal'
 import ExpeditionPlanner from './components/ExpeditionPlanner'
 import GuildView from './components/GuildView'
+import InfluenceView from './components/InfluenceView'
 import RosterView from './components/RosterView'
 import SettingsModal from './components/SettingsModal'
 import WorldMap from './components/WorldMap'
@@ -45,7 +47,8 @@ import { clearSave, loadGame, saveGame } from './game/storage'
 import { autoResolveCombat, finalizeCombat, issueCombatCommand, stepCombat } from './game/combat'
 import { establishDungeonCamp, exploreDungeonZone, leaveDungeon } from './game/dungeon'
 import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './game/worldSettings'
-import type { CombatCommandType, GameState, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
+import { appointGuildLeader, assignMentorship, changeBranchAutonomy, conductRivalAction, openBranch, respondToCrisis } from './game/strategy'
+import type { BranchAutonomy, BranchSpecialization, CharacterSkills, CombatCommandType, GameState, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
 
 const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
   { id: 'headquarters', label: 'Штаб', icon: Building2 },
@@ -53,6 +56,7 @@ const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
   { id: 'roster', label: 'Персонажи', icon: Users },
   { id: 'expeditions', label: 'Экспедиции', icon: Compass },
   { id: 'archive', label: 'Архив', icon: BookOpen },
+  { id: 'influence', label: 'Влияние', icon: Network },
 ]
 
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
@@ -94,6 +98,12 @@ export default function App() {
   const resolveDebrief = (resolution: DebriefResolution) => setState((current) => resolveExpeditionDebrief(current, resolution))
   const assignPosition = (positionId: GuildPositionId, holderId?: string) => setState((current) => assignGuildPosition(current, positionId, holderId))
   const combatCommand = (command: CombatCommandType, targetId?: string) => setState((current) => issueCombatCommand(current, command, targetId))
+  const rivalAction = (rivalId: string, action: 'cooperate' | 'exchange' | 'pressure') => setState((current) => conductRivalAction(current, rivalId, action))
+  const createBranch = (settlementId: string, leaderId: string, specialization: BranchSpecialization, autonomy: BranchAutonomy) => setState((current) => openBranch(current, settlementId, leaderId, specialization, autonomy))
+  const setBranchAutonomy = (branchId: string, autonomy: BranchAutonomy) => setState((current) => changeBranchAutonomy(current, branchId, autonomy))
+  const crisisResponse = (crisisId: string, mode: 'fund' | 'expedition' | 'neutral') => setState((current) => respondToCrisis(current, crisisId, mode))
+  const mentorship = (mentorId: string, apprenticeId: string, skill: keyof CharacterSkills) => setState((current) => assignMentorship(current, mentorId, apprenticeId, skill))
+  const appointLeader = (characterId: string) => setState((current) => appointGuildLeader(current, characterId))
 
   const openWorldSetup = () => {
     setWorldSettings({ ...state.settings })
@@ -137,6 +147,7 @@ export default function App() {
       case 'roster': return <RosterView state={state} onHire={(characterId) => setState((current) => hireCharacter(current, characterId))} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
       case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={launch} />
       case 'archive': return <ArchiveView state={state} />
+      case 'influence': return <InfluenceView state={state} onRivalAction={rivalAction} onOpenBranch={createBranch} onChangeBranchAutonomy={setBranchAutonomy} onRespondCrisis={crisisResponse} onAssignMentorship={mentorship} onAppointLeader={appointLeader} />
       default: return <GuildView state={state} onUpgrade={(roomId) => setState((current) => upgradeRoom(current, roomId))} onPayDebt={(amount) => setState((current) => payDebt(current, amount))} onAssignPosition={assignPosition} />
     }
   }
@@ -153,7 +164,11 @@ export default function App() {
         <nav>
           {views.map((item) => {
             const Icon = item.icon
-            const badge = item.id === 'expeditions' ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0) : item.id === 'headquarters' && urgentCount ? urgentCount : 0
+            const badge = item.id === 'expeditions'
+              ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
+              : item.id === 'influence'
+                ? state.crises.filter((crisis) => crisis.status === 'active').length + state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length
+                : item.id === 'headquarters' && urgentCount ? urgentCount : 0
             return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={19} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={15} /></button>
           })}
         </nav>
@@ -161,14 +176,14 @@ export default function App() {
         <div className="sidebar-world">
           <p className="eyebrow">Текущий мир</p>
           <strong>{state.seed}</strong>
-          <span>{state.world.realms.length} государства · {state.world.sites.length} мест</span>
+          <span>{state.world.realms.length} государства · {state.rivalGuilds.length} конкурентов</span>
           <span>{state.settings.preset} · {DIFFICULTY_RULES[state.settings.difficulty].label}</span>
           <button className="text-button" onClick={openWorldSetup}><RotateCcw size={15} />Новый мир</button>
         </div>
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.4 · Combat & Dungeons</small>
+          <small>v0.5 · Guilds & Politics</small>
         </div>
       </aside>
 
@@ -181,6 +196,7 @@ export default function App() {
             <button disabled={timeBlocked} onClick={() => advance(1)}>+1 день</button>
             <button disabled={timeBlocked} onClick={() => advance(7)}>+7 дней</button>
             <button disabled={timeBlocked} onClick={() => advance(30)}>+30 дней</button>
+            <button disabled={timeBlocked} onClick={() => advance(360)}>+1 год</button>
           </div>
           <div className="topbar-resources">
             <span><b>{state.guild.treasury}</b> крон</span>

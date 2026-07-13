@@ -648,3 +648,198 @@ main { min-height: calc(100vh - 62px); }
 .dungeon-modal{width:min(1220px,96vw);max-height:94vh;overflow:auto;padding:22px;background:#1b1811;color:#e6d8bb;border-color:#715b35}.dungeon-progress{height:8px;background:#0f0e0a;margin-bottom:18px;border:1px solid #4b3e29}.dungeon-progress span{display:block;height:100%;background:linear-gradient(90deg,#8f6736,#d0a95d)}.dungeon-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:18px}.dungeon-zones{display:flex;flex-direction:column;gap:10px}.dungeon-zone{display:grid;grid-template-columns:42px 1fr auto;gap:12px;align-items:center;padding:12px;border:1px solid #4d402b;background:#242016}.dungeon-zone.current{border-color:#d0a95d;box-shadow:0 0 0 1px rgba(208,169,93,.25)}.dungeon-zone.hidden{opacity:.5;background:#15130f}.dungeon-zone.secured{border-left:4px solid #6f9359}.zone-number{font-size:24px;color:#806e4d;text-align:center}.zone-title{display:flex;align-items:center;gap:7px}.zone-title h3{margin:0}.zone-main p{margin:5px 0;color:#a89a80}.zone-tags{display:flex;gap:6px;flex-wrap:wrap}.zone-tags span{display:flex;align-items:center;gap:4px;font-size:11px;padding:4px 6px;background:#15130f;border:1px solid #403621}.dungeon-zone button{padding:8px 10px}.dungeon-sidebar{display:flex;flex-direction:column;gap:12px}.dungeon-sidebar section{padding:13px;border:1px solid #493d28;background:#211d15}.dungeon-sidebar h3{display:flex;align-items:center;gap:7px;margin:0 0 8px}.dungeon-sidebar p{color:#a99b82}.dungeon-notes{max-height:260px;overflow:auto}.dungeon-notes p{font-size:12px;padding:7px 0;border-top:1px solid rgba(210,181,124,.1);margin:0}.dungeon-leave{width:100%;justify-content:center}.zone-mini-list{display:flex;flex-direction:column;gap:3px;margin-top:8px;font-size:12px}.legendary-warning{color:#e3b85b;font-weight:700}.combat-behavior-card{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:10px 0;padding:10px;background:rgba(60,49,32,.22);border:1px solid rgba(114,88,48,.25)}.combat-behavior-card strong{grid-column:1/-1}.combat-behavior-card span{font-size:12px;color:#7f715a}.bestiary-meter{height:7px;background:#e1d5bc;margin:10px 0}.bestiary-meter span{display:block;height:100%;background:#7f6740}.bestiary-details{padding:10px;background:rgba(87,69,39,.08);border:1px solid rgba(92,70,35,.15)}.bestiary-details p{margin:5px 0}.legendary-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:10px;border:1px solid #ad7d32;background:rgba(174,124,48,.09)}.legendary-list span{font-size:12px}.bestiary-notes{display:flex;flex-direction:column;gap:4px;margin-top:10px;color:#756950}
 @media(max-width:980px){.combat-layout,.dungeon-layout{grid-template-columns:1fr}.combat-sidebar{display:grid;grid-template-columns:1fr 1fr;max-height:none}.combat-grid{max-height:none}.combat-controls{align-items:stretch}.combat-controls label{width:100%}.dungeon-zone{grid-template-columns:35px 1fr}.dungeon-zone>button{grid-column:2}.combat-result{align-items:flex-start;flex-direction:column}}
 @media(max-width:620px){.combat-backdrop,.dungeon-backdrop{padding:0}.combat-modal,.dungeon-modal{width:100%;min-height:100vh;border:0}.combat-header,.dungeon-header{flex-direction:column}.combat-sidebar{grid-template-columns:1fr}.combat-cell{min-width:24px;min-height:28px}.combat-token{font-size:0}.combat-token svg{width:12px}.combat-controls>*{width:100%}.combat-controls select{max-width:none;flex:1}.dungeon-zone{grid-template-columns:28px 1fr}.archive-summary{grid-template-columns:repeat(2,1fr)}}
+
+/* v0.5 — unified dark system */
+:root {
+  color-scheme: dark;
+  --bg: #070a0f;
+  --panel: #0d1219;
+  --panel-2: #121923;
+  --paper: #121923;
+  --paper-dark: #0b1016;
+  --ink: #e5ebf2;
+  --gold: #b99155;
+  --gold-light: #dfc58e;
+  --red: #a04f4c;
+  --green: #66845f;
+  --line: rgba(177, 195, 214, .13);
+  --muted: #8f9aa7;
+  --surface: #111821;
+  --surface-2: #161f2a;
+  --surface-3: #1b2632;
+  --text: #e5ebf2;
+  --text-soft: #a9b4bf;
+  --text-dim: #73808e;
+  --accent: #b99155;
+  --accent-soft: rgba(185, 145, 85, .14);
+  --danger: #c36762;
+  --success: #77a46f;
+}
+body {
+  color: var(--text);
+  background:
+    radial-gradient(circle at 78% 8%, rgba(55, 83, 110, .14), transparent 34%),
+    radial-gradient(circle at 17% 90%, rgba(115, 81, 44, .09), transparent 30%),
+    linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.01) 1px, transparent 1px),
+    var(--bg);
+  background-size: auto, auto, 28px 28px, 28px 28px, auto;
+}
+.sidebar { background: linear-gradient(180deg, #0e141c 0%, #080c11 100%); box-shadow: 18px 0 55px rgba(0,0,0,.36); }
+.brand-mark { background: #151d27; border-color: rgba(185,145,85,.42); }
+.brand strong { color: #edf1f5; }
+.brand span, .sidebar-world span, .sidebar-footer { color: var(--text-dim); }
+.sidebar nav button { color: #8e9aa7; }
+.sidebar nav button:hover { background: rgba(185,145,85,.08); color: #e6ebf0; }
+.sidebar nav button.active { color: #efd9ad; background: linear-gradient(90deg, rgba(185,145,85,.20), rgba(35,49,64,.08)); }
+.sidebar-world { background: rgba(255,255,255,.018); }
+.sidebar-world strong { color: #d8c394; }
+.topbar { background: rgba(7,10,15,.91); }
+.topbar-date strong, .topbar-resources b { color: #e2e7ec; }
+.topbar-date span, .topbar-resources, .time-controls { color: var(--text-dim); }
+.time-controls button { color: var(--text-soft); }
+.time-controls button:hover { color: #f0d7a5; background: var(--accent-soft); }
+.paper-card {
+  color: var(--text);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.025), transparent 55%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
+  background-size: auto;
+  border: 1px solid rgba(177,195,214,.14);
+  box-shadow: 0 14px 34px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.025);
+  border-radius: 8px;
+}
+.paper-card::after { border-color: rgba(255,255,255,.025); border-radius: 5px; }
+.paper-card h1, .paper-card h2, .paper-card h3, .paper-card strong { color: var(--text); }
+.paper-card p, .paper-card small, .paper-card span { color: var(--text-soft); }
+.paper-card .eyebrow, .section-title .eyebrow { color: var(--accent) !important; }
+.section-title > svg { color: var(--accent); }
+.primary-button { border-color: #8e6d3c; color: #f2e2c1; background: linear-gradient(180deg, #6e522e, #4e391f); }
+.secondary-button { border-color: rgba(177,195,214,.2); color: var(--text); background: rgba(255,255,255,.045); }
+.secondary-button:hover:not(:disabled) { background: rgba(255,255,255,.085); }
+.icon-button { border-color: rgba(177,195,214,.2); color: var(--text); background: rgba(255,255,255,.055); }
+.text-button { color: #c6a66e; }
+.muted { color: var(--text-dim) !important; }
+.metric-card { background: linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008)); border-color: var(--line); }
+.metric-card span, .metric-card small { color: var(--text-dim); }
+.metric-card strong { color: var(--text); }
+.room-card, .position-card, .detail-block, .realm-chip, .settings-grid article, .settings-version-card, .official-report-line,
+.discovery-record-meta span, .site-truth, .person-last-memory, .finance-total, .room-effect, .tag-list span,
+.search-box, .toolbar, .member-picker button, .risk-cell, .readiness-box, .active-expedition, .opportunity-card {
+  background: rgba(255,255,255,.025);
+  border-color: rgba(177,195,214,.14);
+  color: var(--text);
+}
+.room-card p, .room-meta, .room-effect, .detail-block p, .empty-detail, .result-count, .character-body p,
+.discovery-record > p, .site-record > p, .remembered-person > p, .site-truth p, .person-last-memory p,
+.discovery-record-meta span, .discovery-record-meta b, .consequence-card p, .consequence-card small,
+.settings-grid p, .settings-version-card small, .settings-note, .official-report-line small, .bestiary-notes {
+  color: var(--text-soft) !important;
+}
+.room-top span, .archive-tabs button.active, .segmented-control button.active { background: #5f4829; color: #f3dfb7; }
+.progress-line, .knowledge-row > div, .bestiary-meter { background: rgba(255,255,255,.07); }
+.progress-line span, .knowledge-row i, .bestiary-meter span { background: linear-gradient(90deg, #7b5f35, #c39c5f); }
+.toolbar select, .planner-settings select, .search-box input, .settings-modal input, .settings-modal select,
+.paper-card input, .paper-card select, .combat-controls select {
+  color: var(--text);
+  background: #0c1219;
+  border-color: rgba(177,195,214,.2);
+}
+.search-box input::placeholder { color: #65717e; }
+.map-scroll { background: #0b1118; }
+.hex-map { background: radial-gradient(circle at 50% 40%, rgba(92,115,134,.12), transparent 45%), #090d12; }
+.character-card { background: linear-gradient(145deg, rgba(255,255,255,.025), rgba(255,255,255,.008)); color: var(--text); }
+.character-card:hover { background: rgba(185,145,85,.055); }
+.character-body > strong { color: #d5bc89; }
+.character-body .tag-list span, .mini-stats { color: var(--text-dim); }
+.status-dot { box-shadow: 0 0 0 2px #0b1016; }
+.employment-chip.rival { color: #e6a69d; border-color: rgba(195,103,98,.42); background: rgba(195,103,98,.09); }
+.rival-employment-note { margin: 12px 0; padding: 10px; border: 1px solid rgba(195,103,98,.28); background: rgba(195,103,98,.07); color: var(--text-soft); font-size: .72rem; }
+.archive-tabs, .strategic-tabs { background: #0d141c; }
+.archive-tabs button, .strategic-tabs button { color: var(--text-soft); border-color: rgba(177,195,214,.12); }
+.archive-tabs button.active, .strategic-tabs button.active { background: rgba(185,145,85,.17); color: #efdcb7; border-color: rgba(185,145,85,.34); }
+.combat-modal, .dungeon-modal { background: #0d131a; border-color: #384756; color: var(--text); }
+.combat-grid { background: #080c11; border-color: #34414f; }
+.combat-roster-block, .combat-log, .combat-controls, .dungeon-zone, .dungeon-sidebar section { background: #111821; border-color: #2a3744; }
+.combat-cell { background: linear-gradient(135deg, rgba(79,98,116,.09), rgba(15,21,28,.12)); border-color: rgba(177,195,214,.09); }
+.combat-cell.obstacle, .zone-tags span { background: #18212b; }
+.dungeon-progress, .dungeon-progress span { border-color: #34414f; }
+.dungeon-zone.hidden { background: #0a0f15; }
+.dungeon-zone.current { border-color: #b99155; }
+.bestiary-details, .legendary-list, .combat-behavior-card { background: rgba(255,255,255,.025); border-color: rgba(177,195,214,.14); }
+
+/* strategic layer */
+.strategic-tabs { display: flex; gap: 6px; padding: 6px; margin-bottom: 18px; overflow-x: auto; }
+.strategic-tabs button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid transparent; background: transparent; padding: 9px 12px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.influence-metrics .metric-card strong { font-size: 1.08rem; line-height: 1.1; }
+.rival-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.rival-card { padding: 18px; border-left: 3px solid #64717f; }
+.rival-card.stance-allied { border-left-color: #7ba174; }
+.rival-card.stance-cooperative { border-left-color: #638fa8; }
+.rival-card.stance-competitive { border-left-color: #ba8c4e; }
+.rival-card.stance-hostile { border-left-color: #b65c57; }
+.rival-card-head, .branch-card-top, .realm-politics-head, .crisis-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.rival-card-head h2, .branch-card-top h2, .realm-politics-head h2 { margin: 5px 0 0; }
+.rival-card-head > b { color: var(--accent); text-transform: uppercase; letter-spacing: .08em; font-size: .61rem; }
+.rival-stat-grid, .branch-stats, .realm-state-line { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 12px 0; }
+.rival-stat-grid span, .branch-stats span, .realm-state-line span { padding: 8px; border: 1px solid var(--line); background: rgba(255,255,255,.018); font-size: .62rem; }
+.rival-stat-grid b, .branch-stats b, .realm-state-line b { display: block; color: var(--text); font-size: .82rem; margin-top: 3px; }
+.rival-methods, .crisis-effects { display: flex; flex-wrap: wrap; gap: 5px; }
+.rival-methods span, .crisis-effects span { padding: 5px 7px; border: 1px solid var(--line); background: rgba(255,255,255,.018); font-size: .58rem; }
+.rival-race { margin: 13px 0; padding: 11px; border: 1px solid rgba(185,145,85,.22); background: rgba(185,145,85,.06); }
+.rival-race > div, .crisis-progress { height: 6px; margin: 7px 0; background: rgba(255,255,255,.07); overflow: hidden; }
+.rival-race i, .crisis-progress span { display: block; height: 100%; background: linear-gradient(90deg, #6f5632, #c69d5c); }
+.rival-actions { margin-top: 14px; flex-wrap: wrap; }
+.danger-action { color: #e5aaa4; border-color: rgba(195,103,98,.28); }
+.contested-line { display: flex; gap: 7px; align-items: flex-start; margin: 8px 0; padding: 8px; border: 1px solid rgba(195,103,98,.23); background: rgba(195,103,98,.06); color: #dba29c; font-size: .62rem; }
+.politics-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(290px, .75fr); gap: 16px; }
+.realm-politics-list, .crisis-stack, .branch-list { display: grid; gap: 12px; }
+.realm-politics-card, .crisis-card, .branch-card, .branch-create-card, .succession-card, .mentorship-create { padding: 18px; }
+.realm-politics-head > span { width: 8px; height: 48px; border-radius: 3px; flex: 0 0 auto; }
+.realm-politics-head > div { margin-right: auto; }
+.realm-politics-head > b { font-size: .62rem; color: var(--text-soft); }
+.faction-list { display: grid; gap: 6px; margin-top: 12px; }
+.faction-list > div { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 9px; border: 1px solid var(--line); background: rgba(255,255,255,.018); }
+.faction-list span { display: grid; }
+.faction-list small { color: var(--text-dim); }
+.faction-list em { font-style: normal; font-weight: 700; }
+.faction-list em.positive { color: var(--success); }
+.faction-list em.negative { color: var(--danger); }
+.crisis-card.status-active { border-left: 3px solid #b98245; }
+.crisis-card.status-collapsed { border-left: 3px solid var(--danger); }
+.crisis-card.status-resolved { border-left: 3px solid var(--success); opacity: .78; }
+.crisis-top { align-items: center; }
+.crisis-top svg { color: var(--danger); }
+.crisis-top span { margin-right: auto; text-transform: uppercase; letter-spacing: .08em; font-size: .58rem; }
+.crisis-top b { color: var(--danger); }
+.crisis-card .button-row { margin-top: 13px; flex-wrap: wrap; }
+.branches-layout, .generations-layout { display: grid; grid-template-columns: minmax(300px, .72fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+.branch-create-card, .mentorship-create { display: grid; gap: 11px; position: sticky; top: 80px; }
+.branch-create-card label, .branch-card label, .mentorship-create label { display: grid; gap: 6px; color: var(--text-soft); font-size: .65rem; }
+.branch-create-card select, .branch-card select, .mentorship-create select { width: 100%; padding: 9px 10px; }
+.branch-card-top > b { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(185,145,85,.28); color: var(--accent); }
+.branch-warning { display: flex; gap: 7px; align-items: center; margin-top: 10px; padding: 8px; color: #e0a29c; border: 1px solid rgba(195,103,98,.24); background: rgba(195,103,98,.06); font-size: .62rem; }
+.current-leader { display: grid; padding: 13px; margin-bottom: 12px; border: 1px solid rgba(185,145,85,.24); background: rgba(185,145,85,.06); }
+.current-leader strong { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; }
+.successor-list { display: grid; gap: 6px; }
+.successor-list button { display: flex; align-items: center; justify-content: space-between; text-align: left; padding: 9px; border: 1px solid var(--line); background: rgba(255,255,255,.02); color: var(--text); cursor: pointer; }
+.successor-list button.active { border-color: rgba(185,145,85,.45); background: rgba(185,145,85,.09); }
+.successor-list span { display: grid; }
+.successor-list small { color: var(--text-dim); }
+.mentorship-list { display: grid; gap: 7px; margin-top: 8px; }
+.mentorship-list > div { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 10px; overflow: hidden; border: 1px solid var(--line); }
+.mentorship-list span { display: grid; z-index: 1; }
+.mentorship-list b { z-index: 1; }
+.mentorship-list i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
+
+@media (max-width: 1150px) {
+  .rival-grid { grid-template-columns: 1fr; }
+  .politics-layout, .branches-layout, .generations-layout { grid-template-columns: 1fr; }
+  .branch-create-card, .mentorship-create { position: static; }
+}
+@media (max-width: 720px) {
+  .rival-stat-grid, .branch-stats, .realm-state-line { grid-template-columns: repeat(2, 1fr); }
+  .strategic-tabs { margin-inline: -4px; }
+}
+.legend-rival { width: 0 !important; height: 0 !important; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid #b65c57; background: transparent !important; }
+.rival-operation { border-left: 3px solid #b65c57 !important; background: rgba(182,92,87,.06) !important; }
