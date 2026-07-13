@@ -15,7 +15,7 @@ import type {
   WorldData,
 } from '../types/game'
 import { RNG } from './rng'
-import { loadPreferences } from './preferences'
+import { loadPreferences, type AppPreferences } from './preferences'
 
 const GUILD_FIRST = ['Северная', 'Лазурная', 'Королевская', 'Пепельная', 'Золотая', 'Вольная', 'Тихая', 'Чёрная', 'Серебряная', 'Старая']
 const GUILD_SECOND = ['экспедиция', 'компания', 'палата', 'коллегия', 'стража', 'артель', 'лига', 'канцелярия', 'обсерватория', 'дружина']
@@ -235,7 +235,7 @@ function tickRivalExpeditions(state: GameState, rng: RNG): GameState {
   return next
 }
 
-function tickBranches(state: GameState, rng: RNG): GameState {
+function tickBranches(state: GameState, rng: RNG, preferences: AppPreferences): GameState {
   let treasuryDelta = 0
   let nextRivals = [...state.rivalGuilds]
   let characters = [...state.characters]
@@ -250,7 +250,7 @@ function tickBranches(state: GameState, rng: RNG): GameState {
     const hidden = branch.autonomy === 'autonomous' ? Math.max(0, net - Math.round(net * share)) : Math.max(0, branch.hiddenFunds - 2)
     const loyaltyShift = branch.autonomy === 'controlled' ? rng.int(-3, 1) : branch.autonomy === 'limited' ? rng.int(-1, 2) : rng.int(-2, 3)
     const loyalty = Math.max(0, Math.min(100, branch.loyalty + loyaltyShift + (net >= 0 ? 1 : -3)))
-    if (branch.autonomy === 'autonomous' && loyalty <= 15) {
+    if (preferences.competitorsEnabled && preferences.branchSecessionEnabled && branch.autonomy === 'autonomous' && loyalty <= 15) {
       const settlement = state.world.settlements.find((entry) => entry.id === branch.settlementId)
       const splinterId = `rival-splinter-${branch.id}`
       nextRivals.push({
@@ -273,7 +273,9 @@ function tickCrises(state: GameState, rng: RNG): GameState {
   let world = state.world
   const crises = state.crises.map((crisis) => {
     if (crisis.status === 'resolved' || crisis.status === 'collapsed') return crisis
-    const pressure = rng.int(2, 7) + Math.round(crisis.severity / 25) - Math.round(crisis.playerContribution / 18)
+    const affectedRealms = world.realms.filter((realm) => crisis.realmIds.includes(realm.id))
+    const resistance = affectedRealms.length ? affectedRealms.reduce((sum, realm) => sum + realm.stability, 0) / affectedRealms.length / 28 : 1
+    const pressure = rng.int(0, 4) + crisis.severity / 34 - crisis.playerContribution / 18 - resistance
     const progress = Math.max(0, Math.min(110, crisis.progress + pressure))
     const status: WorldCrisis['status'] = progress >= 100 ? 'collapsed' : progress >= 35 ? 'active' : 'emerging'
     if (status === 'collapsed') {
@@ -349,7 +351,7 @@ function spawnCrisis(state: GameState, rng: RNG): GameState {
   return { ...state, crises: [...state.crises, crisis], chronicle: [...state.chronicle, { id: `chronicle-new-crisis-${crisis.id}`, day: state.day, year: state.year, title: crisis.title, text: crisis.description, category: 'world', importance: 3 }] }
 }
 
-function annualStrategicTick(state: GameState, rng: RNG): GameState {
+function annualStrategicTick(state: GameState, rng: RNG, preferences: AppPreferences): GameState {
   const activeCrisisRealms = new Set(state.crises.filter((crisis) => crisis.status === 'active').flatMap((crisis) => crisis.realmIds))
   const world = {
     ...state.world,
@@ -357,15 +359,15 @@ function annualStrategicTick(state: GameState, rng: RNG): GameState {
       const crisisPenalty = activeCrisisRealms.has(realm.id) ? rng.int(2, 7) : 0
       return {
         ...realm,
-        wealth: Math.max(5, Math.min(100, realm.wealth + rng.int(-4, 6) - crisisPenalty)),
-        stability: Math.max(5, Math.min(100, realm.stability + rng.int(-5, 6) - crisisPenalty)),
+        wealth: Math.max(5, Math.min(100, realm.wealth + (preferences.economicDeclineEnabled ? rng.int(-4, 6) - crisisPenalty : rng.int(0, 6)))),
+        stability: Math.max(5, Math.min(100, realm.stability + (preferences.economicDeclineEnabled ? rng.int(-5, 6) - crisisPenalty : rng.int(0, 6)))),
         attitude: Math.max(-100, Math.min(100, realm.attitude + rng.int(-4, 4))),
       }
     }),
     settlements: state.world.settlements.map((settlement) => ({
       ...settlement,
-      population: Math.max(80, Math.round(settlement.population * (1 + rng.float(-0.018, 0.032)))),
-      prosperity: Math.max(5, Math.min(100, settlement.prosperity + rng.int(-3, 4))),
+      population: Math.max(80, Math.round(settlement.population * (1 + (preferences.economicDeclineEnabled ? rng.float(-0.018, 0.032) : rng.float(0, 0.032))))),
+      prosperity: Math.max(5, Math.min(100, settlement.prosperity + (preferences.economicDeclineEnabled ? rng.int(-3, 4) : rng.int(0, 4)))),
     })),
   }
   const rivalGuilds = state.rivalGuilds.map((guild) => {
@@ -435,7 +437,8 @@ export function strategicDayTick(state: GameState): GameState {
     next = { ...next, guild: { ...next.guild, rank, maxActiveExpeditions: Math.max(next.guild.maxActiveExpeditions, rank) }, chronicle: [...next.chronicle, { id: `chronicle-rank-${rank}-${next.year}-${next.day}`, day: next.day, year: next.year, title: `Гильдия получает ${rank} ранг`, text: 'Известность, архив и политические связи открыли новый уровень контрактов и регионального присутствия.', category: 'guild', importance: 4 }] }
   }
   const rng = new RNG(`${next.seed}:strategy-day:${next.year}:${next.day}`)
-  const competitorsEnabled = loadPreferences().competitorsEnabled
+  const preferences = loadPreferences()
+  const competitorsEnabled = preferences.competitorsEnabled
   if (competitorsEnabled) {
     next = tickRivalExpeditions(next, rng)
     if (next.day % 45 === 0) {
@@ -443,15 +446,15 @@ export function strategicDayTick(state: GameState): GameState {
     }
   }
   if (next.day % 30 === 0) {
-    next = tickBranches(next, rng)
-    next = tickCrises(next, rng)
+    next = tickBranches(next, rng, preferences)
+    if (preferences.crisesEnabled) next = tickCrises(next, rng)
     next = tickMentorships(next)
-    if (competitorsEnabled) next = poachCharacters(next, rng)
+    if (competitorsEnabled && preferences.poachingEnabled) next = poachCharacters(next, rng)
   }
   if (next.day % 90 === 0) next = spawnGreatContract(next, rng)
-  if (next.day % 120 === 0) next = spawnCrisis(next, rng)
+  if (preferences.crisesEnabled && next.day % 240 === 0) next = spawnCrisis(next, rng)
   if (next.day === 1) {
-    next = annualStrategicTick(next, rng)
+    next = annualStrategicTick(next, rng, preferences)
     const active = next.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status))
     const archive = next.rivalExpeditions.filter((expedition) => !['preparing', 'traveling'].includes(expedition.status)).slice(-400)
     next = { ...next, rivalExpeditions: [...archive, ...active] }

@@ -977,3 +977,98 @@ body {
   .living-world-settings { grid-template-columns: 1fr; }
   .history-event-card { grid-template-columns: 54px 1fr; }
 }
+
+/* v0.6.1 — stability, dense UI and developer tools */
+.view-loading {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted, #8793a6);
+  font-size: 0.92rem;
+}
+
+.settings-slider {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 220px) 48px;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,.08));
+}
+.settings-slider span { display: grid; gap: 4px; }
+.settings-slider small { color: var(--text-muted, #8793a6); }
+.settings-slider input { width: 100%; }
+.settings-slider b { text-align: right; }
+
+.dev-panel {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid rgba(197, 153, 74, .26);
+  border-radius: 12px;
+  background: rgba(197, 153, 74, .055);
+}
+.dev-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+}
+.dev-actions button,
+.audit-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+}
+.audit-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.audit-controls label { display: grid; gap: 5px; min-width: 150px; }
+.audit-controls select { min-height: 38px; }
+.audit-result {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.audit-result > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 9px;
+  background: rgba(255,255,255,.045);
+}
+.audit-result small { color: var(--text-muted, #8793a6); }
+.audit-result ul {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--text-muted, #8793a6);
+}
+
+body.compact-ui .paper-card,
+body.compact-ui .panel,
+body.compact-ui .stat-card,
+body.compact-ui .character-card,
+body.compact-ui .opportunity-card {
+  padding: 10px;
+}
+body.compact-ui .card-grid,
+body.compact-ui .dashboard-grid,
+body.compact-ui .settings-grid,
+body.compact-ui .content-grid {
+  gap: 8px;
+}
+body.compact-ui h2 { margin-bottom: 8px; }
+body.compact-ui p { margin-top: 4px; margin-bottom: 4px; }
+
+@media (max-width: 720px) {
+  .settings-slider { grid-template-columns: 1fr 52px; }
+  .settings-slider input { grid-column: 1 / -1; grid-row: 2; }
+  .audit-controls { align-items: stretch; }
+  .audit-controls > * { flex: 1 1 160px; }
+}

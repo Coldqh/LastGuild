@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
   BookOpen,
   Building2,
@@ -19,24 +19,26 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import ArchiveView from './components/ArchiveView'
-import CombatModal from './components/CombatModal'
 import CommandCenter from './components/CommandCenter'
-import DungeonExplorationModal from './components/DungeonExplorationModal'
-import ExpeditionDebriefModal from './components/ExpeditionDebriefModal'
-import ExpeditionDecisionModal from './components/ExpeditionDecisionModal'
-import ExpeditionPlanner from './components/ExpeditionPlanner'
-import GuildView from './components/GuildView'
-import InfluenceView from './components/InfluenceView'
-import LivingWorldView from './components/LivingWorldView'
-import RosterView from './components/RosterView'
-import SettingsModal from './components/SettingsModal'
 import TutorialPanel from './components/TutorialPanel'
-import WorldMap from './components/WorldMap'
-import WorldSetupModal from './components/WorldSetupModal'
+
+const ArchiveView = lazy(() => import('./components/ArchiveView'))
+const CombatModal = lazy(() => import('./components/CombatModal'))
+const DungeonExplorationModal = lazy(() => import('./components/DungeonExplorationModal'))
+const ExpeditionDebriefModal = lazy(() => import('./components/ExpeditionDebriefModal'))
+const ExpeditionDecisionModal = lazy(() => import('./components/ExpeditionDecisionModal'))
+const ExpeditionPlanner = lazy(() => import('./components/ExpeditionPlanner'))
+const GuildView = lazy(() => import('./components/GuildView'))
+const InfluenceView = lazy(() => import('./components/InfluenceView'))
+const LivingWorldView = lazy(() => import('./components/LivingWorldView'))
+const RosterView = lazy(() => import('./components/RosterView'))
+const SettingsModal = lazy(() => import('./components/SettingsModal'))
+const WorldMap = lazy(() => import('./components/WorldMap'))
+const WorldSetupModal = lazy(() => import('./components/WorldSetupModal'))
 import { createNewGame } from './game/gameFactory'
 import {
   advanceDays,
+  advanceUntilEvent,
   assignGuildPosition,
   createExpeditionFromDraft,
   dismissCharacter,
@@ -120,6 +122,11 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem(TUTORIAL_KEY, JSON.stringify(tutorialCompleted)) }, [tutorialCompleted])
 
+  useEffect(() => {
+    document.body.classList.toggle('compact-ui', preferences.compactCardsEnabled)
+    return () => document.body.classList.remove('compact-ui')
+  }, [preferences.compactCardsEnabled])
+
   const markTutorial = (step: TutorialStepId) => setTutorialCompleted((steps) => steps.includes(step) ? steps : [...steps, step])
   const activeExpeditions = state.expeditions.filter((expedition) => expedition.status === 'active' || expedition.status === 'returning')
   const urgentCount = useMemo(() => {
@@ -143,16 +150,9 @@ export default function App() {
     setState((current) => advanceDays(current, days))
   }
 
-  const advanceUntilEvent = () => {
+  const runUntilEvent = () => {
     markTutorial('time')
-    setState((current) => {
-      let next = current
-      for (let index = 0; index < 30; index += 1) {
-        if (next.pendingDecision || next.pendingDebrief || next.pendingCombat || next.pendingDungeon) break
-        next = advanceDays(next, 1)
-      }
-      return next
-    })
+    setState((current) => advanceUntilEvent(current, 120))
   }
 
   const launch = (draft: ExpeditionDraft) => { markTutorial('launch'); setState((current) => createExpeditionFromDraft(current, draft)) }
@@ -253,7 +253,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.6 · Living World</small>
+          <small>v0.6.1 · Stability</small>
         </div>
       </aside>
 
@@ -266,7 +266,7 @@ export default function App() {
             <button disabled={timeBlocked} onClick={() => advance(1)}>+1 день</button>
             <button disabled={timeBlocked} onClick={() => advance(7)}>+7 дней</button>
             <button disabled={timeBlocked} onClick={() => advance(30)}>+30 дней</button>
-            <button disabled={timeBlocked} onClick={advanceUntilEvent}><FastForward size={14} />До события</button>
+            <button disabled={timeBlocked} onClick={runUntilEvent}><FastForward size={14} />До события</button>
           </div>
           {timeBlocked && <span className="time-blocked">Время остановлено: {blockedReason}</span>}
           <div className="topbar-resources">
@@ -276,17 +276,19 @@ export default function App() {
           </div>
           <button className="topbar-settings" title="Настройки" onClick={() => setSettingsModal(true)}><SettingsIcon size={18} /></button>
         </header>
-        <main>{renderView()}</main>
+        <main><Suspense fallback={<div className="view-loading">Загрузка раздела…</div>}>{renderView()}</Suspense></main>
       </div>
 
       {preferences.tutorialEnabled && <TutorialPanel completed={tutorialCompleted} onNavigate={changeView} onDismiss={() => updatePreferences({ ...preferences, tutorialEnabled: false })} />}
       {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
+      <Suspense fallback={null}>
       {seedModal && <WorldSetupModal settings={worldSettings} seed={seedInput} onSeedChange={setSeedInput} onSettingsChange={setWorldSettings} onClose={() => setSeedModal(false)} onCreate={createWorld} />}
       {settingsModal && <SettingsModal state={state} preferences={preferences} onPreferencesChange={updatePreferences} onLoadState={(next) => setState(applyCompetitors(next, preferences.competitorsEnabled))} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}
       {state.pendingDecision && <ExpeditionDecisionModal decision={state.pendingDecision} state={state} onChoose={(choiceId) => setState((current) => resolveExpeditionDecision(current, choiceId))} />}
       {state.pendingDebrief && <ExpeditionDebriefModal debrief={state.pendingDebrief} state={state} onResolve={resolveDebrief} />}
       {state.pendingDungeon && <DungeonExplorationModal state={state} onExplore={(zoneId) => setState((current) => exploreDungeonZone(current, zoneId))} onCamp={() => setState((current) => establishDungeonCamp(current))} onLeave={() => setState((current) => leaveDungeon(current))} />}
       {state.pendingCombat && <CombatModal state={state} onStep={() => setState((current) => stepCombat(current))} onAuto={() => setState((current) => autoResolveCombat(current))} onCommand={combatCommand} onFinalize={() => setState((current) => finalizeCombat(current))} />}
+      </Suspense>
     </div>
   )
 }

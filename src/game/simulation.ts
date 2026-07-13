@@ -24,6 +24,7 @@ import { startCombatEncounter } from './combat'
 import { startDungeonExploration } from './dungeon'
 import { stanceFromRelation, strategicDayTick } from './strategy'
 import { livingWorldDayTick } from './livingWorld'
+import { loadPreferences } from './preferences'
 
 const neighborOffsets = (x: number): number[][] =>
   x % 2 === 0
@@ -99,6 +100,31 @@ function retirementAge(character: Character): number {
   if (character.ancestry === 'Дворф' || character.ancestry === 'Гном') return 95
   if (character.ancestry === 'Полурослик') return 82
   return 68
+}
+
+function maximumAge(character: Character): number {
+  if (character.ancestry === 'Эльф') return 360
+  if (character.ancestry === 'Дворф' || character.ancestry === 'Гном') return 145
+  if (character.ancestry === 'Полурослик') return 115
+  return 92
+}
+
+function hasBlockingEvent(state: GameState): boolean {
+  return Boolean(state.pendingDecision || state.pendingDebrief || state.pendingCombat || state.pendingDungeon)
+}
+
+function pruneSimulationState(state: GameState): GameState {
+  const preferences = loadPreferences()
+  const activeExpeditions = state.expeditions.filter((entry) => ['active', 'returning', 'missing'].includes(entry.status))
+  const archivedExpeditions = state.expeditions.filter((entry) => !['active', 'returning', 'missing'].includes(entry.status)).slice(-320)
+  return {
+    ...state,
+    chronicle: state.chronicle.slice(-preferences.maxChronicleEntries),
+    expeditions: [...archivedExpeditions, ...activeExpeditions],
+    world: { ...state.world, history: state.world.history.slice(-700) },
+    historySnapshots: state.historySnapshots.slice(-40),
+    consequences: state.consequences.slice(-400),
+  }
 }
 
 function createMemory(
@@ -1104,19 +1130,33 @@ export function advanceDay(state: GameState): GameState {
   if (next.day > 360) {
     next.day = 1
     next.year += 1
-    next.characters = next.characters.map((character) => {
-      const aged = { ...character, age: character.age + 1 }
-      if (['dead', 'missing', 'retired'].includes(aged.status)) return aged
-      if (aged.age >= retirementAge(aged) && aged.status !== 'expedition') {
-        return {
-          ...aged,
-          status: 'retired' as const,
-          careerStage: aged.fame >= 70 ? ('legend' as const) : ('mentor' as const),
-          memories: [...aged.memories, createMemory(next, aged, 'Уход из полевой службы', 'Возраст и накопленные травмы завершили активную карьеру. Имя остаётся в гильдии.', 'career', 'mixed', 62)].slice(-18),
+    const preferences = loadPreferences()
+    if (preferences.agingEnabled) {
+      next.characters = next.characters.map((character) => {
+        const aged = { ...character, age: character.age + 1 }
+        if (['dead', 'missing'].includes(aged.status)) return aged
+        const mortalityRng = new RNG(`${next.seed}:old-age:${next.year}:${aged.id}`)
+        const agePressure = Math.max(0, aged.age - maximumAge(aged) + 12)
+        if (preferences.oldAgeDeathEnabled && aged.status !== 'expedition' && agePressure > 0 && mortalityRng.bool(Math.min(0.85, 0.04 + agePressure * 0.035))) {
+          return {
+            ...aged,
+            status: 'dead' as const,
+            employed: false,
+            memories: [...aged.memories, createMemory(next, aged, 'Последний год', 'Персонаж умер от старости после долгой жизни и службы.', 'career', 'mixed', 74)].slice(-18),
+          }
         }
-      }
-      return { ...aged, careerStage: inferCareerStage(aged) }
-    })
+        if (aged.status === 'retired') return aged
+        if (aged.age >= retirementAge(aged) && aged.status !== 'expedition') {
+          return {
+            ...aged,
+            status: 'retired' as const,
+            careerStage: aged.fame >= 70 ? ('legend' as const) : ('mentor' as const),
+            memories: [...aged.memories, createMemory(next, aged, 'Уход из полевой службы', 'Возраст и накопленные травмы завершили активную карьеру. Имя остаётся в гильдии.', 'career', 'mixed', 62)].slice(-18),
+          }
+        }
+        return { ...aged, careerStage: inferCareerStage(aged) }
+      })
+    }
   }
 
   next = recoverCharacters(next)
@@ -1140,13 +1180,22 @@ export function advanceDay(state: GameState): GameState {
   next = processConsequences(next)
   next = strategicDayTick(next)
   next = livingWorldDayTick(next)
+  if (next.day % 30 === 0 || next.day === 1) next = pruneSimulationState(next)
   return next
 }
 
 export function advanceDays(state: GameState, days: number): GameState {
   let next = state
-  for (let index = 0; index < days; index += 1) next = advanceDay(next)
+  for (let index = 0; index < days; index += 1) {
+    if (hasBlockingEvent(next)) break
+    next = advanceDay(next)
+    if (hasBlockingEvent(next)) break
+  }
   return next
+}
+
+export function advanceUntilEvent(state: GameState, maxDays = 120): GameState {
+  return advanceDays(state, Math.max(1, Math.min(720, maxDays)))
 }
 
 export function upgradeRoom(state: GameState, roomId: string): GameState {

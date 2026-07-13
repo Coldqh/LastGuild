@@ -13,6 +13,7 @@ import type {
   WorldWar,
 } from '../types/game'
 import { coordinateNoise, RNG } from './rng'
+import { loadPreferences, type AppPreferences } from './preferences'
 
 const STAGES: KnowledgeSpreadStage[] = ['found', 'verified', 'published', 'contested', 'spreading', 'used']
 const GOODS = ['зерно', 'соль', 'железо', 'древесина', 'лекарства', 'ткань', 'книги', 'магические реагенты']
@@ -207,7 +208,7 @@ function tickKnowledge(state: GameState, rng: RNG): GameState {
   return { ...next, knowledgeSpreads: updated }
 }
 
-function tickEconomy(state: GameState, rng: RNG): GameState {
+function tickEconomy(state: GameState, rng: RNG, preferences: AppPreferences): GameState {
   const volatility = settingMultiplier(state.settings.economyVolatility, 0.55, 1, 1.65)
   const growthSetting = settingMultiplier(state.settings.cityGrowth, 0.55, 1, 1.45)
   const activeWars = state.wars.filter((war) => war.status === 'active' || war.status === 'preparing')
@@ -220,7 +221,8 @@ function tickEconomy(state: GameState, rng: RNG): GameState {
       : 0
     const warPressure = activeWars.some((war) => war.frontSettlementIds.some((id) => [origin?.id, destination?.id].includes(id))) ? 28 : 0
     const routeDanger = route.tileIds.reduce((sum, id) => sum + (state.world.tiles.find((tile) => tile.id === id)?.danger ?? 0), 0) / Math.max(1, route.tileIds.length)
-    const safety = clamp(route.safety - warPressure - routeDanger * 0.8 + rng.float(-5, 5))
+    const targetSafety = clamp(62 + route.importance * 2.5 - routeDanger * 3.2 - warPressure)
+    const safety = clamp(route.safety * 0.82 + targetSafety * 0.18 + rng.float(-2.5, 2.5) * volatility)
     const status: RouteStatus = safety < 18 ? 'abandoned' : safety < 42 ? 'disrupted' : 'active'
     const activity = status === 'active' ? 1 : status === 'disrupted' ? 0.35 : 0
     const income = Math.max(0, Math.round((route.importance * 12 + matches * 20 + rng.float(-8, 12)) * activity))
@@ -233,26 +235,41 @@ function tickEconomy(state: GameState, rng: RNG): GameState {
     const tradeIncome = connected.reduce((sum, route) => sum + route.income / 2, 0)
     const disruptions = connected.filter((route) => route.status !== 'active').length
     const foodProduction = settlement.production.includes('зерно') || settlement.production.includes('рыба') || settlement.production.includes('скот')
-    const foodSecurity = clamp(settlement.foodSecurity + (foodProduction ? 3 : -2) + tradeIncome / 55 - disruptions * 3 + rng.float(-3, 3) * volatility)
-    const tradeBalance = Math.round(tradeIncome - settlement.demand.length * 12 - disruptions * 18)
+    const foodTarget = clamp(45 + (foodProduction ? 24 : -4) + tradeIncome / 18 - disruptions * 9)
+    const foodSecurity = clamp(settlement.foodSecurity * 0.84 + foodTarget * 0.16 + rng.float(-2, 2) * volatility)
+    const tradeBalance = Math.round(tradeIncome - settlement.demand.length * 8 - disruptions * 10)
     const rawGrowth = (tradeBalance / 45 + (settlement.safety - 50) / 30 + (foodSecurity - 50) / 35 - settlement.unrest / 55) * growthSetting
-    const growth = Math.max(-12, Math.min(12, rawGrowth + rng.float(-1.5, 1.5) * volatility))
-    const population = Math.max(0, Math.round(settlement.population * (1 + growth / 1200)))
-    const prosperity = clamp(settlement.prosperity + tradeBalance / 80 + growth / 3)
-    const unrest = clamp(settlement.unrest + (foodSecurity < 30 ? 5 : -1) + (prosperity < 25 ? 3 : -1) + disruptions - settlement.safety / 80)
-    const status: Settlement['status'] = population < 120 || prosperity < 8 ? 'ruined' : population < 700 || prosperity < 22 ? 'declining' : 'active'
-    return { ...settlement, population, prosperity, foodSecurity, tradeBalance, growth, unrest, status }
+    const baseGrowth = Math.max(-10, Math.min(8, rawGrowth + rng.float(-1.5, 1.5) * volatility))
+    const carryingCapacity: Record<Settlement['kind'], number> = { village: 7000, town: 26000, city: 76000, capital: 170000, fortress: 11000, monastery: 6500 }
+    const capacity = carryingCapacity[settlement.kind]
+    const capacityRoom = Math.max(0.08, 1 - settlement.population / capacity)
+    const overcrowding = settlement.population > capacity ? (settlement.population / capacity - 1) * 8 : 0
+    const growth = baseGrowth > 0 ? baseGrowth * capacityRoom : baseGrowth - overcrowding
+    const calculatedPopulation = Math.max(0, Math.round(settlement.population * (1 + growth / 4200)))
+    const prosperityTarget = clamp(42 + tradeBalance / 5 + settlement.safety / 4 + foodSecurity / 5)
+    const calculatedProsperity = clamp(settlement.prosperity * 0.9 + prosperityTarget * 0.1 + growth / 8)
+    const population = preferences.economicDeclineEnabled ? calculatedPopulation : Math.max(settlement.population, calculatedPopulation)
+    const prosperity = preferences.economicDeclineEnabled ? calculatedProsperity : Math.max(settlement.prosperity, calculatedProsperity)
+    const stableFood = preferences.economicDeclineEnabled ? foodSecurity : Math.max(settlement.foodSecurity, foodSecurity)
+    const calculatedUnrest = clamp(settlement.unrest + (stableFood < 30 ? 5 : -1) + (prosperity < 25 ? 3 : -1) + disruptions - settlement.safety / 80)
+    const unrest = preferences.economicDeclineEnabled ? calculatedUnrest : Math.min(settlement.unrest, calculatedUnrest)
+    const wouldRuin = population < 70 || (prosperity < 5 && stableFood < 12 && unrest > 88)
+    const status: Settlement['status'] = preferences.cityDestructionEnabled && wouldRuin ? 'ruined' : population < 700 || prosperity < 22 ? 'declining' : 'active'
+    return { ...settlement, population, prosperity, foodSecurity: stableFood, tradeBalance, growth: preferences.economicDeclineEnabled ? growth : Math.max(0, growth), unrest, status }
   })
   const realms = state.world.realms.map((realm) => {
     const owned = settlements.filter((settlement) => settlement.realmId === realm.id && settlement.status !== 'ruined')
     const trade = owned.reduce((sum, settlement) => sum + settlement.tradeBalance, 0)
     const unrest = owned.length ? owned.reduce((sum, settlement) => sum + settlement.unrest, 0) / owned.length : 100
-    return { ...realm, wealth: clamp(realm.wealth + trade / 450), stability: clamp(realm.stability - Math.max(0, unrest - 55) / 35 + (unrest < 30 ? 0.5 : 0)) }
+    const wealth = clamp(realm.wealth + trade / 450)
+    const stability = clamp(realm.stability - Math.max(0, unrest - 55) / 35 + (unrest < 30 ? 0.5 : 0))
+    return { ...realm, wealth: preferences.economicDeclineEnabled ? wealth : Math.max(realm.wealth, wealth), stability: preferences.economicDeclineEnabled ? stability : Math.max(realm.stability, stability) }
   })
   return { ...state, world: { ...state.world, routes, settlements, realms } }
 }
 
-function createRuinsFromSettlement(state: GameState, settlement: Settlement, cause: string): GameState {
+function createRuinsFromSettlement(state: GameState, settlement: Settlement, cause: string, preferences: AppPreferences): GameState {
+  if (!preferences.cityDestructionEnabled) return state
   if (state.world.sites.some((site) => site.tileId === settlement.tileId)) return state
   const site: Site = {
     id: `site-new-ruin-${settlement.id}-${state.year}`, name: `Развалины ${settlement.name}`, tileId: settlement.tileId, type: 'ruins',
@@ -282,7 +299,7 @@ function createRuinsFromSettlement(state: GameState, settlement: Settlement, cau
   }
 }
 
-function tickWars(state: GameState, rng: RNG): GameState {
+function tickWars(state: GameState, rng: RNG, preferences: AppPreferences): GameState {
   let next = state
   const wars: WorldWar[] = []
   for (const war of next.wars) {
@@ -298,7 +315,7 @@ function tickWars(state: GameState, rng: RNG): GameState {
     let lastEvent = war.lastEvent
     let settlements = next.world.settlements
     let tiles = next.world.tiles
-    if (progress > 65) {
+    if (preferences.borderChangesEnabled && progress > 65) {
       const target = settlements.find((settlement) => war.frontSettlementIds.includes(settlement.id) && settlement.realmId === defender.id && settlement.status !== 'ruined')
       if (target) {
         captured.push(target.id)
@@ -323,7 +340,7 @@ function tickWars(state: GameState, rng: RNG): GameState {
   }
   next = { ...next, wars }
   const newlyRuined = next.world.settlements.filter((settlement) => settlement.status === 'ruined' && !next.world.sites.some((site) => site.tileId === settlement.tileId))
-  for (const settlement of newlyRuined.slice(0, 2)) next = createRuinsFromSettlement(next, settlement, 'война, голод и распад управления')
+  if (preferences.cityDestructionEnabled) for (const settlement of newlyRuined.slice(0, 2)) next = createRuinsFromSettlement(next, settlement, 'война, голод и распад управления', preferences)
   return next
 }
 
@@ -338,7 +355,7 @@ function maybeSpawnWar(state: GameState, rng: RNG): GameState {
   return { ...state, wars: [...state.wars, war], chronicle: [...state.chronicle, { id: `chronicle-war-start-${war.id}`, year: state.year, day: state.day, title: `Начинается ${war.name}`, text: `${war.cause}. Цель наступающей стороны: ${war.goal}.`, category: 'world', importance: 5 }] }
 }
 
-function maybeCatastrophe(state: GameState, rng: RNG): GameState {
+function maybeCatastrophe(state: GameState, rng: RNG, preferences: AppPreferences): GameState {
   const chance = settingMultiplier(state.settings.catastropheFrequency, 0.08, 0.2, 0.42)
   if (!rng.bool(chance)) return state
   const target = rng.pick(state.world.settlements.filter((settlement) => settlement.status !== 'ruined'))
@@ -349,12 +366,12 @@ function maybeCatastrophe(state: GameState, rng: RNG): GameState {
   const settlements = state.world.settlements.map((settlement) => settlement.id === target.id ? {
     ...settlement,
     population: Math.max(0, Math.round(settlement.population * (1 - severity * 0.045))), prosperity: clamp(settlement.prosperity - severity * 5),
-    safety: clamp(settlement.safety - severity * 7), unrest: clamp(settlement.unrest + severity * 8), status: settlement.prosperity - severity * 5 < 8 ? 'ruined' : settlement.status,
+    safety: clamp(settlement.safety - severity * 7), unrest: clamp(settlement.unrest + severity * 8), status: preferences.cityDestructionEnabled && settlement.prosperity - severity * 5 < 8 ? 'ruined' : settlement.status,
   } : settlement)
   const event: HistoricalEvent = { id: `history-catastrophe-${state.year}-${state.day}-${target.id}`, year: state.year, title: `${kind}: ${target.name}`, description: `${kind} поразила ${target.name}. Погибли люди, торговля остановилась, власти ищут виновных.`, tags: ['catastrophe', target.id], severity, kind: 'catastrophe', cause: kind, consequence: 'Поселение потеряло население, безопасность и доход.', publicVersion: `${kind} названа стихийным бедствием.`, hiddenTruth: kind === 'магическая буря' ? 'В эпицентре замечены следы старого ритуала.' : undefined, realmIds: [target.realmId], settlementIds: [target.id], siteIds: [] }
   let next: GameState = { ...state, world: { ...state.world, settlements, history: [...state.world.history, event].slice(-650) }, chronicle: [...state.chronicle, { id: `chronicle-${event.id}`, year: state.year, day: state.day, title: event.title, text: event.description, category: 'world', importance: severity }] }
   const ruined = settlements.find((entry) => entry.id === target.id)?.status === 'ruined'
-  if (ruined) next = createRuinsFromSettlement(next, settlements.find((entry) => entry.id === target.id)!, kind)
+  if (ruined && preferences.cityDestructionEnabled) next = createRuinsFromSettlement(next, settlements.find((entry) => entry.id === target.id)!, kind, preferences)
   return next
 }
 
@@ -365,14 +382,17 @@ function addAnnualSnapshot(state: GameState): GameState {
 }
 
 export function livingWorldDayTick(state: GameState): GameState {
+  const preferences = loadPreferences()
   let next = ensureKnowledgeSpreads(state)
   if (next.day % 30 === 0) {
     const rng = new RNG(`${next.seed}:living-world:${next.year}:${next.day}`)
-    next = tickEconomy(next, rng)
+    next = tickEconomy(next, rng, preferences)
     next = tickKnowledge(next, rng)
-    next = tickWars(next, rng)
-    if (next.day % 120 === 0) next = maybeSpawnWar(next, rng)
-    if (next.day % 180 === 0) next = maybeCatastrophe(next, rng)
+    if (preferences.warsEnabled) {
+      next = tickWars(next, rng, preferences)
+      if (next.day % 120 === 0) next = maybeSpawnWar(next, rng)
+    }
+    if (preferences.crisesEnabled && next.day % 180 === 0) next = maybeCatastrophe(next, rng, preferences)
   }
   if (next.day === 1) next = addAnnualSnapshot(next)
   return next
