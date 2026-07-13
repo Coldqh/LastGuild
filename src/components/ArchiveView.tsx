@@ -1,10 +1,10 @@
-import { BookMarked, Castle, Flame, MapPinned, Scroll, Search, ShieldAlert, Skull, Sparkles, Users } from 'lucide-react'
+import { BookMarked, Castle, Flame, MapPinned, PawPrint, Scroll, Search, ShieldAlert, Skull, Sparkles, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { DiscoveryDisposition, GameState } from '../types/game'
 
 interface Props { state: GameState }
 
-type ArchiveTab = 'chronicle' | 'discoveries' | 'places' | 'people' | 'consequences'
+type ArchiveTab = 'chronicle' | 'discoveries' | 'places' | 'bestiary' | 'people' | 'consequences'
 
 const categoryIcons = {
   guild: Castle,
@@ -30,6 +30,7 @@ export default function ArchiveView({ state }: Props) {
     .sort((a, b) => b.createdYear - a.createdYear || b.createdDay - a.createdDay), [state.discoveries, query])
   const knownSites = state.world.sites.filter((site) => site.state !== 'unknown' && `${site.name} ${site.origin} ${site.layers.join(' ')}`.toLowerCase().includes(query.toLowerCase()))
   const rememberedPeople = state.characters.filter((character) => (character.status === 'dead' || character.status === 'missing' || character.status === 'retired' || character.careerStage === 'legend') && `${character.name} ${character.profession} ${character.ancestry}`.toLowerCase().includes(query.toLowerCase()))
+  const bestiary = state.bestiary.filter((entry) => { const species = state.world.monsterSpecies.find((candidate) => candidate.id === entry.speciesId); return `${species?.name ?? ''} ${entry.notes.join(' ')}`.toLowerCase().includes(query.toLowerCase()) }).sort((a, b) => b.knowledge - a.knowledge)
   const consequences = [...state.consequences].filter((consequence) => `${consequence.title} ${consequence.text}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => (a.status === b.status ? b.dueTick - a.dueTick : a.status === 'pending' ? -1 : 1))
 
   return (
@@ -39,6 +40,7 @@ export default function ArchiveView({ state }: Props) {
         <article><BookMarked /><strong>{state.chronicle.length}</strong><span>записей хроники</span></article>
         <article><Sparkles /><strong>{state.discoveries.length}</strong><span>оформленных открытий</span></article>
         <article><Skull /><strong>{state.characters.filter((character) => character.status === 'dead' || character.status === 'missing').length}</strong><span>погибших и пропавших</span></article>
+        <article><PawPrint /><strong>{state.bestiary.length}</strong><span>изученных видов</span></article>
         <article><ShieldAlert /><strong>{state.consequences.filter((consequence) => consequence.status === 'pending').length}</strong><span>грядущих последствий</span></article>
       </div>
 
@@ -47,6 +49,7 @@ export default function ArchiveView({ state }: Props) {
           ['chronicle', 'Хроника', BookMarked],
           ['discoveries', 'Открытия', Sparkles],
           ['places', 'Места', MapPinned],
+          ['bestiary', 'Бестиарий', PawPrint],
           ['people', 'Люди', Users],
           ['consequences', 'Последствия', ShieldAlert],
         ] as Array<[ArchiveTab, string, typeof BookMarked]>).map(([id, label, Icon]) => <button className={tab === id ? 'active' : ''} key={id} onClick={() => setTab(id)}><Icon size={16} />{label}</button>)}
@@ -88,6 +91,26 @@ export default function ArchiveView({ state }: Props) {
           {knownSites.map((site) => {
             const tile = state.world.tiles.find((candidate) => candidate.id === site.tileId)
             return <article className="paper-card site-record" key={site.id}><div className="discovery-record-top"><span className="type-chip">{site.type}</span><span>{site.state}</span></div><h3>{site.name}</h3><p>{site.origin}</p><div className="site-layer-list">{site.layers.map((layer) => <span key={layer}>{layer}</span>)}</div><div className="discovery-record-meta"><span>Опасность <b>{site.danger}/10</b></span><span>Глубина <b>{site.depth}</b></span><span>Клетка <b>{tile?.x}:{tile?.y}</b></span></div>{site.state === 'surveyed' || site.state === 'cleared' ? <div className="site-truth"><strong>Архивная версия</strong><p>{site.truth}</p></div> : <p className="muted">Истинная история места ещё не подтверждена.</p>}</article>
+          })}
+        </div>
+      )}
+
+
+      {tab === 'bestiary' && (
+        <div className="archive-card-grid bestiary-grid">
+          {bestiary.length === 0 ? <div className="empty-state paper-card"><PawPrint /><h3>Бестиарий пуст</h3><p>Наблюдай за существами или вступай с ними в бой. Слабости открываются только после накопления знаний.</p></div> : bestiary.map((entry) => {
+            const species = state.world.monsterSpecies.find((candidate) => candidate.id === entry.speciesId)
+            const legendary = state.world.monsterPopulations.filter((population) => population.speciesId === entry.speciesId && population.legendary)
+            return <article className="paper-card bestiary-record" key={entry.speciesId}>
+              <div className="discovery-record-top"><span className="type-chip">{species?.origin ?? 'unknown'}</span><span>знания {entry.knowledge}%</span></div>
+              <h3>{species?.name ?? entry.speciesId}</h3>
+              <p>{species?.behavior}</p>
+              <div className="bestiary-meter"><span style={{ width: `${entry.knowledge}%` }} /></div>
+              <div className="discovery-record-meta"><span>Встречи <b>{entry.encounters}</b></span><span>Победы <b>{entry.victories}</b></span><span>Уничтожено <b>{entry.kills}</b></span><span>Потери людей <b>{entry.deathsCaused}</b></span></div>
+              <div className="bestiary-details"><p><strong>Способности:</strong> {species?.abilities.join(', ')}</p><p><strong>Трофей:</strong> {species?.trophy}</p><p><strong>Слабость:</strong> {entry.discoveredWeakness ? species?.weakness : 'недостаточно данных'}</p></div>
+              {legendary.length > 0 && <div className="legendary-list"><strong>Легендарные особи</strong>{legendary.map((population) => <span key={population.id}>★ {population.legendaryName}: {population.history}</span>)}</div>}
+              {entry.notes.length > 0 && <div className="bestiary-notes">{entry.notes.slice(-3).map((note, index) => <small key={index}>{note}</small>)}</div>}
+            </article>
           })}
         </div>
       )}

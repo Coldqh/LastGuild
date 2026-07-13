@@ -20,6 +20,8 @@ import type {
 import { RNG } from './rng'
 import { createOpportunities } from './gameFactory'
 import { DIFFICULTY_RULES } from './worldSettings'
+import { startCombatEncounter } from './combat'
+import { startDungeonExploration } from './dungeon'
 
 const neighborOffsets = (x: number): number[][] =>
   x % 2 === 0
@@ -264,6 +266,8 @@ export function createExpeditionFromDraft(state: GameState, draft: ExpeditionDra
     discoveries: [],
     casualties: [],
     reports: [],
+    battles: 0,
+    dungeonSiteIds: [],
   }
 
   return {
@@ -327,7 +331,7 @@ function createExpeditionDecision(state: GameState, expedition: Expedition, tile
       title: `Вход в «${site.name}»`,
       text: `Разведчики нашли доступный проход. Внутри заметны следы недавнего движения, а стены покрыты старыми знаками.`,
       choices: [
-        { id: 'investigate', label: 'Войти и обследовать', description: 'Рискнуть ради открытия и полезных находок.', skill: 'history', difficulty: Math.max(4, site.danger), successText: 'Отряд обследовал верхний уровень и сохранил важные сведения.', failureText: 'Разведка сорвалась: проход оказался опаснее ожидаемого.', successEffects: { morale: 6, reveal: true, discoveryChance: 1 }, failureEffects: { morale: -8, medicine: -2, injuryChance: 0.55, progress: -0.5 } },
+        { id: 'investigate', label: 'Войти и обследовать', description: 'Рискнуть ради открытия и полезных находок.', skill: 'history', difficulty: Math.max(4, site.danger), successText: 'Отряд обследовал верхний уровень и сохранил важные сведения.', failureText: 'Разведка сорвалась: проход оказался опаснее ожидаемого.', successEffects: { morale: 6, reveal: true, discoveryChance: 1, startDungeon: true }, failureEffects: { morale: -8, medicine: -2, injuryChance: 0.35, progress: -0.5, startDungeon: true } },
         { id: 'mark', label: 'Нанести на карту', description: 'Не входить внутрь, но сохранить координаты.', skill: 'cartography', difficulty: 3, successText: 'Картографы точно нанесли объект и безопасные подходы.', failureText: 'Координаты записаны неточно.', successEffects: { reveal: true, discoveryChance: 0.45, morale: 1 }, failureEffects: { reveal: true } },
         { id: 'seal', label: 'Завалить проход', description: 'Попытаться закрыть опасное место.', skill: 'combat', difficulty: 6, successText: 'Проход временно запечатан, угрозу удалось сдержать.', failureText: 'Обвал повредил лагерь и ранил участника.', successEffects: { guildReputation: 1, morale: 3 }, failureEffects: { injuryChance: 0.7, food: -5, morale: -6 } },
       ],
@@ -342,7 +346,7 @@ function createExpeditionDecision(state: GameState, expedition: Expedition, tile
       title: `Следы: ${species.name}`,
       text: `Отряд обнаружил свежие следы и может изменить маршрут до прямого столкновения.`,
       choices: [
-        { id: 'hunt', label: 'Начать охоту', description: 'Ударить первыми и проверить логово.', skill: 'combat', difficulty: species.threat + 2, successText: 'Зверя отогнали, а логово осмотрели.', failureText: 'Охота перешла в тяжёлый бой.', successEffects: { morale: 8, discoveryChance: 0.4 }, failureEffects: { morale: -12, medicine: -3, injuryChance: 0.8 } },
+        { id: 'hunt', label: 'Начать охоту', description: 'Ударить первыми и проверить логово.', skill: 'combat', difficulty: species.threat + 2, successText: 'Зверя отогнали, а логово осмотрели.', failureText: 'Охота перешла в тяжёлый бой.', successEffects: { morale: 5, discoveryChance: 0.4, startCombat: 'monster', combatAdvantage: 1 }, failureEffects: { morale: -6, medicine: -1, startCombat: 'monster', combatAdvantage: -1 } },
         { id: 'observe', label: 'Наблюдать', description: 'Изучить поведение, не вступая в бой.', skill: 'scouting', difficulty: species.threat, successText: 'Разведчики собрали полезные сведения и нашли безопасный проход.', failureText: 'Существа заметили наблюдателей.', successEffects: { reveal: true, progress: 0.3, morale: 2 }, failureEffects: { progress: -0.4, morale: -5, injuryChance: 0.25 } },
         { id: 'detour', label: 'Обойти территорию', description: 'Потерять время, но снизить риск.', skill: 'survival', difficulty: 4, successText: 'Отряд нашёл безопасный обход.', failureText: 'Обход завёл в тяжёлую местность.', successEffects: { progress: -0.2, morale: 1 }, failureEffects: { progress: -0.8, food: -4, morale: -3 } },
       ],
@@ -674,6 +678,8 @@ function completeExpedition(state: GameState, expedition: Expedition): GameState
     injuredIds: survivingMembers.filter((member) => member.health < 78 || member.injuryRecords.some((injury) => injury.sourceExpeditionId === expedition.id)).map((member) => member.id),
     discoveryIds: newDiscoveries.map((discovery) => discovery.id),
     reports,
+    battles: expedition.battles,
+    dungeonSiteIds: expedition.dungeonSiteIds,
     suggestedLeadId: suggestedLead?.id,
   }
 
@@ -822,7 +828,7 @@ export function resolveExpeditionDecision(state: GameState, choiceId: string): G
     })
   }
 
-  return {
+  let nextState: GameState = {
     ...state,
     pendingDecision: undefined,
     guild: { ...state.guild, reputation: Math.max(0, state.guild.reputation + (effects.guildReputation ?? 0)) },
@@ -833,6 +839,16 @@ export function resolveExpeditionDecision(state: GameState, choiceId: string): G
       ? [...state.chronicle, { id: `chronicle-decision-${decision.id}`, day: state.day, year: state.year, title: decision.title, text: success ? choice.successText : (choice.failureText ?? choice.successText), category: 'expedition', importance: 2 }]
       : state.chronicle,
   }
+  if (effects.startDungeon && tile?.siteId) nextState = startDungeonExploration(nextState, expedition.id, tile.siteId)
+  if (effects.startCombat) nextState = startCombatEncounter(nextState, {
+    expeditionId: expedition.id,
+    tileId: decision.locationTileId,
+    source: effects.startCombat,
+    populationId: tile?.monsterPopulationId,
+    siteId: tile?.siteId,
+    advantage: effects.combatAdvantage ?? 0,
+  })
+  return nextState
 }
 
 
@@ -1071,7 +1087,7 @@ function recoverCharacters(state: GameState): GameState {
 }
 
 export function advanceDay(state: GameState): GameState {
-  if (state.pendingDecision || state.pendingDebrief) return state
+  if (state.pendingDecision || state.pendingDebrief || state.pendingCombat || state.pendingDungeon) return state
   let next: GameState = {
     ...state,
     day: state.day + 1,

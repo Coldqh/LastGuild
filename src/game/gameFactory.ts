@@ -39,6 +39,24 @@ function skillProfile(profession: string, rng: RNG): Character['skills'] {
   return base
 }
 
+function combatBehavior(profession: string, traits: string[]): Character['combatBehavior'] {
+  const map: Record<string, Character['combatBehavior']> = {
+    'Воин': { role: 'frontline', preferredRange: 1, aggression: 74, protectWeak: true, retreatAt: 24, conserveAbilities: false },
+    'Следопыт': { role: 'ranged', preferredRange: 4, aggression: 55, protectWeak: false, retreatAt: 34, conserveAbilities: true },
+    'Маг': { role: 'controller', preferredRange: 5, aggression: 48, protectWeak: false, retreatAt: 42, conserveAbilities: true },
+    'Жрец': { role: 'support', preferredRange: 3, aggression: 35, protectWeak: true, retreatAt: 46, conserveAbilities: true },
+    'Плут': { role: 'skirmisher', preferredRange: 1, aggression: 68, protectWeak: false, retreatAt: 30, conserveAbilities: false },
+    'Охотник': { role: 'ranged', preferredRange: 5, aggression: 64, protectWeak: false, retreatAt: 32, conserveAbilities: true },
+    'Лекарь': { role: 'support', preferredRange: 4, aggression: 22, protectWeak: true, retreatAt: 52, conserveAbilities: true },
+  }
+  const base = { ...(map[profession] ?? { role: 'skirmisher' as const, preferredRange: 2, aggression: 50, protectWeak: false, retreatAt: 38, conserveAbilities: true }) }
+  if (traits.includes('смелый')) { base.aggression += 12; base.retreatAt -= 8 }
+  if (traits.includes('осторожный')) { base.aggression -= 10; base.retreatAt += 8 }
+  if (traits.includes('надёжный')) base.protectWeak = true
+  if (traits.includes('гордый')) base.retreatAt -= 6
+  return base
+}
+
 function createCharacters(seed: string, count: number, world: WorldData): Character[] {
   const rng = new RNG(`${seed}:characters`)
   const characters: Character[] = []
@@ -48,6 +66,7 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
     const level = rng.int(1, 4)
     const home = rng.pick(settlements)
     const oldInjury = rng.bool(0.12) ? rng.pick(['старый перелом', 'повреждённое плечо', 'хроническая боль', 'магический ожог']) : undefined
+    const traits = rng.shuffle(TRAITS).slice(0, 3)
     characters.push({
       id: `character-${index + 1}`,
       name: `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`,
@@ -57,12 +76,12 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
       level, experience: level * 35 + rng.int(0, 45), careerStage: level >= 4 ? 'veteran' : level >= 2 ? 'field' : 'recruit',
       status: index < 8 && rng.bool(0.12) ? 'recovering' : 'available', employed: index < 8,
       salary: 12 + level * 6 + rng.int(0, 9), health: rng.int(72, 100), fatigue: rng.int(0, 22), stress: rng.int(0, 20),
-      loyalty: rng.int(38, 72), fame: rng.int(0, 14), traits: rng.shuffle(TRAITS).slice(0, 3), ambition: rng.pick(AMBITIONS), fear: rng.pick(FEARS),
+      loyalty: rng.int(38, 72), fame: rng.int(0, 14), traits, ambition: rng.pick(AMBITIONS), fear: rng.pick(FEARS),
       stats: { strength: rng.int(2, 8), agility: rng.int(2, 8), endurance: rng.int(2, 8), intellect: rng.int(2, 8), will: rng.int(2, 8), presence: rng.int(2, 8) },
       skills: skillProfile(profession, rng),
       injuries: oldInjury ? [oldInjury] : [],
       injuryRecords: oldInjury ? [{ id: `injury-start-${index}`, name: oldInjury, severity: 2, permanent: true, recoveryDays: 0, effect: '−1 к отдельным полевым проверкам', treated: true }] : [],
-      relationships: {}, memories: [], expeditions: rng.int(0, 3), discoveries: rng.int(0, 1),
+      relationships: {}, memories: [], expeditions: rng.int(0, 3), discoveries: rng.int(0, 1), combatBehavior: combatBehavior(profession, traits),
     })
   }
   for (const character of characters) {
@@ -159,9 +178,9 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
   const world = generateWorld(seed, settings)
   const characterCount = settings.mapSize === 'vast' ? 36 : settings.mapSize === 'compact' ? 24 : 30
   return {
-    version: 4, seed, settings, day: 1, year: 912, season: 0,
+    version: 5, seed, settings, day: 1, year: 912, season: 0,
     guild: createGuild(settings), world, characters: createCharacters(seed, characterCount, world), expeditions: [],
-    opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, discoveries: [], consequences: [],
+    opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     chronicle: [{
       id: 'chronicle-start', day: 1, year: 912, title: 'Последняя гильдия открывает двери',
       text: `После нескольких лет упадка старое здание снова принимает контракты. Мир создан в режиме «${settings.preset}», государств: ${world.realms.length}, известных руин: ${world.sites.filter((site) => site.state === 'rumored').length}.`,

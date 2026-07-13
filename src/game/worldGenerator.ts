@@ -12,6 +12,7 @@ import {
 } from '../data/content'
 import type {
   BiomeId,
+  DungeonZone,
   HistoricalEvent,
   MonsterPopulation,
   Realm,
@@ -127,6 +128,34 @@ function createSettlementName(rng: RNG): string {
 
 function createSiteName(rng: RNG): string {
   return `${rng.pick(SITE_PREFIXES)} ${rng.pick(SITE_NOUNS)}`
+}
+
+function createDungeonZones(rng: RNG, siteId: string, depth: number, layers: string[], monsterTags: string[]): DungeonZone[] {
+  const names = ['Обвалившийся вход', 'Сторожевая галерея', 'Зал расколотых колонн', 'Затопленная мастерская', 'Святилище поздних обитателей', 'Запечатанное хранилище', 'Глубинное логово', 'Нижний запретный уровень']
+  const kinds: DungeonZone['kind'][] = ['entrance', 'passage', 'hall', 'workshop', 'sanctum', 'vault', 'lair', 'depths']
+  const count = Math.max(3, Math.min(8, depth + 2))
+  const zones: DungeonZone[] = []
+  for (let index = 0; index < count; index += 1) {
+    const id = `${siteId}-zone-${index + 1}`
+    const previous = index > 0 ? `${siteId}-zone-${index}` : undefined
+    const next = index < count - 1 ? `${siteId}-zone-${index + 2}` : undefined
+    zones.push({
+      id,
+      name: names[index] ?? `Неизвестная зона ${index + 1}`,
+      kind: kinds[index] ?? 'depths',
+      danger: Math.min(10, 2 + index + rng.int(0, 3)),
+      historyLayer: layers[Math.min(layers.length - 1, Math.floor(index / 2))] ?? 'неизвестный слой',
+      description: rng.pick(['Следы старой осады перемешаны с недавними лагерями.', 'Камень покрыт рунами, часть проходов нестабильна.', 'Здесь сохранились рабочие помещения и следы эвакуации.', 'Воздух тяжёлый, слышно движение в боковых ходах.']),
+      connections: [previous, next].filter(Boolean) as string[],
+      guardSpeciesId: index >= 2 && rng.bool(0.58) ? rng.pick(monsterTags) : undefined,
+      trap: index >= 1 && rng.bool(0.42) ? rng.pick(['нажимные плиты', 'рунический разряд', 'обрушение потолка', 'ядовитые споры']) : undefined,
+      rewards: index >= count - 2 ? rng.shuffle(['древняя карта', 'редкий трофей', 'архивные таблички', 'рунический ключ', 'ритуальный предмет']).slice(0, 2) : rng.shuffle(['обломки с надписями', 'следы обитателей', 'старое снаряжение']).slice(0, 1),
+      explored: index === 0,
+      secured: index === 0,
+    })
+  }
+  if (count >= 5) zones[1].connections.push(zones[3].id)
+  return zones
 }
 
 function chooseSpacedTiles(rng: RNG, tiles: WorldTile[], count: number, minDistance: number): WorldTile[] {
@@ -417,17 +446,20 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
   const sites: Site[] = siteTiles.map((tile, index) => {
     const type = rng.pick(siteTypes)
     const depth = rng.int(1, settings.historyDepth === 'ancient' ? 7 : 5)
+    const siteIdValue = `site-${index + 1}`
+    const monsterTags = rng.shuffle(MONSTER_SPECIES.map((species) => species.id)).slice(0, rng.int(1, 2))
+    const layers = rng.shuffle(layerPool).slice(0, Math.min(depth, rng.int(2, 5)))
     const site: Site = {
-      id: `site-${index + 1}`,
+      id: siteIdValue,
       name: createSiteName(rng), tileId: tile.id, type,
       origin: rng.pick(['дворфийская пограничная крепость', 'эльфийское святилище', 'лаборатория павшей магократии', 'город времён Войны двух корон', 'неизвестная подземная культура', 'храм исчезнувшей династии']),
       age: rng.int(settings.historyDepth === 'young' ? 40 : 80, settings.historyDepth === 'ancient' ? 2400 : 1200),
       danger: Math.min(10, Math.round(tile.danger + rng.float(0, 3))), depth,
       state: rng.bool(0.2) ? 'rumored' : 'unknown',
-      monsterTags: rng.shuffle(MONSTER_SPECIES.map((species) => species.id)).slice(0, rng.int(1, 2)),
+      monsterTags,
       rewards: rng.shuffle(['древние карты', 'исторические документы', 'магический артефакт', 'редкие минералы', 'рунический ключ', 'останки неизвестного вида']).slice(0, 2),
       truth: rng.pick(['нижний уровень ещё запечатан', 'официальная история объекта ложна', 'обитатели защищают древний договор', 'внутри работает нестабильный портал', 'руины стоят поверх более древнего комплекса']),
-      layers: rng.shuffle(layerPool).slice(0, Math.min(depth, rng.int(2, 5))),
+      layers, zones: createDungeonZones(rng, siteIdValue, depth, layers, monsterTags), exploration: 8, campEstablished: false,
     }
     tile.siteId = site.id
     return site
@@ -447,11 +479,36 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
       size: rng.int(3, settings.monsterDensity === 'dense' ? 36 : 24),
       aggression: rng.int(settings.conflictLevel === 'war_torn' ? 35 : 20, 90),
       movement: rng.int(0, 3),
+      legendary: false,
     }
     monsterPopulations.push(population)
     tile.monsterPopulationId = population.id
     tile.danger = Math.min(10, tile.danger + species.threat * (settings.monsterDensity === 'dense' ? 0.46 : 0.35))
   }
+
+  const legendaryCandidates = rng.shuffle(monsterPopulations.filter((population) => {
+    const species = MONSTER_SPECIES.find((entry) => entry.id === population.speciesId)
+    return Boolean(species && species.threat >= 5)
+  })).slice(0, Math.max(2, Math.min(4, Math.round(monsterPopulations.length / 18))))
+  legendaryCandidates.forEach((population, index) => {
+    const species = MONSTER_SPECIES.find((entry) => entry.id === population.speciesId)!
+    const tile = tiles.find((entry) => entry.id === population.tileId)
+    const lair = sites.filter((site) => site.monsterTags.includes(species.id)).sort((a, b) => {
+      const ta = tiles.find((entry) => entry.id === a.tileId)!
+      const tb = tiles.find((entry) => entry.id === b.tileId)!
+      return distance(tile!, ta) - distance(tile!, tb)
+    })[0]
+    population.legendary = true
+    population.legendaryName = `${rng.pick(['Старый', 'Кровавый', 'Безглазый', 'Пепельный', 'Железный'])} ${rng.pick(['Клык', 'Страж', 'Пожиратель', 'Голод', 'Король'])}`
+    population.history = `Это существо пережило ${rng.int(2, 6)} охотничьих походов и заставило ближайшие поселения изменить дороги.`
+    population.scars = rng.shuffle(['сломанный рог', 'обожжённая левая сторона', 'старые арбалетные болты', 'руническая метка', 'повреждённое крыло']).slice(0, rng.int(1, 2))
+    population.lairSiteId = lair?.id
+    population.size = Math.max(population.size, species.threat + 3)
+    if (lair) {
+      lair.state = rng.bool(0.5) ? 'rumored' : lair.state
+      lair.monsterTags = Array.from(new Set([...lair.monsterTags, species.id]))
+    }
+  })
 
   const routes = createRoutes(seed, tiles, settlements)
   const startTile = tiles.find((tile) => tile.id === startSettlement.tileId)!

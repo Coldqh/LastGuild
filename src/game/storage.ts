@@ -1,8 +1,8 @@
 import type { Character, GameState, GuildPosition } from '../types/game'
 import { DEFAULT_WORLD_SETTINGS } from './worldSettings'
 
-const SAVE_KEY = 'last-guild-save-v4'
-const LEGACY_KEYS = ['last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v5'
+const LEGACY_KEYS = ['last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -36,6 +36,7 @@ function normalizeCharacter(character: any, state: any): Character {
       treated: true,
     })),
     relationships: character.relationships ?? {},
+    combatBehavior: character.combatBehavior ?? { role: ['Воин'].includes(character.profession) ? 'frontline' : ['Маг', 'Следопыт', 'Охотник'].includes(character.profession) ? 'ranged' : ['Жрец', 'Лекарь'].includes(character.profession) ? 'support' : 'skirmisher', preferredRange: ['Маг', 'Следопыт', 'Охотник'].includes(character.profession) ? 4 : 1, aggression: 50, protectWeak: ['Воин', 'Жрец', 'Лекарь'].includes(character.profession), retreatAt: 38, conserveAbilities: true },
     memories: (character.memories ?? []).map((memory: any, index: number) => ({
       id: memory.id ?? `legacy-memory-${character.id}-${index}`,
       title: memory.title ?? 'Старое воспоминание',
@@ -52,14 +53,17 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
   const normalized: GameState = {
     ...parsed,
-    version: 4,
+    version: 5,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
+    pendingCombat: parsed.pendingCombat,
+    pendingDungeon: parsed.pendingDungeon,
+    bestiary: parsed.bestiary ?? [],
     discoveries: parsed.discoveries ?? [],
     consequences: parsed.consequences ?? [],
     guild: {
@@ -71,7 +75,15 @@ function normalizeState(parsed: any): GameState | null {
       routes: parsed.world?.routes ?? [],
       tiles: (parsed.world?.tiles ?? []).map((tile: any) => ({ ...tile, magic: tile.magic ?? 0.35, hasRoad: tile.hasRoad ?? false, hasRiver: tile.hasRiver ?? false })),
       realms: (parsed.world?.realms ?? []).map((realm: any) => ({ ...realm, dominantFaith: realm.dominantFaith ?? 'местные культы', currentIssue: realm.currentIssue ?? 'пограничные споры', relations: realm.relations ?? {} })),
-      sites: (parsed.world?.sites ?? []).map((site: any) => ({ ...site, layers: site.layers ?? ['первоначальный комплекс', 'следы поздних обитателей'] })),
+      sites: (parsed.world?.sites ?? []).map((site: any) => {
+        const layers = site.layers ?? ['первоначальный комплекс', 'следы поздних обитателей']
+        const zones = site.zones ?? Array.from({ length: Math.max(3, (site.depth ?? 1) + 2) }, (_, index) => ({
+          id: `${site.id}-zone-${index + 1}`, name: index === 0 ? 'Старый вход' : `Неизвестная зона ${index + 1}`, kind: index === 0 ? 'entrance' : index >= (site.depth ?? 1) ? 'depths' : 'hall', danger: Math.min(10, (site.danger ?? 3) + index), historyLayer: layers[Math.min(layers.length - 1, Math.floor(index / 2))], description: 'Зона создана при обновлении старого сохранения.', connections: [`${site.id}-zone-${index}`, `${site.id}-zone-${index + 2}`].filter((id, position) => position === 0 ? index > 0 : index < Math.max(3, (site.depth ?? 1) + 2) - 1), guardSpeciesId: index > 1 ? site.monsterTags?.[0] : undefined, rewards: index > 1 ? ['неизвестная находка'] : [], explored: index === 0, secured: index === 0,
+        }))
+        return { ...site, layers, zones, exploration: site.exploration ?? 8, campEstablished: site.campEstablished ?? false }
+      }),
+      monsterSpecies: (parsed.world?.monsterSpecies ?? []).map((species: any) => ({ ...species, abilities: species.abilities ?? ['особая атака'], trophy: species.trophy ?? 'неизвестный трофей', armor: species.armor ?? Math.max(0, Math.floor((species.threat ?? 2) / 2)), movement: species.movement ?? 2 })),
+      monsterPopulations: (parsed.world?.monsterPopulations ?? []).map((population: any) => ({ ...population, legendary: population.legendary ?? false, scars: population.scars ?? [] })),
     },
     characters: (parsed.characters ?? []).map((character: any) => normalizeCharacter(character, parsed)),
     opportunities: (parsed.opportunities ?? []).map((opportunity: any) => ({
@@ -83,6 +95,8 @@ function normalizeState(parsed: any): GameState | null {
       ...expedition,
       riskProfile: expedition.riskProfile ?? { route: 4, combat: 4, climate: 3, disease: 3, politics: 2, magic: 3 },
       reports: expedition.reports ?? [],
+      battles: expedition.battles ?? 0,
+      dungeonSiteIds: expedition.dungeonSiteIds ?? [],
     })),
   }
   return normalized

@@ -27,6 +27,10 @@ export type WorldPresetId = 'classic' | 'fallen_empires' | 'wild_frontier' | 'ag
 export type DiscoveryDisposition = 'unreviewed' | 'published' | 'archived' | 'sold' | 'secret'
 export type ConsequenceStatus = 'pending' | 'resolved'
 export type GuildPositionId = 'expedition_master' | 'chief_archivist' | 'quartermaster' | 'chief_healer' | 'mentor' | 'diplomat'
+export type CombatRole = 'frontline' | 'skirmisher' | 'ranged' | 'support' | 'controller'
+export type CombatStatus = 'active' | 'victory' | 'retreated' | 'defeat'
+export type CombatCommandType = 'focus' | 'protect' | 'rally' | 'retreat'
+export type CombatUnitStatus = 'ready' | 'wounded' | 'panicked' | 'down' | 'dead'
 
 export interface WorldGenerationSettings {
   preset: WorldPresetId
@@ -94,6 +98,21 @@ export interface Settlement {
   isGuildHome?: boolean
 }
 
+export interface DungeonZone {
+  id: string
+  name: string
+  kind: 'entrance' | 'passage' | 'hall' | 'workshop' | 'sanctum' | 'vault' | 'lair' | 'depths'
+  danger: number
+  historyLayer: string
+  description: string
+  connections: string[]
+  guardSpeciesId?: string
+  trap?: string
+  rewards: string[]
+  explored: boolean
+  secured: boolean
+}
+
 export interface Site {
   id: string
   name: string
@@ -108,6 +127,9 @@ export interface Site {
   rewards: string[]
   truth: string
   layers: string[]
+  zones: DungeonZone[]
+  exploration: number
+  campEstablished: boolean
 }
 
 export interface MonsterSpecies {
@@ -118,6 +140,10 @@ export interface MonsterSpecies {
   threat: number
   behavior: string
   weakness: string
+  abilities: string[]
+  trophy: string
+  armor: number
+  movement: number
 }
 
 export interface MonsterPopulation {
@@ -127,6 +153,11 @@ export interface MonsterPopulation {
   size: number
   aggression: number
   movement: number
+  legendary?: boolean
+  legendaryName?: string
+  history?: string
+  scars?: string[]
+  lairSiteId?: string
 }
 
 export interface WorldRoute {
@@ -206,6 +237,15 @@ export interface CharacterInjuryRecord {
   treated: boolean
 }
 
+export interface CombatBehavior {
+  role: CombatRole
+  preferredRange: number
+  aggression: number
+  protectWeak: boolean
+  retreatAt: number
+  conserveAbilities: boolean
+}
+
 export interface Character {
   id: string
   name: string
@@ -238,6 +278,7 @@ export interface Character {
   memories: CharacterMemory[]
   expeditions: number
   discoveries: number
+  combatBehavior: CombatBehavior
 }
 
 export interface GuildRoom {
@@ -325,6 +366,8 @@ export interface Expedition {
   discoveries: string[]
   casualties: string[]
   reports: ExpeditionReport[]
+  battles: number
+  dungeonSiteIds: string[]
   officialReportId?: string
   leadDiscovererId?: string
   discoveryDisposition?: DiscoveryDisposition
@@ -408,6 +451,8 @@ export interface ExpeditionDebrief {
   injuredIds: string[]
   discoveryIds: string[]
   reports: ExpeditionReport[]
+  battles: number
+  dungeonSiteIds: string[]
   suggestedLeadId?: string
 }
 
@@ -421,6 +466,9 @@ export interface DecisionEffects {
   reveal?: boolean
   injuryChance?: number
   discoveryChance?: number
+  startCombat?: 'monster' | 'site_guardians'
+  combatAdvantage?: number
+  startDungeon?: boolean
 }
 
 export interface ExpeditionDecisionChoice {
@@ -444,6 +492,88 @@ export interface ExpeditionDecision {
   choices: ExpeditionDecisionChoice[]
 }
 
+
+export interface CombatGridCell {
+  x: number
+  y: number
+  obstacle?: 'rock' | 'tree' | 'ruin' | 'pit'
+}
+
+export interface CombatUnit {
+  id: string
+  sourceId: string
+  name: string
+  side: 'guild' | 'enemy'
+  x: number
+  y: number
+  hp: number
+  maxHp: number
+  armor: number
+  attack: number
+  range: number
+  movement: number
+  initiative: number
+  morale: number
+  role: CombatRole
+  status: CombatUnitStatus
+  ability?: string
+  legendary?: boolean
+  damageTaken: number
+  kills: number
+}
+
+export interface CombatLogEntry {
+  round: number
+  text: string
+  type: 'move' | 'attack' | 'ability' | 'injury' | 'death' | 'morale' | 'command'
+}
+
+export interface CombatEncounter {
+  id: string
+  expeditionId: string
+  tileId: string
+  siteId?: string
+  zoneId?: string
+  speciesId: string
+  populationId?: string
+  title: string
+  width: number
+  height: number
+  round: number
+  status: CombatStatus
+  commandPoints: number
+  cells: CombatGridCell[]
+  units: CombatUnit[]
+  logs: CombatLogEntry[]
+  focusTargetId?: string
+  protectedCharacterId?: string
+  retreatOrdered: boolean
+  advantage: number
+}
+
+export interface DungeonExploration {
+  id: string
+  expeditionId: string
+  siteId: string
+  currentZoneId: string
+  discoveredZoneIds: string[]
+  securedZoneIds: string[]
+  logs: string[]
+}
+
+export interface BestiaryEntry {
+  speciesId: string
+  sightings: number
+  encounters: number
+  victories: number
+  kills: number
+  deathsCaused: number
+  knowledge: number
+  discoveredWeakness: boolean
+  notes: string[]
+  legendaryNames: string[]
+}
+
 export interface GameState {
   version: number
   seed: string
@@ -461,4 +591,7 @@ export interface GameState {
   consequences: WorldConsequence[]
   pendingDecision?: ExpeditionDecision
   pendingDebrief?: ExpeditionDebrief
+  pendingCombat?: CombatEncounter
+  pendingDungeon?: DungeonExploration
+  bestiary: BestiaryEntry[]
 }

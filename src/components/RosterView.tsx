@@ -111,6 +111,7 @@ export default function RosterView({ state, onHire, onDismiss }: Props) {
                 <p><b>Экспедиции:</b> {selected.expeditions}</p>
                 <p><b>Открытия:</b> {selected.discoveries}</p>
                 <p><b>Контракт:</b> {selected.employed ? `постоянный, ${selected.salary} кр./месяц` : `кандидат, подписание ${60 + selected.level * 25} кр.`}</p>
+                <div className="combat-behavior-card"><strong>Поведение в бою</strong><span>Роль: {selected.combatBehavior.role}</span><span>Дистанция: {selected.combatBehavior.preferredRange}</span><span>Агрессивность: {selected.combatBehavior.aggression}%</span><span>Отступление при {selected.combatBehavior.retreatAt}% здоровья</span><span>{selected.combatBehavior.protectWeak ? 'прикрывает слабых' : 'держит личную позицию'}</span></div>
                 {selected.employed ? (
                   <button className="secondary-button personnel-action" disabled={selected.status === 'expedition'} onClick={() => { onDismiss(selected.id); setSelectedId(null) }}>Расторгнуть контракт</button>
                 ) : (

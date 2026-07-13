@@ -22,8 +22,8 @@ export default function SettingsModal({ state, onClose, onNewWorld, onForceUpdat
         <button className="icon-button close-detail" onClick={onClose}><X size={18} /></button>
         <div className="section-title"><Settings size={21} /><div><p className="eyebrow">Система</p><h2>Настройки игры</h2></div></div>
         <div className="settings-version-card">
-          <div><ShieldCheck /><span><strong>THE LAST GUILD v0.3</strong><small>Люди, память и последствия</small></span></div>
-          <span className="version-chip">save v4</span>
+          <div><ShieldCheck /><span><strong>THE LAST GUILD v0.4</strong><small>Бой, подземелья и чудовища</small></span></div>
+          <span className="version-chip">save v5</span>
         </div>
         <div className="settings-grid">
           <article>

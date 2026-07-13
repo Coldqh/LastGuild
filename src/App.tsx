@@ -17,6 +17,8 @@ import {
   X,
 } from 'lucide-react'
 import ArchiveView from './components/ArchiveView'
+import CombatModal from './components/CombatModal'
+import DungeonExplorationModal from './components/DungeonExplorationModal'
 import ExpeditionDebriefModal from './components/ExpeditionDebriefModal'
 import ExpeditionDecisionModal from './components/ExpeditionDecisionModal'
 import ExpeditionPlanner from './components/ExpeditionPlanner'
@@ -40,8 +42,10 @@ import {
   type ExpeditionDraft,
 } from './game/simulation'
 import { clearSave, loadGame, saveGame } from './game/storage'
+import { autoResolveCombat, finalizeCombat, issueCombatCommand, stepCombat } from './game/combat'
+import { establishDungeonCamp, exploreDungeonZone, leaveDungeon } from './game/dungeon'
 import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './game/worldSettings'
-import type { GameState, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
+import type { CombatCommandType, GameState, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
 
 const views: Array<{ id: ViewId; label: string; icon: typeof Building2 }> = [
   { id: 'headquarters', label: 'Штаб', icon: Building2 },
@@ -80,15 +84,16 @@ export default function App() {
   const urgentCount = useMemo(() => {
     const expiring = state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay - state.day <= 8).length
     const injured = state.characters.filter((character) => character.status === 'recovering' && character.health < 45).length
-    return expiring + injured + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0)
+    return expiring + injured + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
   }, [state])
 
-  const timeBlocked = Boolean(state.pendingDecision || state.pendingDebrief)
+  const timeBlocked = Boolean(state.pendingDecision || state.pendingDebrief || state.pendingCombat || state.pendingDungeon)
   const changeView = (next: ViewId) => { setView(next); setMenuOpen(false) }
   const advance = (days: number) => setState((current) => advanceDays(current, days))
   const launch = (draft: ExpeditionDraft) => setState((current) => createExpeditionFromDraft(current, draft))
   const resolveDebrief = (resolution: DebriefResolution) => setState((current) => resolveExpeditionDebrief(current, resolution))
   const assignPosition = (positionId: GuildPositionId, holderId?: string) => setState((current) => assignGuildPosition(current, positionId, holderId))
+  const combatCommand = (command: CombatCommandType, targetId?: string) => setState((current) => issueCombatCommand(current, command, targetId))
 
   const openWorldSetup = () => {
     setWorldSettings({ ...state.settings })
@@ -148,7 +153,7 @@ export default function App() {
         <nav>
           {views.map((item) => {
             const Icon = item.icon
-            const badge = item.id === 'expeditions' ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) : item.id === 'headquarters' && urgentCount ? urgentCount : 0
+            const badge = item.id === 'expeditions' ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0) : item.id === 'headquarters' && urgentCount ? urgentCount : 0
             return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={19} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={15} /></button>
           })}
         </nav>
@@ -163,7 +168,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.3 · People & Consequences</small>
+          <small>v0.4 · Combat & Dungeons</small>
         </div>
       </aside>
 
@@ -192,6 +197,8 @@ export default function App() {
       {settingsModal && <SettingsModal state={state} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}
       {state.pendingDecision && <ExpeditionDecisionModal decision={state.pendingDecision} state={state} onChoose={(choiceId) => setState((current) => resolveExpeditionDecision(current, choiceId))} />}
       {state.pendingDebrief && <ExpeditionDebriefModal debrief={state.pendingDebrief} state={state} onResolve={resolveDebrief} />}
+      {state.pendingDungeon && <DungeonExplorationModal state={state} onExplore={(zoneId) => setState((current) => exploreDungeonZone(current, zoneId))} onCamp={() => setState((current) => establishDungeonCamp(current))} onLeave={() => setState((current) => leaveDungeon(current))} />}
+      {state.pendingCombat && <CombatModal state={state} onStep={() => setState((current) => stepCombat(current))} onAuto={() => setState((current) => autoResolveCombat(current))} onCommand={combatCommand} onFinalize={() => setState((current) => finalizeCombat(current))} />}
     </div>
   )
 }

@@ -131,9 +131,10 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
                   <span><Package size={14} />{expedition.food}</span>
                   <span><Shield size={14} />{Math.round(expedition.morale)}%</span>
                   <span><Clock3 size={14} />{expedition.daysElapsed} дн.</span>
+                  <span><Skull size={14} />{expedition.battles} боёв</span>
                 </div>
                 <div className="latest-log"><b>{expedition.logs.at(-1)?.title}</b><p>{expedition.logs.at(-1)?.text}</p></div>
-                {expedition.discoveries.length > 0 && <div className="discoveries-line"><Check size={15} />Открытий: {expedition.discoveries.length}</div>}
+                {expedition.discoveries.length > 0 && <div className="discoveries-line"><Check size={15} />Открытий: {expedition.discoveries.length} · подземелий: {expedition.dungeonSiteIds.length}</div>}
               </article>
             )
           })}
