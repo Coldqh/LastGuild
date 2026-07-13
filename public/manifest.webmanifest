@@ -1,0 +1,21 @@
+{
+  "name": "The Last Guild",
+  "short_name": "Last Guild",
+  "description": "Procedural fantasy guild simulator",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#070a0f",
+  "theme_color": "#070a0f",
+  "icons": [
+    {
+      "src": "/branding/logo-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/branding/logo-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

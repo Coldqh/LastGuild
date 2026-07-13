@@ -22,8 +22,6 @@ import {
   RotateCcw,
   Save,
   Settings as SettingsIcon,
-  Shield,
-  Swords,
   UserPlus,
   Users,
   X,
@@ -281,9 +279,11 @@ export default function App() {
     <div className="app-shell">
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark"><Shield size={26} /><Swords size={14} /></div>
-          <div><strong>THE LAST GUILD</strong><span>Экспедиционный архив</span></div>
-          <button className="mobile-close" onClick={() => setMenuOpen(false)}><X /></button>
+          <div className="brand-main">
+            <img className="brand-logo" src="/branding/logo-full.png" alt="The Last Guild" />
+            <span className="brand-subtitle">Экспедиционный архив</span>
+          </div>
+          <button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню"><X /></button>
         </div>
 
         <nav className="grouped-sidebar-nav">
