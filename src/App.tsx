@@ -9,6 +9,7 @@ import {
   Clock3,
   Compass,
   FastForward,
+  Flag,
   Gavel,
   GraduationCap,
   Hammer,
@@ -31,6 +32,7 @@ import CommandCenter from './components/CommandCenter'
 import TutorialPanel from './components/TutorialPanel'
 
 const ArchiveView = lazy(() => import('./components/ArchiveView'))
+const CampaignView = lazy(() => import('./components/CampaignView'))
 const CombatModal = lazy(() => import('./components/CombatModal'))
 const DungeonExplorationModal = lazy(() => import('./components/DungeonExplorationModal'))
 const ExpeditionDebriefModal = lazy(() => import('./components/ExpeditionDebriefModal'))
@@ -73,12 +75,14 @@ import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './game/worldSettings'
 import { appointGuildLeader, assignMentorship, changeBranchAutonomy, conductRivalAction, createStrategicLayer, openBranch, respondToCrisis } from './game/strategy'
 import { appointCouncilSeat, assignAcademyMentor, changeGuildCharter, createGuildMemorial, enrollAcademyStudent, foundGuildDoctrine, graduateAcademyStudent, holdAcademyExam, resolveCouncilProposal, upgradeGuildAcademy } from './game/guildPolitics'
 import { loadPreferences, savePreferences, type AppPreferences } from './game/preferences'
+import { selectCampaignGoal } from './game/campaign'
 import type { TutorialStepId } from './game/onboarding'
 import type { AcademyProgramId, BranchAutonomy, BranchSpecialization, CharacterSkills, CombatCommandType, CouncilVoteChoice, GameState, GuildCharter, GuildMemorial, GuildPositionId, ViewId, WorldGenerationSettings } from './types/game'
 
 const viewGroups: Array<{ label: string; items: Array<{ id: ViewId; label: string; icon: typeof Building2 }> }> = [
   { label: 'Гильдия', items: [
     { id: 'headquarters', label: 'Штаб', icon: Building2 },
+    { id: 'campaign', label: 'Кампания', icon: Flag },
     { id: 'hiring', label: 'Наём', icon: UserPlus },
     { id: 'roster', label: 'Персонажи', icon: Users },
     { id: 'rooms', label: 'Помещения', icon: Hammer },
@@ -254,6 +258,7 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
+      case 'campaign': return <CampaignView state={state} onSelectGoal={(goalId) => setState((current) => selectCampaignGoal(current, goalId))} />
       case 'hiring': return <HiringPanel state={state} onHire={hireFromHeadquarters} />
       case 'roster': return <RosterView state={state} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
       case 'rooms': return <RoomsView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} />
@@ -293,6 +298,7 @@ export default function App() {
                 : item.id === 'influence'
                   ? state.crises.filter((crisis) => crisis.status === 'active').length + (preferences.competitorsEnabled ? state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length : 0)
                   : item.id === 'headquarters' ? urgentCount
+                  : item.id === 'campaign' ? (state.campaign.selectedGoalId ? 0 : 1)
                   : item.id === 'hiring' ? state.characters.filter((entry) => !entry.employed && !entry.rivalGuildId && !entry.academyEnrollmentId && !['dead', 'missing', 'retired'].includes(entry.status)).length
                   : item.id === 'academy' ? state.academy.enrollments.filter((entry) => ['training', 'ready'].includes(entry.status)).length
                   : item.id === 'council' ? state.councilProposals.filter((entry) => entry.status === 'pending').length
@@ -313,7 +319,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.8 · Procedural Stories</small>
+          <small>v0.8.1 · Pacing & Replayability</small>
         </div>
       </aside>
 

@@ -25,7 +25,8 @@ import { startDungeonExploration } from './dungeon'
 import { stanceFromRelation, strategicDayTick } from './strategy'
 import { livingWorldDayTick } from './livingWorld'
 import { loadPreferences } from './preferences'
-import { advanceStoryAfterDebrief, contentDayTick, pickContentExpeditionDecision } from './contentEngine'
+import { campaignDayTick, recordContentEvent } from './campaign'
+import { CONTENT_EVENT_META, advanceStoryAfterDebrief, contentDayTick, pickContentExpeditionDecision } from './contentEngine'
 
 const neighborOffsets = (x: number): number[][] =>
   x % 2 === 0
@@ -822,7 +823,13 @@ function tickExpedition(state: GameState, expedition: Expedition, rng: RNG): Gam
         nextState = { ...nextState, characters: result.characters }
         if (result.reveal) nextState = { ...nextState, world: { ...nextState.world, tiles: revealAround(nextState, currentTileId, 3) } }
         if (result.chronicle) nextState = { ...nextState, chronicle: [...nextState.chronicle, result.chronicle] }
-        if (result.decision) nextState = { ...nextState, pendingDecision: result.decision }
+        if (result.decision) {
+          nextState = { ...nextState, pendingDecision: result.decision }
+          if (result.decision.contentEventId) {
+            const meta = CONTENT_EVENT_META[result.decision.contentEventId] ?? { theme: 'general', rarity: 'common' as const, cooldown: 5 }
+            nextState = recordContentEvent(nextState, result.decision.contentEventId, meta.theme, meta.rarity)
+          }
+        }
       }
     }
   }
@@ -1221,6 +1228,7 @@ export function advanceDay(state: GameState): GameState {
   next = strategicDayTick(next)
   next = livingWorldDayTick(next)
   next = contentDayTick(next)
+  next = campaignDayTick(next)
   if (next.day % 30 === 0 || next.day === 1) next = pruneSimulationState(next)
   return next
 }

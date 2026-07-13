@@ -6,6 +6,7 @@ import type {
   AncientCivilization,
   ArtifactRecord,
   BiomeId,
+  ContentEventRarity,
   ContentValidationIssue,
   DiscoveryDisposition,
   Expedition,
@@ -20,6 +21,29 @@ import type {
   WorldTile,
 } from '../types/game'
 import { RNG } from './rng'
+import { CAMPAIGN_PHASES } from './campaign'
+
+
+
+export const CONTENT_EVENT_META: Record<string, { theme: string; rarity: ContentEventRarity; cooldown: number }> = {
+  'buried-road-marker': { theme: 'routes', rarity: 'common', cooldown: 5 },
+  'local-taboo': { theme: 'cultures', rarity: 'regional', cooldown: 7 },
+  'artifact-whisper': { theme: 'artifacts', rarity: 'rare', cooldown: 10 },
+  'flooded-scriptorium': { theme: 'archives', rarity: 'regional', cooldown: 8 },
+  'glass-rain': { theme: 'magic', rarity: 'regional', cooldown: 7 },
+  'dreaming-grove': { theme: 'visions', rarity: 'rare', cooldown: 10 },
+  'dead-language-argument': { theme: 'languages', rarity: 'regional', cooldown: 8 },
+  'old-battlefield-voices': { theme: 'war_memory', rarity: 'rare', cooldown: 10 },
+  'living-map': { theme: 'maps', rarity: 'rare', cooldown: 12 },
+  'ancestor-statue': { theme: 'lineage', rarity: 'legendary', cooldown: 16 },
+  'refugee-scholar': { theme: 'people', rarity: 'common', cooldown: 6 },
+  'monster-eggs-in-ruin': { theme: 'monsters', rarity: 'regional', cooldown: 8 },
+}
+
+const EVENT_RARITY_PHASE: Record<ContentEventRarity, number> = { common: 0, regional: 1, rare: 2, legendary: 4 }
+const PHASE_INDEX = Object.fromEntries(CAMPAIGN_PHASES.map((phase, index) => [phase.id, index])) as Record<string, number>
+
+function absoluteTick(year: number, day: number): number { return year * 360 + day }
 
 const REGION_SUFFIXES: Record<BiomeId, string[]> = {
   ocean: ['Внутреннее море', 'Серые воды'], coast: ['Соляной берег', 'Предел маяков'], plains: ['Широкие поля', 'Старый тракт'], forest: ['Лесной край', 'Зелёная граница'], ancient_forest: ['Старый лес', 'Корневая чаща'], hills: ['Каменные холмы', 'Земли курганов'], mountains: ['Высокий хребет', 'Перевальный край'], swamp: ['Чёрные топи', 'Затонувшая низина'], desert: ['Пыльный предел', 'Стеклянная пустошь'], tundra: ['Белая окраина', 'Северный холод'], ashlands: ['Пепельный рубеж', 'Мёртвая земля'],
@@ -203,7 +227,7 @@ function instantiateStoryChain(seed: string, template: StoryChainTemplate, index
       siteId: target.siteId,
       artifactId: stage.target === 'artifact_site' || (artifact && stageIndex === stagesArtifactIndex(template)) ? artifact?.id : undefined,
       civilizationId: civilization?.id,
-      status: stageIndex === 0 && template.rarity !== 'legendary' ? 'available' : 'locked',
+      status: stageIndex === 0 && template.rarity === 'common' ? 'available' : 'locked',
       completionText: stage.completionText,
     }
   })
@@ -213,7 +237,7 @@ function instantiateStoryChain(seed: string, template: StoryChainTemplate, index
     summary: template.summary,
     kind: template.kind,
     rarity: template.rarity,
-    status: template.rarity === 'legendary' ? 'dormant' : 'active',
+    status: template.rarity === 'common' ? 'active' : 'dormant',
     civilizationId: civilization?.id,
     artifactId: artifact?.id,
     stages,
@@ -231,9 +255,16 @@ function createStoryChains(seed: string, world: WorldData, settings: WorldGenera
   const rng = new RNG(`${seed}:content:chains`)
   const nonLegendary = STORY_CHAIN_TEMPLATES.filter((template) => template.rarity !== 'legendary')
   const count = settings.mapSize === 'vast' ? 7 : settings.mapSize === 'compact' ? 5 : 6
-  const selected = rng.shuffle(nonLegendary).slice(0, count)
+  const guaranteedCommon = rng.pick(nonLegendary.filter((template) => template.rarity === 'common'))
+  const selected = [guaranteedCommon, ...rng.shuffle(nonLegendary.filter((template) => template.id !== guaranteedCommon.id)).slice(0, Math.max(0, count - 1))]
   const legendary = rng.pick(STORY_CHAIN_TEMPLATES.filter((template) => template.rarity === 'legendary'))
-  return [...selected, legendary].map((template, index) => instantiateStoryChain(seed, template, index, world, civilizations, artifacts))
+  let commonActivated = false
+  return [...selected, legendary].map((template, index) => {
+    const chain = instantiateStoryChain(seed, template, index, world, civilizations, artifacts)
+    if (chain.rarity !== 'common') return chain
+    if (!commonActivated) { commonActivated = true; return chain }
+    return { ...chain, status: 'dormant' as const, stages: chain.stages.map((stage) => ({ ...stage, status: 'locked' as const })) }
+  })
 }
 
 function riskProfile(world: WorldData, tileId: string, modifier: number) {
@@ -272,13 +303,19 @@ function storyOpportunity(state: GameState, chain: StoryChain, stage: StoryStage
 
 export function ensureStoryOpportunities(state: GameState): GameState {
   let opportunities = [...state.opportunities]
-  let chains = state.storyChains.map((chain) => ({ ...chain, stages: chain.stages.map((stage) => ({ ...stage })) }))
+  const chains = state.storyChains.map((chain) => ({ ...chain, stages: chain.stages.map((stage) => ({ ...stage })) }))
+  const phaseIndex = PHASE_INDEX[state.campaign?.phase.id ?? 'survival'] ?? 0
+  const slotLimit = [1, 2, 2, 3, 3, 4][phaseIndex] ?? 3
   const outstanding = opportunities.filter((opportunity) => opportunity.storyChainId && !opportunity.accepted && opportunity.deadlineDay >= state.day).length
-  let slots = Math.max(0, 3 - outstanding)
+  let slots = Math.max(0, slotLimit - outstanding)
+  const now = absoluteTick(state.year, state.day)
   for (const chain of chains) {
     if (slots <= 0 || chain.status !== 'active') continue
+    if (!state.campaign.phase.unlockedStoryRarities.includes(chain.rarity) && !chain.startedYear) continue
     const stage = chain.stages[chain.currentStageIndex]
     if (!stage || !['available', 'active'].includes(stage.status)) continue
+    const retryAfter = Number(chain.flags[`retryAfter:${stage.id}`] ?? 0)
+    if (retryAfter > now) continue
     const existing = opportunities.find((entry) => entry.storyChainId === chain.id && entry.storyStageId === stage.id && entry.deadlineDay >= state.day)
     if (existing) {
       stage.opportunityId = existing.id
@@ -311,7 +348,13 @@ export function pickContentExpeditionDecision(state: GameState, expedition: Expe
   const members = state.characters.filter((character) => expedition.memberIds.includes(character.id))
   const site = tile.siteId ? state.world.sites.find((entry) => entry.id === tile.siteId) : undefined
   const hasArtifactRumor = state.artifactsCatalog.some((artifact) => artifact.currentSiteId === site?.id || (artifact.knownLevel > 0 && artifact.status !== 'recovered'))
-  const candidates = EXPEDITION_CONTENT_EVENTS.filter((event) => {
+  const phaseIndex = PHASE_INDEX[state.campaign?.phase.id ?? 'survival'] ?? 0
+  const recent = new Set(state.campaign?.telemetry.recentEventIds ?? [])
+  const recentThemes = state.campaign?.telemetry.recentThemes ?? []
+  const counts = state.campaign?.telemetry.eventCounts ?? {}
+  const eligible = EXPEDITION_CONTENT_EVENTS.filter((event) => {
+    const meta = CONTENT_EVENT_META[event.id] ?? { theme: 'general', rarity: 'common' as const, cooldown: 5 }
+    if (EVENT_RARITY_PHASE[meta.rarity] > phaseIndex) return false
     if (used.has(event.id)) return false
     if (event.biomes && !event.biomes.includes(tile.biome)) return false
     if (event.requiresCivilization && !site?.civilizationId) return false
@@ -321,8 +364,19 @@ export function pickContentExpeditionDecision(state: GameState, expedition: Expe
     if (event.fearTags && !event.fearTags.some((fear) => members.some((member) => member.fear.includes(fear)))) return false
     return true
   })
-  if (!candidates.length || !rng.bool(0.48)) return undefined
-  const weighted = candidates.flatMap((event) => Array.from({ length: Math.max(1, event.weight) }, () => event))
+  if (!eligible.length) return undefined
+  const preferred = eligible.filter((event) => {
+    const meta = CONTENT_EVENT_META[event.id] ?? { theme: 'general', rarity: 'common' as const, cooldown: 5 }
+    return !recent.has(event.id) && !recentThemes.slice(-2).includes(meta.theme)
+  })
+  const candidates = preferred.length ? preferred : eligible.sort((a, b) => (counts[a.id] ?? 0) - (counts[b.id] ?? 0)).slice(0, Math.max(1, Math.ceil(eligible.length / 2)))
+  const chance = [0.34, 0.4, 0.45, 0.48, 0.52, 0.54][phaseIndex] ?? 0.45
+  if (!rng.bool(chance)) return undefined
+  const weighted = candidates.flatMap((event) => {
+    const repeats = counts[event.id] ?? 0
+    const weight = Math.max(1, Math.round(event.weight / (1 + repeats * 0.65)))
+    return Array.from({ length: weight }, () => event)
+  })
   const event = rng.pick(weighted)
   return {
     id: `content-decision-${event.id}-${state.year}-${state.day}-${expedition.id}`,
@@ -335,12 +389,22 @@ export function pickContentExpeditionDecision(state: GameState, expedition: Expe
   }
 }
 
-function activateRareStory(state: GameState): GameState {
-  const dormant = state.storyChains.filter((chain) => chain.status === 'dormant')
-  if (!dormant.length || state.guild.rank < 2 || state.discoveries.length < 3) return state
-  const rng = new RNG(`${state.seed}:rare-story:${state.year}:${state.day}`)
-  if (!rng.bool(state.guild.rank >= 4 ? 0.42 : 0.18)) return state
-  const selected = rng.pick(dormant)
+function activatePacedStory(state: GameState): GameState {
+  const phaseIndex = PHASE_INDEX[state.campaign.phase.id] ?? 0
+  const activeLimit = [1, 2, 2, 3, 3, 4][phaseIndex] ?? 3
+  const active = state.storyChains.filter((chain) => chain.status === 'active')
+  if (active.length >= activeLimit) return state
+  const unlocked = new Set(state.campaign.phase.unlockedStoryRarities)
+  const completedKinds = state.storyChains.filter((chain) => chain.status === 'completed').map((chain) => chain.kind)
+  const eligible = state.storyChains.filter((chain) => {
+    if (chain.status !== 'dormant' || !unlocked.has(chain.rarity)) return false
+    if (chain.rarity === 'legendary' && (state.discoveries.length < 8 || state.storyChains.filter((entry) => entry.status === 'completed').length < 2)) return false
+    return true
+  })
+  if (!eligible.length) return state
+  const rng = new RNG(`${state.seed}:paced-story:${state.year}:${state.day}`)
+  const fresh = eligible.filter((chain) => !completedKinds.slice(-2).includes(chain.kind))
+  const selected = rng.pick(fresh.length ? fresh : eligible)
   const storyChains = state.storyChains.map((chain) => chain.id === selected.id ? {
     ...chain,
     status: 'active' as const,
@@ -351,14 +415,14 @@ function activateRareStory(state: GameState): GameState {
   return {
     ...state,
     storyChains,
-    chronicle: [...state.chronicle, { id: `chronicle-story-activate-${selected.id}-${state.year}-${state.day}`, year: state.year, day: state.day, title: `Открыта редкая история: ${selected.title}`, text: selected.summary, category: 'discovery', importance: 5 }],
+    chronicle: [...state.chronicle, { id: `chronicle-story-activate-${selected.id}-${state.year}-${state.day}`, year: state.year, day: state.day, title: `Новая сюжетная линия: ${selected.title}`, text: selected.summary, category: 'discovery', importance: selected.rarity === 'legendary' ? 5 : 3 }],
   }
 }
 
 export function contentDayTick(state: GameState): GameState {
   let next = state
   if (next.day % 30 === 0) next = ensureStoryOpportunities(next)
-  if (next.day % 90 === 0) next = activateRareStory(next)
+  if (next.day % 60 === 0) next = activatePacedStory(next)
   if (next.day % 120 === 0) next = { ...next, contentValidation: validateContent(next) }
   return next
 }
@@ -372,10 +436,33 @@ export function advanceStoryAfterDebrief(state: GameState, expeditionId: string,
   if (stageIndex < 0) return state
   const current = chain.stages[stageIndex]
   if (!success) {
-    return {
+    const attemptKey = `${chain.id}:${current.id}`
+    const attempts = (state.campaign.telemetry.failedStageAttempts[attemptKey] ?? 0) + 1
+    const rivalCanAdvance = attempts >= 2 && state.rivalGuilds.length > 0
+    const finalStage = stageIndex >= chain.stages.length - 1
+    const retryAfter = absoluteTick(state.year, state.day) + (attempts >= 2 ? 55 : 28)
+    const storyChains = state.storyChains.map((entry) => {
+      if (entry.id !== chain.id) return entry
+      if (rivalCanAdvance) return {
+        ...entry,
+        currentStageIndex: finalStage ? stageIndex : stageIndex + 1,
+        status: finalStage ? 'completed' as const : 'active' as const,
+        completedYear: finalStage ? state.year : entry.completedYear,
+        completedDay: finalStage ? state.day : entry.completedDay,
+        endingId: finalStage ? 'rival-claimed-truth' : entry.endingId,
+        flags: { ...entry.flags, [`rivalAdvance:${current.id}`]: true },
+        stages: entry.stages.map((stage, index) => index === stageIndex ? { ...stage, status: 'failed' as const, opportunityId: undefined } : index === stageIndex + 1 && !finalStage ? { ...stage, status: 'available' as const } : stage),
+      }
+      return { ...entry, flags: { ...entry.flags, [`retryAfter:${current.id}`]: retryAfter }, stages: entry.stages.map((stage) => stage.id === current.id ? { ...stage, status: 'available' as const, opportunityId: undefined } : stage) }
+    })
+    const next: GameState = {
       ...state,
-      storyChains: state.storyChains.map((entry) => entry.id === chain.id ? { ...entry, stages: entry.stages.map((stage) => stage.id === current.id ? { ...stage, status: 'available' as const, opportunityId: undefined } : stage) } : entry),
+      opportunities: state.opportunities.filter((entry) => entry.id !== current.opportunityId && entry.id !== expedition.opportunityId),
+      storyChains,
+      campaign: { ...state.campaign, telemetry: { ...state.campaign.telemetry, failedStageAttempts: { ...state.campaign.telemetry.failedStageAttempts, [attemptKey]: attempts }, completedChainIds: rivalCanAdvance && finalStage ? [...new Set([...state.campaign.telemetry.completedChainIds, chain.id])] : state.campaign.telemetry.completedChainIds } },
+      chronicle: rivalCanAdvance ? [...state.chronicle, { id: `chronicle-rival-story-${chain.id}-${current.id}-${state.year}-${state.day}`, year: state.year, day: state.day, title: `Конкуренты продолжают историю «${chain.title}»`, text: finalStage ? 'Гильдия потеряла инициативу. Другая организация первой предъявила финальные доказательства.' : 'После второго провала чужая экспедиция нашла недостающую улику. Следующий этап открыт, но часть славы потеряна.', category: 'discovery', importance: finalStage ? 5 : 3 }] : state.chronicle,
     }
+    return ensureStoryOpportunities(next)
   }
   const finalStage = stageIndex >= chain.stages.length - 1
   const endingId = finalStage ? (disposition === 'published' ? 'truth-published' : disposition === 'secret' ? 'truth-buried' : disposition === 'sold' ? 'truth-sold' : 'truth-archived') : undefined
@@ -408,9 +495,11 @@ export function advanceStoryAfterDebrief(state: GameState, expeditionId: string,
   const civilizations = state.civilizations.map((civilization) => civilization.id === (current.civilizationId ?? chain.civilizationId) ? { ...civilization, knownLevel: Math.min(5, civilization.knownLevel + (finalStage ? 2 : 1)) } : civilization)
   let next: GameState = {
     ...state,
+    opportunities: state.opportunities.filter((entry) => entry.id !== current.opportunityId && entry.id !== expedition.opportunityId),
     storyChains,
     artifactsCatalog,
     civilizations,
+    campaign: finalStage ? { ...state.campaign, telemetry: { ...state.campaign.telemetry, completedChainIds: [...new Set([...state.campaign.telemetry.completedChainIds, chain.id])] } } : state.campaign,
     chronicle: [...state.chronicle, {
       id: `chronicle-story-stage-${chain.id}-${current.id}-${state.year}-${state.day}`,
       year: state.year,

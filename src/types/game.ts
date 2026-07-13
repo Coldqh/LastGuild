@@ -15,7 +15,7 @@ export type KnowledgeLevel = 0 | 1 | 2 | 3 | 4 | 5
 export type CharacterStatus = 'available' | 'expedition' | 'recovering' | 'missing' | 'dead' | 'retired'
 export type CharacterCareerStage = 'recruit' | 'field' | 'veteran' | 'leader' | 'mentor' | 'legend'
 export type ExpeditionStatus = 'planned' | 'active' | 'returning' | 'completed' | 'missing' | 'failed'
-export type ViewId = 'headquarters' | 'hiring' | 'roster' | 'rooms' | 'positions' | 'academy' | 'council' | 'legacy' | 'world' | 'expeditions' | 'active_expeditions' | 'archive' | 'influence' | 'living_world' | 'lore'
+export type ViewId = 'headquarters' | 'campaign' | 'hiring' | 'roster' | 'rooms' | 'positions' | 'academy' | 'council' | 'legacy' | 'world' | 'expeditions' | 'active_expeditions' | 'archive' | 'influence' | 'living_world' | 'lore'
 export type DifficultyId = 'story' | 'standard' | 'hard' | 'brutal'
 export type MapSizeId = 'compact' | 'regional' | 'vast'
 export type DensityId = 'sparse' | 'normal' | 'dense'
@@ -67,6 +67,12 @@ export type StoryStageStatus = 'locked' | 'available' | 'active' | 'completed' |
 export type ArtifactStatus = 'rumored' | 'lost' | 'located' | 'partial' | 'recovered' | 'destroyed'
 export type ArtifactOwnerType = 'lost' | 'guild' | 'realm' | 'rival' | 'faith'
 export type ContentValidationSeverity = 'error' | 'warning'
+
+export type CampaignPhaseId = 'survival' | 'regional' | 'discovery' | 'influence' | 'world' | 'institution'
+export type CampaignGoalType = 'map_region' | 'find_empire' | 'slay_legend' | 'expose_lie' | 'world_institute' | 'great_artifact'
+export type CampaignGoalStatus = 'offered' | 'selected' | 'completed'
+export type GuildIdentityPathId = 'scholars' | 'hunters' | 'royal' | 'independent' | 'traders' | 'wardens'
+export type ContentEventRarity = 'common' | 'regional' | 'rare' | 'legendary'
 
 export interface WorldGenerationSettings {
   preset: WorldPresetId
@@ -1037,6 +1043,61 @@ export interface ContentValidationIssue {
   message: string
 }
 
+
+
+export interface CampaignPhaseState {
+  id: CampaignPhaseId
+  enteredYear: number
+  enteredDay: number
+  progress: number
+  nextThreshold: number
+  unlockedStoryRarities: StoryChainRarity[]
+}
+
+export interface CampaignGoal {
+  id: string
+  type: CampaignGoalType
+  title: string
+  description: string
+  status: CampaignGoalStatus
+  progress: number
+  target: number
+  rewardText: string
+  selectedYear?: number
+  selectedDay?: number
+  completedYear?: number
+  completedDay?: number
+}
+
+export interface GuildIdentityProfile {
+  scores: Record<GuildIdentityPathId, number>
+  primaryPath?: GuildIdentityPathId
+  milestones: string[]
+  lastEvaluatedYear: number
+  lastEvaluatedDay: number
+}
+
+export interface ContentTelemetry {
+  totalEvents: number
+  eventCounts: Record<string, number>
+  themeCounts: Record<string, number>
+  rarityCounts: Record<ContentEventRarity, number>
+  recentEventIds: string[]
+  recentThemes: string[]
+  completedChainIds: string[]
+  failedStageAttempts: Record<string, number>
+  lastEventYear?: number
+  lastEventDay?: number
+}
+
+export interface CampaignProgress {
+  phase: CampaignPhaseState
+  goals: CampaignGoal[]
+  selectedGoalId?: string
+  identity: GuildIdentityProfile
+  telemetry: ContentTelemetry
+}
+
 export interface GameState {
   version: number
   seed: string
@@ -1079,4 +1140,5 @@ export interface GameState {
   storyChains: StoryChain[]
   regionalIdentities: RegionalIdentity[]
   contentValidation: ContentValidationIssue[]
+  campaign: CampaignProgress
 }

@@ -23,6 +23,7 @@ import { DEFAULT_WORLD_SETTINGS, DIFFICULTY_RULES } from './worldSettings'
 import { createStrategicLayer } from './strategy'
 import { initializeLivingWorld } from './livingWorld'
 import { createGuildInstitutions } from './guildPolitics'
+import { createCampaignProgress, refreshCampaignProgress } from './campaign'
 import { ensureStoryOpportunities, initializeContentEngine } from './contentEngine'
 
 function skillProfile(profession: string, rng: RNG): Character['skills'] {
@@ -196,13 +197,14 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
     if (character.employed) character.generationId = foundingGeneration.id
   }
   const state: GameState = {
-    version: 9, seed, settings, day: 1, year: 912, season: 0,
+    version: 10, seed, settings, day: 1, year: 912, season: 0,
     guild, world, characters, expeditions: [],
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], branches: [], crises: strategic.crises, mentorships: [],
     wars: living.wars, knowledgeSpreads: living.knowledgeSpreads, historySnapshots: living.historySnapshots,
     academy: institutions.academy, doctrines: institutions.doctrines, generations: institutions.generations, council: institutions.council, councilProposals: institutions.councilProposals, guildFactions: institutions.guildFactions, charter: institutions.charter, memorials: institutions.memorials,
     civilizations: content.civilizations, artifactsCatalog: content.artifactsCatalog, storyChains: content.storyChains, regionalIdentities: content.regionalIdentities, contentValidation: content.contentValidation,
+    campaign: createCampaignProgress(seed, 912, 1),
     chronicle: [{
       id: 'chronicle-collapse', day: 317, year: 911, title: 'Последняя экспедиция прежнего главы', text: 'Отряд ушёл к северным руинам и не вернулся. Казна опустела, кредиторы забрали часть имущества, а имя гильдии стало предупреждением.', category: 'guild', importance: 5,
     }, {
@@ -211,5 +213,5 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
       category: 'guild', importance: 5,
     }],
   }
-  return ensureStoryOpportunities(state)
+  return ensureStoryOpportunities(refreshCampaignProgress(state))
 }

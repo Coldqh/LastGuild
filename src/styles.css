@@ -1542,3 +1542,58 @@ body.compact-ui p { margin-top: 4px; margin-bottom: 4px; }
 @media(max-width:560px){.codex-grid{grid-template-columns:1fr}.story-stage-track{grid-template-columns:1fr}.story-progress-ring{width:58px;height:58px}.codex-summary article{padding:11px}}
 .content-validator-result{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--success) 35%,var(--border));background:color-mix(in srgb,var(--success) 8%,var(--surface));border-radius:10px;color:var(--success)}.content-validator-result span{display:flex;flex-direction:column;gap:2px}.content-validator-result small{color:var(--text-muted);font-size:11px}.content-validator-result.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,var(--border));background:color-mix(in srgb,var(--danger) 8%,var(--surface))}
 .story-contract-chip{font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:4px 7px;border-radius:999px;background:color-mix(in srgb,var(--accent) 18%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 36%,var(--border));color:var(--accent)}
+
+/* v0.8.1 — campaign pacing */
+.campaign-view { max-width: 1480px; margin: 0 auto; }
+.campaign-phase-chip { display: flex; align-items: center; gap: 10px; min-width: 210px; padding: 10px 13px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.campaign-phase-chip span { display: grid; gap: 2px; }
+.campaign-phase-chip small { color: var(--text-muted); font-size: 11px; }
+.campaign-phase-card { padding: 18px; display: grid; gap: 15px; }
+.campaign-phase-main { display: flex; align-items: flex-start; gap: 13px; }
+.campaign-phase-main h2 { margin: 2px 0 5px; }
+.progress-track.large { height: 9px; }
+.campaign-phase-footer { display: flex; justify-content: space-between; gap: 15px; color: var(--text-muted); font-size: 12px; }
+.campaign-phase-list { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.campaign-phase-list > span { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 8px 9px; border: 1px solid var(--border); border-radius: 9px; color: var(--text-muted); font-size: 11px; }
+.campaign-phase-list > span.reached { color: var(--text); border-color: color-mix(in srgb, var(--accent) 48%, var(--border)); background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); }
+.phase-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); flex: 0 0 auto; }
+.campaign-goal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.campaign-goal-card { display: grid; align-content: start; gap: 10px; min-height: 260px; padding: 16px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
+.campaign-goal-card.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+.campaign-goal-card.completed { border-color: var(--success); }
+.campaign-goal-head { display: flex; align-items: flex-start; gap: 10px; }
+.campaign-goal-head h3 { margin-top: 2px; }
+.campaign-goal-card > p { color: var(--text-muted); min-height: 48px; }
+.campaign-goal-card > small { color: var(--text-muted); min-height: 34px; }
+.campaign-goal-progress { display: flex; justify-content: space-between; font-size: 12px; }
+.campaign-goal-card button { margin-top: auto; justify-content: center; }
+.completed-label { margin-top: auto; display: flex; align-items: center; gap: 6px; color: var(--success); font-size: 12px; font-weight: 700; }
+.campaign-identity-section { padding: 18px; }
+.identity-grid { margin-top: 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.identity-grid article { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.identity-grid article.primary { border-color: var(--accent); }
+.identity-grid article > div:first-child { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+.identity-grid small { color: var(--text-muted); line-height: 1.35; }
+.campaign-pacing-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.campaign-pacing-grid article { padding: 13px; display: grid; gap: 5px; }
+.campaign-pacing-grid article > span { display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-size: 12px; }
+.campaign-pacing-grid article > b { font-size: 24px; }
+.campaign-pacing-grid article > small { color: var(--text-muted); }
+.warning-card { border-color: var(--warning) !important; }
+
+@media (max-width: 1100px) {
+  .campaign-phase-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .campaign-goal-grid, .identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .campaign-pacing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 680px) {
+  .campaign-phase-chip { width: 100%; min-width: 0; }
+  .campaign-phase-footer { flex-direction: column; gap: 4px; }
+  .campaign-phase-list, .campaign-goal-grid, .identity-grid, .campaign-pacing-grid { grid-template-columns: 1fr; }
+  .campaign-goal-card { min-height: 0; }
+}
+.content-telemetry-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.content-telemetry-grid > div { display: grid; gap: 2px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.content-telemetry-grid b { font-size: 18px; }
+.content-telemetry-grid small { color: var(--text-muted); }
+@media (max-width: 680px) { .content-telemetry-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

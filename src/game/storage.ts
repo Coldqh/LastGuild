@@ -5,11 +5,12 @@ import { initializeLivingWorld } from './livingWorld'
 import { loadPreferences } from './preferences'
 import { createGuildInstitutions, DEFAULT_CHARTER, ACADEMY_PROGRAMS } from './guildPolitics'
 import { ensureStoryOpportunities, initializeContentEngine, validateContent } from './contentEngine'
+import { createCampaignProgress, refreshCampaignProgress } from './campaign'
 
-const SAVE_KEY = 'last-guild-save-v9'
-const LEGACY_KEYS = ['last-guild-save-v8', 'last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v10'
+const LEGACY_KEYS = ['last-guild-save-v9', 'last-guild-save-v8', 'last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 const SLOT_PREFIX = 'last-guild-slot-v1-'
-const BACKUP_KEY = 'last-guild-backup-v9'
+const BACKUP_KEY = 'last-guild-backup-v10'
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -70,11 +71,12 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4, 5, 6, 7, 8, 9].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5, 6, 7, 8, 9, 10].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
+  const hadCampaign = Boolean(parsed.campaign)
   const normalized: GameState = {
     ...parsed,
-    version: 9,
+    version: 10,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
@@ -143,6 +145,7 @@ function normalizeState(parsed: any): GameState | null {
     storyChains: parsed.storyChains ?? [],
     regionalIdentities: parsed.regionalIdentities ?? [],
     contentValidation: parsed.contentValidation ?? [],
+    campaign: parsed.campaign ?? createCampaignProgress(parsed.seed ?? 'legacy-world', parsed.year ?? 912, parsed.day ?? 1),
   }
 
   if (normalized.civilizations.length === 0 || normalized.artifactsCatalog.length === 0 || normalized.storyChains.length === 0 || normalized.regionalIdentities.length === 0) {
@@ -155,6 +158,23 @@ function normalizeState(parsed: any): GameState | null {
     normalized.contentValidation = content.contentValidation
   } else {
     normalized.contentValidation = validateContent(normalized)
+  }
+
+
+  if (!hadCampaign) {
+    const protectedChainIds = new Set([
+      ...normalized.expeditions.filter((entry) => ['active', 'returning', 'missing'].includes(entry.status)).map((entry) => entry.storyChainId).filter(Boolean),
+      ...normalized.opportunities.filter((entry) => entry.accepted).map((entry) => entry.storyChainId).filter(Boolean),
+    ] as string[])
+    let commonKept = false
+    const dormantIds = new Set<string>()
+    normalized.storyChains = normalized.storyChains.map((chain) => {
+      if (protectedChainIds.has(chain.id) || chain.startedYear || chain.status === 'completed') return chain
+      if (chain.rarity === 'common' && !commonKept) { commonKept = true; return { ...chain, status: 'active' as const, stages: chain.stages.map((stage, index) => ({ ...stage, status: index === 0 ? 'available' as const : stage.status })) } }
+      dormantIds.add(chain.id)
+      return { ...chain, status: 'dormant' as const, stages: chain.stages.map((stage) => ({ ...stage, status: 'locked' as const, opportunityId: undefined })) }
+    })
+    normalized.opportunities = normalized.opportunities.filter((entry) => !entry.storyChainId || entry.accepted || !dormantIds.has(entry.storyChainId))
   }
 
   if (normalized.generations.length === 0 || normalized.council.length === 0 || normalized.guildFactions.length === 0) {
@@ -185,7 +205,7 @@ function normalizeState(parsed: any): GameState | null {
     normalized.knowledgeSpreads = normalized.knowledgeSpreads.length ? normalized.knowledgeSpreads : living.knowledgeSpreads
     normalized.historySnapshots = normalized.historySnapshots.length ? normalized.historySnapshots : living.historySnapshots
   }
-  return ensureStoryOpportunities(normalized)
+  return ensureStoryOpportunities(refreshCampaignProgress(normalized))
 }
 
 export function loadGame(): GameState | null {

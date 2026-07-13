@@ -22,6 +22,7 @@ import type { GameState } from '../types/game'
 import { DIFFICULTY_RULES } from '../game/worldSettings'
 import { deleteSaveSlot, downloadGameSave, importGameSave, listSaveSlots, loadBackup, loadFromSlot, saveToSlot } from '../game/storage'
 import type { AppPreferences } from '../game/preferences'
+import { contentRepeatRate } from '../game/campaign'
 import {
   devAddResources,
   devCreateCrisis,
@@ -114,8 +115,8 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
         <button className="icon-button close-detail" onClick={onClose}><X size={18} /></button>
         <div className="section-title"><Settings size={21} /><div><p className="eyebrow">Система</p><h2>Настройки игры</h2></div></div>
         <div className="settings-version-card">
-          <div><ShieldCheck /><span><strong>THE LAST GUILD v0.8</strong><small>Цивилизации, артефакты и процедурные истории</small></span></div>
-          <span className="version-chip">save v9</span>
+          <div><ShieldCheck /><span><strong>THE LAST GUILD v0.8.1</strong><small>Темп кампании, редкость контента и репутационные пути</small></span></div>
+          <span className="version-chip">save v10</span>
         </div>
 
         <div className="settings-grid">
@@ -169,6 +170,12 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
             <div className={`content-validator-result ${state.contentValidation.some((issue) => issue.severity === 'error') ? 'danger' : ''}`}>
               <ShieldCheck size={16} />
               <span><strong>Валидатор контента</strong><small>{state.contentValidation.length === 0 ? 'Ошибок, битых ссылок и недостижимых цепочек не найдено.' : `Найдено проблем: ${state.contentValidation.length}. Ошибок: ${state.contentValidation.filter((issue) => issue.severity === 'error').length}.`}</small></span>
+            </div>
+            <div className="content-telemetry-grid">
+              <div><b>{state.campaign.telemetry.totalEvents}</b><small>событий показано</small></div>
+              <div><b>{Object.keys(state.campaign.telemetry.eventCounts).length}</b><small>уникальных сцен</small></div>
+              <div><b>{contentRepeatRate(state)}%</b><small>повторяемость</small></div>
+              <div><b>{state.storyChains.filter((chain) => chain.status === 'active').length}</b><small>активных цепочек</small></div>
             </div>
             <div className="audit-controls">
               <label><span>Горизонт аудита</span><select value={auditYears} onChange={(event) => setAuditYears(Number(event.target.value))}><option value={1}>1 год</option><option value={10}>10 лет</option><option value={50}>50 лет</option><option value={100}>100 лет</option></select></label>
