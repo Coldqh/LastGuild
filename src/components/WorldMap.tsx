@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Castle, Compass, Flag, MapPin, Route, Skull, Sparkles, TentTree, Waves, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Castle, ChevronDown, ChevronUp, Compass, Flag, MapPin, Minus, Plus, Route, Skull, Sparkles, TentTree, Waves, X } from 'lucide-react'
 import { BIOME_COLORS, BIOME_LABELS } from '../data/content'
 import type { GameState, WorldTile } from '../types/game'
 
@@ -18,9 +18,18 @@ function points(cx: number, cy: number): string {
   return [[cx - 14, cy], [cx - 7, cy - 12], [cx + 7, cy - 12], [cx + 14, cy], [cx + 7, cy + 12], [cx - 7, cy + 12]].map(([x, y]) => `${x},${y}`).join(' ')
 }
 
+function isMobileViewport(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 980px)').matches
+}
+
 export default function WorldMap({ state }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [layer, setLayer] = useState<'geography' | 'politics' | 'danger' | 'knowledge' | 'history'>('geography')
+  const [zoom, setZoom] = useState(() => isMobileViewport() ? 1.65 : 1)
+  const [detailExpanded, setDetailExpanded] = useState(() => !isMobileViewport())
+  const mapScrollRef = useRef<HTMLDivElement>(null)
+  const centeredRef = useRef(false)
+
   const tile = state.world.tiles.find((candidate) => candidate.id === selectedId)
   const tileMap = useMemo(() => new Map(state.world.tiles.map((entry) => [entry.id, entry])), [state.world.tiles])
   const realmMap = useMemo(() => new Map(state.world.realms.map((realm) => [realm.id, realm])), [state.world.realms])
@@ -28,6 +37,18 @@ export default function WorldMap({ state }: Props) {
   const siteMap = useMemo(() => new Map(state.world.sites.map((site) => [site.id, site])), [state.world.sites])
   const populationMap = useMemo(() => new Map(state.world.monsterPopulations.map((population) => [population.id, population])), [state.world.monsterPopulations])
   const speciesMap = useMemo(() => new Map(state.world.monsterSpecies.map((species) => [species.id, species])), [state.world.monsterSpecies])
+  const initialFocusTile = useMemo(() => state.world.tiles.find((entry) => entry.settlementId && entry.knowledge > 0) ?? state.world.tiles.find((entry) => entry.knowledge > 0), [state.world.tiles])
+
+  useEffect(() => {
+    if (centeredRef.current || !initialFocusTile || !mapScrollRef.current) return
+    centeredRef.current = true
+    const node = mapScrollRef.current
+    const [cx, cy] = center(initialFocusTile)
+    requestAnimationFrame(() => {
+      node.scrollLeft = Math.max(0, cx * zoom - node.clientWidth * .46)
+      node.scrollTop = Math.max(0, cy * zoom - node.clientHeight * .46)
+    })
+  }, [initialFocusTile, zoom])
 
   const fillFor = (hex: WorldTile): string => {
     if (hex.knowledge === 0) return '#100f0c'
@@ -58,34 +79,51 @@ export default function WorldMap({ state }: Props) {
   const selectedSpecies = selectedPopulation ? speciesMap.get(selectedPopulation.speciesId) : undefined
   const selectedRealm = tile?.stateId ? realmMap.get(tile.stateId) : undefined
   const localRoutes = tile ? state.world.routes.filter((route) => route.tileIds.includes(tile.id)) : []
+  const selectedTitle = tile?.knowledge === 0 ? 'Неизвестная земля' : selectedSettlement?.name ?? selectedSite?.name ?? (tile ? BIOME_LABELS[tile.biome] : '')
+
+  const selectTile = (id: string) => {
+    setSelectedId(id)
+    setDetailExpanded(!isMobileViewport())
+  }
+
+  const changeZoom = (delta: number) => {
+    setZoom((current) => Math.min(2.4, Math.max(.8, Number((current + delta).toFixed(2)))))
+  }
 
   return (
-    <section className="view world-view">
+    <section className="view world-view mobile-map-screen">
       <header className="view-heading map-heading">
         <div>
-          <p className="eyebrow">Региональная карта · {state.world.width}×{state.world.height}</p>
+          <p className="eyebrow">Карта · {state.world.width}×{state.world.height}</p>
           <h1>Неизвестные земли</h1>
-          <p>{state.world.realms.length} государств, {state.world.settlements.length} поселений, {state.world.sites.length} древних мест. Карта хранит только знания гильдии.</p>
+          <p>{state.world.realms.length} государств · {state.world.settlements.length} поселений · {state.world.sites.length} древних мест</p>
         </div>
-        <div className="segmented-control map-layers">
-          <button className={layer === 'geography' ? 'active' : ''} onClick={() => setLayer('geography')}>Рельеф</button>
-          <button className={layer === 'politics' ? 'active' : ''} onClick={() => setLayer('politics')}>Границы</button>
-          <button className={layer === 'danger' ? 'active' : ''} onClick={() => setLayer('danger')}>Опасность</button>
-          <button className={layer === 'knowledge' ? 'active' : ''} onClick={() => setLayer('knowledge')}>Изученность</button>
-          <button className={layer === 'history' ? 'active' : ''} onClick={() => setLayer('history')}>Древность</button>
+        <div className="map-toolbar">
+          <div className="segmented-control map-layers">
+            <button className={layer === 'geography' ? 'active' : ''} onClick={() => setLayer('geography')}>Рельеф</button>
+            <button className={layer === 'politics' ? 'active' : ''} onClick={() => setLayer('politics')}>Границы</button>
+            <button className={layer === 'danger' ? 'active' : ''} onClick={() => setLayer('danger')}>Опасность</button>
+            <button className={layer === 'knowledge' ? 'active' : ''} onClick={() => setLayer('knowledge')}>Знания</button>
+            <button className={layer === 'history' ? 'active' : ''} onClick={() => setLayer('history')}>Древность</button>
+          </div>
+          <div className="map-zoom-controls" aria-label="Масштаб карты">
+            <button onClick={() => changeZoom(-.2)} aria-label="Уменьшить"><Minus size={16} /></button>
+            <span>{Math.round(zoom * 100)}%</span>
+            <button onClick={() => changeZoom(.2)} aria-label="Увеличить"><Plus size={16} /></button>
+          </div>
         </div>
       </header>
 
       <div className="map-layout">
-        <div>
-          <div className="map-scroll parchment-panel">
-            <svg width={mapWidth} height={mapHeight} className="hex-map" role="img" aria-label="Процедурная карта мира">
+        <div className="map-stage">
+          <div className="map-scroll parchment-panel" ref={mapScrollRef}>
+            <svg viewBox={`0 0 ${mapWidth} ${mapHeight}`} width={mapWidth * zoom} height={mapHeight * zoom} className="hex-map" role="img" aria-label="Процедурная карта мира">
               {state.world.tiles.map((hex) => {
                 const [cx, cy] = center(hex)
                 const realm = realmMap.get(hex.stateId ?? '')
                 const isSelected = hex.id === selectedId
                 return (
-                  <g key={hex.id} onClick={() => setSelectedId(hex.id)} className="hex-cell">
+                  <g key={hex.id} onClick={() => selectTile(hex.id)} className="hex-cell">
                     <polygon points={points(cx, cy)} fill={fillFor(hex)} stroke={isSelected ? '#f0cf7d' : hex.knowledge > 0 && layer !== 'politics' ? realm?.color ?? '#15130f' : '#15130f'} strokeWidth={isSelected ? 2.2 : 0.55} opacity={hex.knowledge === 1 ? 0.68 : 1} />
                   </g>
                 )
@@ -133,28 +171,45 @@ export default function WorldMap({ state }: Props) {
           </div>
         </div>
 
-        <aside className="map-sidebar paper-card">
+        <aside className={`map-sidebar paper-card ${tile ? 'has-selection' : ''} ${detailExpanded ? 'expanded' : 'collapsed'}`}>
           {tile ? (
             <>
+              <div className="map-sheet-handle" />
               <button className="icon-button close-detail" onClick={() => setSelectedId(null)} aria-label="Закрыть"><X size={18} /></button>
-              <p className="eyebrow">Клетка {tile.x}:{tile.y}</p>
-              <h2>{tile.knowledge === 0 ? 'Неизвестная земля' : selectedSettlement?.name ?? selectedSite?.name ?? BIOME_LABELS[tile.biome]}</h2>
-              {tile.knowledge === 0 ? <p>У гильдии нет достоверных сведений. Нужна картографическая экспедиция.</p> : (
-                <div className="detail-stack">
-                  <div className="detail-row"><Compass size={16} /><span>{BIOME_LABELS[tile.biome]}, проходимость {tile.travelCost.toFixed(1)}</span></div>
-                  <div className="detail-row"><Skull size={16} /><span>Опасность: {tile.danger.toFixed(1)}/10</span></div>
-                  <div className="detail-row"><Sparkles size={16} /><span>Магический фон: {Math.round(tile.magic * 100)}%</span></div>
-                  <div className="detail-row"><MapPin size={16} /><span>Изученность: {tile.knowledge}/5</span></div>
-                  {tile.hasRiver && <div className="detail-row"><Waves size={16} /><span>Через район проходит река</span></div>}
-                  {localRoutes.filter((entry) => entry.type !== 'river').map((entry) => <div className="detail-row" key={entry.id}><Route size={16} /><span>{entry.name} · {entry.status === 'active' ? `${entry.income} дохода` : entry.status === 'disrupted' ? 'движение нарушено' : 'заброшен'}</span></div>)}
-                  {selectedRealm && <div className="detail-block realm-detail" style={{ borderColor: selectedRealm.color }}><h3><Castle size={16} /> {selectedRealm.name}</h3><p>{selectedRealm.government}; правитель — {selectedRealm.ruler}.</p><p>Культура: {selectedRealm.culture}. Вера: {selectedRealm.dominantFaith}.</p><p className="danger-text">Текущая проблема: {selectedRealm.currentIssue}.</p></div>}
-                  {selectedSettlement && <div className="detail-block"><h3><Flag size={16} /> {selectedSettlement.kind === 'capital' ? 'Столица' : selectedSettlement.kind === 'town' ? 'Город' : 'Поселение'}</h3><p>Население: {selectedSettlement.population.toLocaleString('ru-RU')}</p><p>Благополучие: {Math.round(selectedSettlement.prosperity)}/100 · безопасность {Math.round(selectedSettlement.safety)}/100</p><p>Рост: {selectedSettlement.growth.toFixed(1)} · волнения {Math.round(selectedSettlement.unrest)} · продовольствие {Math.round(selectedSettlement.foodSecurity)}</p><p>Производит: {selectedSettlement.production.join(', ')}. Нуждается: {selectedSettlement.demand.join(', ')}.</p><div className="tag-list">{selectedSettlement.traits.map((trait) => <span key={trait}>{trait}</span>)}</div></div>}
-                  {selectedSite && tile.knowledge >= 2 && <div className="detail-block danger-block"><h3>{selectedSite.type}</h3><p>{selectedSite.origin}. Возраст: около {selectedSite.age} лет.</p><p>Глубина: {selectedSite.depth}, опасность: {selectedSite.danger}/10.</p><p>Исследовано: {selectedSite.exploration}% {selectedSite.campEstablished ? '· действует базовый лагерь' : ''}</p><div className="site-layers">{selectedSite.layers.map((entry, index) => <span key={entry}>{index + 1}. {entry}</span>)}</div><div className="tag-list">{selectedSite.rewards.map((reward) => <span key={reward}>{reward}</span>)}</div><div className="zone-mini-list">{selectedSite.zones.slice(0, 5).map((zone) => <span key={zone.id}>{zone.explored ? '✓' : '○'} {zone.name}</span>)}</div></div>}
-                  {selectedPopulation && selectedSpecies && tile.knowledge >= 2 && <div className="detail-block monster-block"><h3>{selectedSpecies.name}</h3><p>{selectedSpecies.behavior}. Численность: около {selectedPopulation.size}.</p>{selectedPopulation.legendary && <p className="legendary-warning">★ {selectedPopulation.legendaryName}: {selectedPopulation.history}</p>}<p>Известная слабость: {selectedSpecies.weakness}.</p><p>Способности: {selectedSpecies.abilities.join(', ')}.</p></div>}
-                </div>
+              <div className="map-detail-heading">
+                <div><p className="eyebrow">Клетка {tile.x}:{tile.y}</p><h2>{selectedTitle}</h2></div>
+                {tile.knowledge > 0 && <div className="map-quick-stats"><span><Compass size={14} />{BIOME_LABELS[tile.biome]}</span><span><Skull size={14} />{tile.danger.toFixed(1)}</span><span><MapPin size={14} />{tile.knowledge}/5</span></div>}
+              </div>
+
+              {tile.knowledge === 0 ? <p className="map-unknown-copy">Нет достоверных сведений. Нужна картографическая экспедиция.</p> : (
+                <>
+                  <div className="map-primary-summary">
+                    {selectedSettlement && <span><Flag size={15} />{selectedSettlement.kind === 'capital' ? 'Столица' : selectedSettlement.kind === 'town' ? 'Город' : 'Поселение'} · {selectedSettlement.population.toLocaleString('ru-RU')}</span>}
+                    {selectedSite && <span><Sparkles size={15} />{selectedSite.type} · исследовано {selectedSite.exploration}%</span>}
+                    {selectedSpecies && <span><Skull size={15} />{selectedSpecies.name} · около {selectedPopulation?.size}</span>}
+                    {!selectedSettlement && !selectedSite && !selectedSpecies && <span><Compass size={15} />Проходимость {tile.travelCost.toFixed(1)} · магия {Math.round(tile.magic * 100)}%</span>}
+                  </div>
+
+                  <button className="map-detail-toggle" onClick={() => setDetailExpanded((value) => !value)}>{detailExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}{detailExpanded ? 'Свернуть' : 'Подробнее'}</button>
+
+                  {detailExpanded && <div className="detail-stack map-detail-more">
+                    <div className="map-detail-grid">
+                      <div className="detail-row"><Compass size={15} /><span>{BIOME_LABELS[tile.biome]}, проходимость {tile.travelCost.toFixed(1)}</span></div>
+                      <div className="detail-row"><Skull size={15} /><span>Опасность {tile.danger.toFixed(1)}/10</span></div>
+                      <div className="detail-row"><Sparkles size={15} /><span>Магический фон {Math.round(tile.magic * 100)}%</span></div>
+                      <div className="detail-row"><MapPin size={15} /><span>Изученность {tile.knowledge}/5</span></div>
+                    </div>
+                    {tile.hasRiver && <div className="detail-row"><Waves size={15} /><span>Через район проходит река</span></div>}
+                    {localRoutes.filter((entry) => entry.type !== 'river').map((entry) => <div className="detail-row" key={entry.id}><Route size={15} /><span>{entry.name} · {entry.status === 'active' ? `${entry.income} дохода` : entry.status === 'disrupted' ? 'движение нарушено' : 'заброшен'}</span></div>)}
+                    {selectedRealm && <div className="detail-block realm-detail" style={{ borderColor: selectedRealm.color }}><h3><Castle size={16} /> {selectedRealm.name}</h3><p>{selectedRealm.government}; правитель — {selectedRealm.ruler}.</p><p>Культура: {selectedRealm.culture}. Вера: {selectedRealm.dominantFaith}.</p><p className="danger-text">{selectedRealm.currentIssue}</p></div>}
+                    {selectedSettlement && <div className="detail-block"><h3><Flag size={16} /> {selectedSettlement.name}</h3><p>Благополучие {Math.round(selectedSettlement.prosperity)}/100 · безопасность {Math.round(selectedSettlement.safety)}/100</p><p>Рост {selectedSettlement.growth.toFixed(1)} · волнения {Math.round(selectedSettlement.unrest)} · продовольствие {Math.round(selectedSettlement.foodSecurity)}</p><p>Производит: {selectedSettlement.production.join(', ')}. Нуждается: {selectedSettlement.demand.join(', ')}.</p></div>}
+                    {selectedSite && tile.knowledge >= 2 && <div className="detail-block danger-block"><h3>{selectedSite.type}</h3><p>{selectedSite.origin}. Возраст около {selectedSite.age} лет.</p><p>Глубина {selectedSite.depth}, опасность {selectedSite.danger}/10.</p><div className="zone-mini-list">{selectedSite.zones.slice(0, 5).map((zone) => <span key={zone.id}>{zone.explored ? '✓' : '○'} {zone.name}</span>)}</div></div>}
+                    {selectedPopulation && selectedSpecies && tile.knowledge >= 2 && <div className="detail-block monster-block"><h3>{selectedSpecies.name}</h3><p>{selectedSpecies.behavior}. Численность около {selectedPopulation.size}.</p>{selectedPopulation.legendary && <p className="legendary-warning">★ {selectedPopulation.legendaryName}: {selectedPopulation.history}</p>}<p>Слабость: {selectedSpecies.weakness}.</p></div>}
+                  </div>}
+                </>
               )}
             </>
-          ) : <div className="empty-detail"><TentTree size={34} /><h2>Выбери клетку</h2><p>Здесь появятся сведения о местности, государстве, дорогах, руинах и чудовищах.</p></div>}
+          ) : <div className="empty-detail"><TentTree size={30} /><h2>Выбери клетку</h2><p>Коснись гекса, чтобы открыть краткую сводку.</p></div>}
         </aside>
       </div>
     </section>

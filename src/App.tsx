@@ -330,7 +330,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.8.3.1 · Mobile UX</small>
+          <small>v0.8.3.2 · Mobile Rebuild</small>
         </div>
       </aside>
 
@@ -357,11 +357,6 @@ export default function App() {
           </div>
           <button className="topbar-settings" title="Настройки" onClick={() => setSettingsModal(true)} aria-label="Настройки"><SettingsIcon size={18} /></button>
         </header>
-        <div className="mobile-status-strip">
-          <span><small>Казна</small><b>{state.guild.treasury}</b></span>
-          <span><small>Припасы</small><b>{state.guild.supplies}</b></span>
-          <span className={state.guild.debt > state.guild.treasury * 2 ? 'danger-text' : ''}><small>Долг</small><b>{state.guild.debt}</b></span>
-        </div>
         <main><Suspense fallback={<div className="view-loading">Загрузка раздела…</div>}>{renderView()}</Suspense></main>
       </div>
 

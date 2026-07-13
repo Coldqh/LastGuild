@@ -1,6 +1,7 @@
 import {
   Activity,
   Bug,
+  ChevronLeft,
   Download,
   DownloadCloud,
   HeartPulse,
@@ -72,6 +73,7 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
 
 export default function SettingsModal({ state, preferences, onPreferencesChange, onLoadState, onClose, onNewWorld, onForceUpdate }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [slotRevision, setSlotRevision] = useState(0)
   const [message, setMessage] = useState('')
@@ -130,12 +132,12 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
           <button className="icon-button" onClick={onClose} aria-label="Закрыть настройки"><X size={18} /></button>
         </header>
 
-        <div className="settings-layout">
+        <div className={`settings-layout ${mobilePanelOpen ? 'mobile-panel-open' : 'mobile-menu-open'}`}>
           <nav className="settings-category-nav" aria-label="Разделы настроек">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
-                <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
+                <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => { setActiveTab(tab.id); setMobilePanelOpen(true) }}>
                   <Icon size={17} />
                   <span><strong>{tab.label}</strong><small>{tab.short}</small></span>
                 </button>
@@ -144,11 +146,15 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
           </nav>
 
           <div className="settings-content">
+            <div className="settings-mobile-section-header">
+              <button className="settings-mobile-back" onClick={() => setMobilePanelOpen(false)}><ChevronLeft size={18} />Разделы</button>
+              <strong>{tabs.find((tab) => tab.id === activeTab)?.label}</strong>
+            </div>
             {message && <p className="settings-message">{message}</p>}
 
             {activeTab === 'general' && <>
               <section className="settings-hero-card">
-                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.1</strong><small>Мобильная архитектура и упрощённые настройки</small></span></div>
+                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.2</strong><small>Полная мобильная перестройка интерфейса</small></span></div>
                 <span className="version-chip">save v10</span>
               </section>
 
