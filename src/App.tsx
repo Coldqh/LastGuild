@@ -104,6 +104,7 @@ const viewGroups: Array<{ label: string; items: Array<{ id: ViewId; label: strin
 
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
 const TUTORIAL_KEY = 'last-guild-tutorial-v1'
+const BRAND_FULL = `${import.meta.env.BASE_URL}branding/logo-full-dark-v2.png`
 
 function applyCompetitors(state: GameState, enabled: boolean): GameState {
   if (!enabled) return {
@@ -147,6 +148,8 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [state])
 
+
+
   useEffect(() => {
     if (!tutorialCompleted.includes('headquarters')) {
       setTutorialCompleted((steps) => [...steps, 'headquarters'])
@@ -171,6 +174,14 @@ export default function App() {
   const timeBlocked = Boolean(state.pendingDecision || state.pendingDebrief || state.pendingCombat || state.pendingDungeon)
   const blockedReason = state.pendingCombat ? 'бой' : state.pendingDecision ? 'решение экспедиции' : state.pendingDungeon ? 'подземелье' : state.pendingDebrief ? 'разбор возвращения' : ''
 
+
+  const mobileQuickNav: Array<{ id: ViewId | 'menu'; label: string; icon: typeof Building2; badge?: number }> = [
+    { id: 'headquarters', label: 'Штаб', icon: Building2, badge: urgentCount },
+    { id: 'expeditions', label: 'Контракты', icon: Compass, badge: state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day).length },
+    { id: 'active_expeditions', label: 'Походы', icon: Activity, badge: activeExpeditions.length + state.expeditions.filter((entry) => entry.status === 'missing').length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0) },
+    { id: 'roster', label: 'Люди', icon: Users },
+    { id: 'menu', label: 'Меню', icon: Menu },
+  ]
   const changeView = (next: ViewId) => {
     setView(next)
     setMenuOpen(false)
@@ -280,7 +291,7 @@ export default function App() {
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="brand">
           <div className="brand-main">
-            <img className="brand-logo" src={`${import.meta.env.BASE_URL}branding/logo-full-dark-v2.png`} alt="The Last Guild" />
+            <img className="brand-logo" src={BRAND_FULL} alt="The Last Guild" />
             <span className="brand-subtitle">Экспедиционный архив</span>
           </div>
           <button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню"><X /></button>
@@ -325,7 +336,7 @@ export default function App() {
 
       <div className="main-shell">
         <header className="topbar">
-          <button className="menu-button" onClick={() => setMenuOpen(true)}><Menu /></button>
+          <button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="Открыть меню"><Menu /></button>
           <div className="topbar-date"><CalendarDays size={18} /><div><strong>{state.year} год · день {state.day}</strong><span>{seasons[state.season]}</span></div></div>
           <div className="time-controls">
             <Clock3 size={17} />
@@ -336,14 +347,35 @@ export default function App() {
           </div>
           {timeBlocked && <span className="time-blocked">Время остановлено: {blockedReason}</span>}
           <div className="topbar-resources">
-            <span><b>{state.guild.treasury}</b> крон</span>
-            <span><b>{state.guild.supplies}</b> припасов</span>
-            <span className={state.guild.debt > state.guild.treasury * 2 ? 'danger-text' : ''}><b>{state.guild.debt}</b> долг</span>
+            <span className="resource-pill"><b>{state.guild.treasury}</b><small>крон</small></span>
+            <span className="resource-pill"><b>{state.guild.supplies}</b><small>припасы</small></span>
+            <span className={`resource-pill ${state.guild.debt > state.guild.treasury * 2 ? 'danger-text' : ''}`}><b>{state.guild.debt}</b><small>долг</small></span>
           </div>
-          <button className="topbar-settings" title="Настройки" onClick={() => setSettingsModal(true)}><SettingsIcon size={18} /></button>
+          <button className="topbar-settings" title="Настройки" onClick={() => setSettingsModal(true)} aria-label="Настройки"><SettingsIcon size={18} /></button>
         </header>
         <main><Suspense fallback={<div className="view-loading">Загрузка раздела…</div>}>{renderView()}</Suspense></main>
       </div>
+
+      <nav className="mobile-bottom-nav" aria-label="Быстрая навигация">
+        {mobileQuickNav.map((item) => {
+          const Icon = item.icon
+          const active = item.id !== 'menu' && view === item.id
+          return (
+            <button
+              key={item.id}
+              className={active ? 'active' : ''}
+              onClick={() => item.id === 'menu' ? setMenuOpen(true) : changeView(item.id)}
+              aria-label={item.label}
+            >
+              <span className="mobile-nav-icon">
+                <Icon size={18} />
+                {item.badge && item.badge > 0 ? <b>{item.badge > 99 ? '99+' : item.badge}</b> : null}
+              </span>
+              <small>{item.label}</small>
+            </button>
+          )
+        })}
+      </nav>
 
       {preferences.tutorialEnabled && <TutorialPanel completed={tutorialCompleted} onNavigate={changeView} onDismiss={() => updatePreferences({ ...preferences, tutorialEnabled: false })} />}
       {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}

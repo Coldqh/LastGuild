@@ -1,25 +1,22 @@
 {
-  "id": "./?pwa=v2",
   "name": "The Last Guild",
   "short_name": "Last Guild",
   "description": "Procedural fantasy guild simulator",
-  "start_url": "./?source=pwa-v2",
-  "scope": "./",
+  "start_url": "/LastGuild/",
+  "scope": "/LastGuild/",
   "display": "standalone",
   "background_color": "#070a0f",
   "theme_color": "#070a0f",
   "icons": [
     {
-      "src": "branding/logo-icon-dark-v2-192.png?v=2",
+      "src": "/LastGuild/branding/logo-icon-dark-v2-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "branding/logo-icon-dark-v2-512.png?v=2",
+      "src": "/LastGuild/branding/logo-icon-dark-v2-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
