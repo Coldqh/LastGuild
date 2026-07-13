@@ -280,7 +280,7 @@ export default function App() {
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="brand">
           <div className="brand-main">
-            <img className="brand-logo" src="/branding/logo-full.png" alt="The Last Guild" />
+            <img className="brand-logo" src={`${import.meta.env.BASE_URL}branding/logo-full-dark-v2.png`} alt="The Last Guild" />
             <span className="brand-subtitle">Экспедиционный архив</span>
           </div>
           <button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню"><X /></button>
