@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
+  Activity,
   BookOpen,
   BriefcaseBusiness,
   Building2,
@@ -34,6 +35,7 @@ const DungeonExplorationModal = lazy(() => import('./components/DungeonExplorati
 const ExpeditionDebriefModal = lazy(() => import('./components/ExpeditionDebriefModal'))
 const ExpeditionDecisionModal = lazy(() => import('./components/ExpeditionDecisionModal'))
 const ExpeditionPlanner = lazy(() => import('./components/ExpeditionPlanner'))
+const ActiveExpeditionsView = lazy(() => import('./components/ActiveExpeditionsView'))
 const GuildView = lazy(() => import('./components/GuildView'))
 const HiringPanel = lazy(() => import('./components/HiringPanel'))
 const RoomsView = lazy(() => import('./components/RoomsView'))
@@ -85,7 +87,8 @@ const viewGroups: Array<{ label: string; items: Array<{ id: ViewId; label: strin
   ] },
   { label: 'Экспедиции', items: [
     { id: 'world', label: 'Карта мира', icon: Map },
-    { id: 'expeditions', label: 'Экспедиции', icon: Compass },
+    { id: 'expeditions', label: 'Контракты', icon: Compass },
+    { id: 'active_expeditions', label: 'Активные походы', icon: Activity },
     { id: 'archive', label: 'Архив', icon: BookOpen },
   ] },
   { label: 'Мир', items: [
@@ -167,7 +170,7 @@ export default function App() {
     setView(next)
     setMenuOpen(false)
     if (next === 'roster') markTutorial('roster')
-    if (next === 'expeditions') markTutorial('expeditions')
+    if (next === 'expeditions' || next === 'active_expeditions') markTutorial('expeditions')
   }
 
   const advance = (days: number) => {
@@ -256,7 +259,8 @@ export default function App() {
       case 'council': return <CouncilPanel state={state} onSeat={councilSeat} onProposal={proposalVote} onCharter={charterChange} />
       case 'legacy': return <LegacyView state={state} onFoundDoctrine={foundDoctrine} onMemorial={createMemorial} />
       case 'world': return <WorldMap state={state} />
-      case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={launch} />
+      case 'expeditions': return <ExpeditionPlanner state={state} onLaunch={(draft) => { launch(draft); setView('active_expeditions') }} />
+      case 'active_expeditions': return <ActiveExpeditionsView state={state} onOpenContracts={() => changeView('expeditions')} />
       case 'archive': return <ArchiveView state={state} />
       case 'living_world': return <LivingWorldView state={state} />
       case 'influence': return <InfluenceView state={state} onRivalAction={rivalAction} onOpenBranch={createBranch} onChangeBranchAutonomy={setBranchAutonomy} onRespondCrisis={crisisResponse} onAssignMentorship={mentorship} onAppointLeader={appointLeader} />
@@ -279,7 +283,9 @@ export default function App() {
             {group.items.map((item) => {
               const Icon = item.icon
               const badge = item.id === 'expeditions'
-                ? activeExpeditions.length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
+                ? state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day).length
+                : item.id === 'active_expeditions'
+                  ? activeExpeditions.length + state.expeditions.filter((entry) => entry.status === 'missing').length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
                 : item.id === 'influence'
                   ? state.crises.filter((crisis) => crisis.status === 'active').length + (preferences.competitorsEnabled ? state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length : 0)
                   : item.id === 'headquarters' ? urgentCount
@@ -303,7 +309,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.7.1 · Interface Rework</small>
+          <small>v0.7.2 · Expedition UX</small>
         </div>
       </aside>
 
