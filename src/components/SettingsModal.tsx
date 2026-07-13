@@ -52,6 +52,15 @@ interface ToggleProps {
   onChange: (checked: boolean) => void
 }
 
+type SettingsTab = 'general' | 'world' | 'saves' | 'dev'
+
+const tabs: Array<{ id: SettingsTab; label: string; short: string; icon: typeof Settings }> = [
+  { id: 'general', label: 'Основное', short: 'Интерфейс и организации', icon: Settings },
+  { id: 'world', label: 'Симуляция', short: 'Войны, кризисы и старение', icon: Activity },
+  { id: 'saves', label: 'Сохранения', short: 'Слоты, импорт и экспорт', icon: Save },
+  { id: 'dev', label: 'Разработка', short: 'Тесты и аудит', icon: Bug },
+]
+
 function Toggle({ label, description, checked, onChange }: ToggleProps) {
   return (
     <label className="settings-toggle">
@@ -62,6 +71,7 @@ function Toggle({ label, description, checked, onChange }: ToggleProps) {
 }
 
 export default function SettingsModal({ state, preferences, onPreferencesChange, onLoadState, onClose, onNewWorld, onForceUpdate }: Props) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [updating, setUpdating] = useState(false)
   const [slotRevision, setSlotRevision] = useState(0)
   const [message, setMessage] = useState('')
@@ -112,93 +122,128 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
   return (
     <div className="modal-backdrop settings-backdrop" onClick={onClose}>
       <article className="settings-modal paper-card" onClick={(event) => event.stopPropagation()}>
-        <button className="icon-button close-detail" onClick={onClose}><X size={18} /></button>
-        <div className="section-title"><Settings size={21} /><div><p className="eyebrow">Система</p><h2>Настройки игры</h2></div></div>
-        <div className="settings-version-card">
-          <div><ShieldCheck /><span><strong>THE LAST GUILD v0.8.1</strong><small>Темп кампании, редкость контента и репутационные пути</small></span></div>
-          <span className="version-chip">save v10</span>
-        </div>
-
-        <div className="settings-grid">
-          <article><Save size={19} /><div><h3>Текущее сохранение</h3><p>Seed: <b>{state.seed}</b></p><p>{state.year} год, день {state.day} · {state.characters.filter((character) => character.employed).length} сотрудников</p></div></article>
-          <article><RefreshCcw size={19} /><div><h3>Параметры мира</h3><p>{state.settings.preset} · {DIFFICULTY_RULES[state.settings.difficulty].label}</p><p>{state.world.width}×{state.world.height} · {state.world.realms.length} государств</p></div></article>
-        </div>
-
-        <section className="settings-section">
-          <div className="settings-section-title"><Swords size={18} /><div><h3>Организации и интерфейс</h3><p>Настройки не удаляют сохранение и применяются сразу.</p></div></div>
-          <Toggle label="Включить конкурентов" description={preferences.competitorsEnabled ? `${state.rivalGuilds.length} организаций действуют в мире` : 'Чужие гильдии и их экспедиции отключены'} checked={preferences.competitorsEnabled} onChange={(value) => patchPreference('competitorsEnabled', value)} />
-          <Toggle label="Переманивание сотрудников" description="Конкуренты могут нанимать свободных сильных кандидатов." checked={preferences.poachingEnabled} onChange={(value) => patchPreference('poachingEnabled', value)} />
-          <Toggle label="Отделение филиалов" description="Автономный нелояльный филиал может стать новой гильдией." checked={preferences.branchSecessionEnabled} onChange={(value) => patchPreference('branchSecessionEnabled', value)} />
-          <Toggle label="Показывать обучение" description="Пошаговые задачи первого игрового цикла." checked={preferences.tutorialEnabled} onChange={(value) => patchPreference('tutorialEnabled', value)} />
-          <Toggle label="Центр решений в штабе" description="Контракты, раненые, кризисы и события в одной панели." checked={preferences.decisionCenterEnabled} onChange={(value) => patchPreference('decisionCenterEnabled', value)} />
-          <Toggle label="Компактные карточки" description="Уменьшает отступы и высоту списков на насыщенных экранах." checked={preferences.compactCardsEnabled} onChange={(value) => patchPreference('compactCardsEnabled', value)} />
-        </section>
-
-        <section className="settings-section">
-          <div className="settings-section-title"><Activity size={18} /><div><h3>Тяжёлые системы мира</h3><p>Каждый блок можно отключить отдельно.</p></div></div>
-          <Toggle label="Войны" description="Создание и развитие межгосударственных войн." checked={preferences.warsEnabled} onChange={(value) => patchPreference('warsEnabled', value)} />
-          <Toggle label="Мировые кризисы" description="Эпидемии, восстания, бури и политические потрясения." checked={preferences.crisesEnabled} onChange={(value) => patchPreference('crisesEnabled', value)} />
-          <Toggle label="Экономический упадок" description="Города могут беднеть, терять население и торговлю." checked={preferences.economicDeclineEnabled} onChange={(value) => patchPreference('economicDeclineEnabled', value)} />
-          <Toggle label="Смена границ" description="Войны могут передавать поселения другому государству." checked={preferences.borderChangesEnabled} onChange={(value) => patchPreference('borderChangesEnabled', value)} />
-          <Toggle label="Разрушение городов" description="Поселения могут погибать и превращаться в руины." checked={preferences.cityDestructionEnabled} onChange={(value) => patchPreference('cityDestructionEnabled', value)} />
-          <Toggle label="Старение персонажей" description="Возраст растёт, ветераны уходят из полевой службы." checked={preferences.agingEnabled} onChange={(value) => patchPreference('agingEnabled', value)} />
-          <Toggle label="Смерть от старости" description="Очень старые персонажи могут умереть естественной смертью." checked={preferences.oldAgeDeathEnabled} onChange={(value) => patchPreference('oldAgeDeathEnabled', value)} />
-          <label className="settings-slider"><span><strong>Лимит хроники</strong><small>Старые записи архивируются для сохранения производительности.</small></span><input type="range" min="300" max="3000" step="100" value={preferences.maxChronicleEntries} onChange={(event) => patchPreference('maxChronicleEntries', Number(event.target.value))} /><b>{preferences.maxChronicleEntries}</b></label>
-        </section>
-
-        <section className="settings-section">
-          <div className="settings-section-title"><Save size={18} /><div><h3>Ручные сохранения</h3><p>Автосохранение продолжает работать отдельно.</p></div></div>
-          <div className="save-toolbar"><button className="secondary-button" onClick={createSlot}><Save size={15} />Создать слот</button><button className="secondary-button" onClick={() => downloadGameSave(state)}><Download size={15} />Экспортировать</button><button className="secondary-button" onClick={() => fileInput.current?.click()}><Upload size={15} />Импортировать</button><button className="secondary-button" onClick={() => { const backup = loadBackup(); if (backup) { onLoadState(backup); setMessage('Резервная копия восстановлена.') } else setMessage('Резервная копия не найдена.') }}><RefreshCcw size={15} />Резерв</button><input ref={fileInput} hidden type="file" accept="application/json,.json" onChange={(event) => void importFile(event.target.files?.[0])} /></div>
-          <div className="save-slot-list">
-            {slots.length === 0 && <p className="muted">Ручных слотов пока нет.</p>}
-            {slots.map((slot) => <div key={slot.id}><span><strong>{slot.name}</strong><small>{slot.year} год, день {slot.day} · {slot.seed}</small></span><button className="text-button" onClick={() => { const loaded = loadFromSlot(slot.id); if (loaded) { onLoadState(loaded); setMessage('Слот загружен.') } }}>Загрузить</button><button className="icon-button" title="Удалить" onClick={() => { deleteSaveSlot(slot.id); setSlotRevision((value) => value + 1) }}><Trash2 size={15} /></button></div>)}
+        <header className="settings-modal-header">
+          <div>
+            <p className="eyebrow">Система</p>
+            <h2>Настройки</h2>
           </div>
-        </section>
+          <button className="icon-button" onClick={onClose} aria-label="Закрыть настройки"><X size={18} /></button>
+        </header>
 
-        <section className="settings-section">
-          <div className="settings-section-title"><Bug size={18} /><div><h3>Инструменты разработки</h3><p>Скрытые команды для тестирования патчей и баланса.</p></div></div>
-          <Toggle label="Включить dev-панель" description="Открывает отладочные команды и симуляционный аудит." checked={preferences.devToolsEnabled} onChange={(value) => patchPreference('devToolsEnabled', value)} />
-          {preferences.devToolsEnabled && <div className="dev-panel">
-            <div className="dev-actions">
-              <button onClick={() => onLoadState(devAddResources(state))}><Zap size={15} />+ ресурсы</button>
-              <button onClick={() => onLoadState(devRevealMap(state))}><Map size={15} />Открыть карту</button>
-              <button onClick={() => onLoadState(devHealRoster(state))}><HeartPulse size={15} />Вылечить людей</button>
-              <button onClick={() => onLoadState(devFinishExpeditions(state))}><Users size={15} />Завершить походы</button>
-              <button onClick={() => onLoadState(devCreateCrisis(state))}><Skull size={15} />Создать кризис</button>
-              <button onClick={() => onLoadState(devCreateWar(state))}><Swords size={15} />Создать войну</button>
-            </div>
-            <div className={`content-validator-result ${state.contentValidation.some((issue) => issue.severity === 'error') ? 'danger' : ''}`}>
-              <ShieldCheck size={16} />
-              <span><strong>Валидатор контента</strong><small>{state.contentValidation.length === 0 ? 'Ошибок, битых ссылок и недостижимых цепочек не найдено.' : `Найдено проблем: ${state.contentValidation.length}. Ошибок: ${state.contentValidation.filter((issue) => issue.severity === 'error').length}.`}</small></span>
-            </div>
-            <div className="content-telemetry-grid">
-              <div><b>{state.campaign.telemetry.totalEvents}</b><small>событий показано</small></div>
-              <div><b>{Object.keys(state.campaign.telemetry.eventCounts).length}</b><small>уникальных сцен</small></div>
-              <div><b>{contentRepeatRate(state)}%</b><small>повторяемость</small></div>
-              <div><b>{state.storyChains.filter((chain) => chain.status === 'active').length}</b><small>активных цепочек</small></div>
-            </div>
-            <div className="audit-controls">
-              <label><span>Горизонт аудита</span><select value={auditYears} onChange={(event) => setAuditYears(Number(event.target.value))}><option value={1}>1 год</option><option value={10}>10 лет</option><option value={50}>50 лет</option><option value={100}>100 лет</option></select></label>
-              <button className="secondary-button" disabled={auditing} onClick={runAudit}><Activity size={15} />{auditing ? 'Симуляция…' : 'Запустить аудит'}</button>
-              <button className="secondary-button" onClick={() => downloadDebugLog(state, audit)}><Download size={15} />Журнал отладки</button>
-            </div>
-            {audit && <div className="audit-result">
-              <div><b>{audit.elapsedMs} мс</b><small>время расчёта</small></div>
-              <div><b>{audit.populationChange > 0 ? '+' : ''}{audit.populationChange}%</b><small>население</small></div>
-              <div><b>{audit.ruinedSettlements}</b><small>руин-городов</small></div>
-              <div><b>{audit.activeWars}</b><small>активных войн</small></div>
-              <div><b>{audit.abandonedRoutes}</b><small>мёртвых путей</small></div>
-              <ul>{audit.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
-            </div>}
-          </div>}
-        </section>
+        <div className="settings-layout">
+          <nav className="settings-category-nav" aria-label="Разделы настроек">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => setActiveTab(tab.id)}>
+                  <Icon size={17} />
+                  <span><strong>{tab.label}</strong><small>{tab.short}</small></span>
+                </button>
+              )
+            })}
+          </nav>
 
-        {message && <p className="settings-message">{message}</p>}
-        <div className="settings-actions">
-          <button className="secondary-button" onClick={onNewWorld}><RefreshCcw size={16} />Создать новый мир</button>
-          <button className="primary-button force-update-button" disabled={updating} onClick={runUpdate}><DownloadCloud size={17} />{updating ? 'Очистка кэша…' : 'Принудительно обновить игру'}</button>
+          <div className="settings-content">
+            {message && <p className="settings-message">{message}</p>}
+
+            {activeTab === 'general' && <>
+              <section className="settings-hero-card">
+                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.1</strong><small>Мобильная архитектура и упрощённые настройки</small></span></div>
+                <span className="version-chip">save v10</span>
+              </section>
+
+              <div className="settings-summary-grid">
+                <article><Save size={18} /><div><h3>Кампания</h3><p>{state.year} год, день {state.day}</p><small>{state.characters.filter((character) => character.employed).length} сотрудников</small></div></article>
+                <article><RefreshCcw size={18} /><div><h3>Мир</h3><p>{state.settings.preset}</p><small>{DIFFICULTY_RULES[state.settings.difficulty].label}</small></div></article>
+              </div>
+
+              <section className="settings-panel-section">
+                <div className="settings-section-title"><Swords size={18} /><div><h3>Организации</h3><p>Внешняя конкуренция и автономия филиалов.</p></div></div>
+                <Toggle label="Конкурирующие гильдии" description={preferences.competitorsEnabled ? `${state.rivalGuilds.length} организаций активны` : 'Полностью отключены'} checked={preferences.competitorsEnabled} onChange={(value) => patchPreference('competitorsEnabled', value)} />
+                <Toggle label="Переманивание сотрудников" description="Конкуренты могут забирать сильных кандидатов." checked={preferences.poachingEnabled} onChange={(value) => patchPreference('poachingEnabled', value)} />
+                <Toggle label="Отделение филиалов" description="Нелояльный филиал может стать отдельной гильдией." checked={preferences.branchSecessionEnabled} onChange={(value) => patchPreference('branchSecessionEnabled', value)} />
+              </section>
+
+              <section className="settings-panel-section">
+                <div className="settings-section-title"><Settings size={18} /><div><h3>Интерфейс</h3><p>Только то, что влияет на плотность экрана.</p></div></div>
+                <Toggle label="Обучение" description="Показывать пошаговые задачи первого цикла." checked={preferences.tutorialEnabled} onChange={(value) => patchPreference('tutorialEnabled', value)} />
+                <Toggle label="Центр решений" description="Показывать важные события в штабе." checked={preferences.decisionCenterEnabled} onChange={(value) => patchPreference('decisionCenterEnabled', value)} />
+                <Toggle label="Компактные карточки" description="Ещё сильнее уменьшает списки и отступы." checked={preferences.compactCardsEnabled} onChange={(value) => patchPreference('compactCardsEnabled', value)} />
+              </section>
+
+              <div className="settings-primary-actions">
+                <button className="secondary-button" onClick={onNewWorld}><RefreshCcw size={16} />Новый мир</button>
+                <button className="primary-button force-update-button" disabled={updating} onClick={runUpdate}><DownloadCloud size={17} />{updating ? 'Обновление…' : 'Обновить игру'}</button>
+              </div>
+              <p className="settings-note">Обновление очищает кэш, но не удаляет кампанию.</p>
+            </>}
+
+            {activeTab === 'world' && <section className="settings-panel-section settings-panel-section-first">
+              <div className="settings-section-title"><Activity size={18} /><div><h3>Симуляция мира</h3><p>Отключай тяжёлые системы отдельно.</p></div></div>
+              <Toggle label="Войны" description="Межгосударственные конфликты и их развитие." checked={preferences.warsEnabled} onChange={(value) => patchPreference('warsEnabled', value)} />
+              <Toggle label="Мировые кризисы" description="Эпидемии, восстания и катастрофы." checked={preferences.crisesEnabled} onChange={(value) => patchPreference('crisesEnabled', value)} />
+              <Toggle label="Экономический упадок" description="Города могут беднеть и терять торговлю." checked={preferences.economicDeclineEnabled} onChange={(value) => patchPreference('economicDeclineEnabled', value)} />
+              <Toggle label="Смена границ" description="Войны могут передавать поселения." checked={preferences.borderChangesEnabled} onChange={(value) => patchPreference('borderChangesEnabled', value)} />
+              <Toggle label="Разрушение городов" description="Поселения могут превращаться в руины." checked={preferences.cityDestructionEnabled} onChange={(value) => patchPreference('cityDestructionEnabled', value)} />
+              <Toggle label="Старение персонажей" description="Возраст и уход из полевой службы." checked={preferences.agingEnabled} onChange={(value) => patchPreference('agingEnabled', value)} />
+              <Toggle label="Смерть от старости" description="Естественная смерть пожилых героев." checked={preferences.oldAgeDeathEnabled} onChange={(value) => patchPreference('oldAgeDeathEnabled', value)} />
+              <label className="settings-slider"><span><strong>Лимит хроники</strong><small>Старые записи архивируются автоматически.</small></span><input type="range" min="300" max="3000" step="100" value={preferences.maxChronicleEntries} onChange={(event) => patchPreference('maxChronicleEntries', Number(event.target.value))} /><b>{preferences.maxChronicleEntries}</b></label>
+            </section>}
+
+            {activeTab === 'saves' && <section className="settings-panel-section settings-panel-section-first">
+              <div className="settings-section-title"><Save size={18} /><div><h3>Сохранения</h3><p>Автосохранение работает отдельно.</p></div></div>
+              <div className="save-toolbar">
+                <button className="secondary-button" onClick={createSlot}><Save size={15} />Создать слот</button>
+                <button className="secondary-button" onClick={() => downloadGameSave(state)}><Download size={15} />Экспорт</button>
+                <button className="secondary-button" onClick={() => fileInput.current?.click()}><Upload size={15} />Импорт</button>
+                <button className="secondary-button" onClick={() => { const backup = loadBackup(); if (backup) { onLoadState(backup); setMessage('Резервная копия восстановлена.') } else setMessage('Резервная копия не найдена.') }}><RefreshCcw size={15} />Резерв</button>
+                <input ref={fileInput} hidden type="file" accept="application/json,.json" onChange={(event) => void importFile(event.target.files?.[0])} />
+              </div>
+              <div className="save-slot-list">
+                {slots.length === 0 && <p className="muted">Ручных слотов пока нет.</p>}
+                {slots.map((slot) => <div key={slot.id}><span><strong>{slot.name}</strong><small>{slot.year} год, день {slot.day}</small></span><button className="text-button" onClick={() => { const loaded = loadFromSlot(slot.id); if (loaded) { onLoadState(loaded); setMessage('Слот загружен.') } }}>Загрузить</button><button className="icon-button" title="Удалить" onClick={() => { deleteSaveSlot(slot.id); setSlotRevision((value) => value + 1) }}><Trash2 size={15} /></button></div>)}
+              </div>
+            </section>}
+
+            {activeTab === 'dev' && <section className="settings-panel-section settings-panel-section-first">
+              <div className="settings-section-title"><Bug size={18} /><div><h3>Разработка</h3><p>Отладочные команды и аудит баланса.</p></div></div>
+              <Toggle label="Включить dev-панель" description="Показывает тестовые команды." checked={preferences.devToolsEnabled} onChange={(value) => patchPreference('devToolsEnabled', value)} />
+              {preferences.devToolsEnabled && <div className="dev-panel">
+                <div className="dev-actions">
+                  <button onClick={() => onLoadState(devAddResources(state))}><Zap size={15} />Ресурсы</button>
+                  <button onClick={() => onLoadState(devRevealMap(state))}><Map size={15} />Карта</button>
+                  <button onClick={() => onLoadState(devHealRoster(state))}><HeartPulse size={15} />Лечение</button>
+                  <button onClick={() => onLoadState(devFinishExpeditions(state))}><Users size={15} />Походы</button>
+                  <button onClick={() => onLoadState(devCreateCrisis(state))}><Skull size={15} />Кризис</button>
+                  <button onClick={() => onLoadState(devCreateWar(state))}><Swords size={15} />Война</button>
+                </div>
+                <div className={`content-validator-result ${state.contentValidation.some((issue) => issue.severity === 'error') ? 'danger' : ''}`}>
+                  <ShieldCheck size={16} />
+                  <span><strong>Валидатор контента</strong><small>{state.contentValidation.length === 0 ? 'Проблем не найдено.' : `Проблем: ${state.contentValidation.length}`}</small></span>
+                </div>
+                <div className="content-telemetry-grid">
+                  <div><b>{state.campaign.telemetry.totalEvents}</b><small>событий</small></div>
+                  <div><b>{Object.keys(state.campaign.telemetry.eventCounts).length}</b><small>уникальных</small></div>
+                  <div><b>{contentRepeatRate(state)}%</b><small>повторы</small></div>
+                  <div><b>{state.storyChains.filter((chain) => chain.status === 'active').length}</b><small>цепочек</small></div>
+                </div>
+                <div className="audit-controls">
+                  <label><span>Аудит</span><select value={auditYears} onChange={(event) => setAuditYears(Number(event.target.value))}><option value={1}>1 год</option><option value={10}>10 лет</option><option value={50}>50 лет</option><option value={100}>100 лет</option></select></label>
+                  <button className="secondary-button" disabled={auditing} onClick={runAudit}><Activity size={15} />{auditing ? 'Считаю…' : 'Запустить'}</button>
+                  <button className="secondary-button" onClick={() => downloadDebugLog(state, audit)}><Download size={15} />Журнал</button>
+                </div>
+                {audit && <div className="audit-result">
+                  <div><b>{audit.elapsedMs} мс</b><small>расчёт</small></div>
+                  <div><b>{audit.populationChange > 0 ? '+' : ''}{audit.populationChange}%</b><small>население</small></div>
+                  <div><b>{audit.ruinedSettlements}</b><small>руины</small></div>
+                  <div><b>{audit.activeWars}</b><small>войны</small></div>
+                  <div><b>{audit.abandonedRoutes}</b><small>пути</small></div>
+                  <ul>{audit.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+                </div>}
+              </div>}
+            </section>}
+          </div>
         </div>
-        <p className="settings-note">Перед импортом сохраняется резервная копия текущей кампании. Принудительное обновление очищает кэш приложения, но не удаляет игровые сохранения.</p>
       </article>
     </div>
   )

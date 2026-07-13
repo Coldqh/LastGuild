@@ -179,7 +179,7 @@ export default function App() {
     { id: 'headquarters', label: 'Штаб', icon: Building2, badge: urgentCount },
     { id: 'expeditions', label: 'Контракты', icon: Compass, badge: state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day).length },
     { id: 'active_expeditions', label: 'Походы', icon: Activity, badge: activeExpeditions.length + state.expeditions.filter((entry) => entry.status === 'missing').length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0) },
-    { id: 'roster', label: 'Люди', icon: Users },
+    { id: 'world', label: 'Карта', icon: Map },
     { id: 'menu', label: 'Меню', icon: Menu },
   ]
   const changeView = (next: ViewId) => {
@@ -330,7 +330,7 @@ export default function App() {
         <div className="sidebar-footer">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.8.1 · Pacing & Replayability</small>
+          <small>v0.8.3.1 · Mobile UX</small>
         </div>
       </aside>
 
@@ -338,21 +338,30 @@ export default function App() {
         <header className="topbar">
           <button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="Открыть меню"><Menu /></button>
           <div className="topbar-date"><CalendarDays size={18} /><div><strong>{state.year} год · день {state.day}</strong><span>{seasons[state.season]}</span></div></div>
-          <div className="time-controls">
+          <div className="time-controls desktop-time-controls">
             <Clock3 size={17} />
             <button disabled={timeBlocked} onClick={() => advance(1)}>+1 день</button>
             <button disabled={timeBlocked} onClick={() => advance(7)}>+7 дней</button>
             <button disabled={timeBlocked} onClick={() => advance(30)}>+30 дней</button>
             <button disabled={timeBlocked} onClick={runUntilEvent}><FastForward size={14} />До события</button>
           </div>
+          <div className="mobile-time-actions">
+            <button disabled={timeBlocked} onClick={() => advance(1)} aria-label="Следующий день"><Clock3 size={17} /><span>+1</span></button>
+            <button disabled={timeBlocked} onClick={runUntilEvent} aria-label="До следующего события"><FastForward size={17} /></button>
+          </div>
           {timeBlocked && <span className="time-blocked">Время остановлено: {blockedReason}</span>}
-          <div className="topbar-resources">
+          <div className="topbar-resources desktop-resources">
             <span className="resource-pill"><b>{state.guild.treasury}</b><small>крон</small></span>
             <span className="resource-pill"><b>{state.guild.supplies}</b><small>припасы</small></span>
             <span className={`resource-pill ${state.guild.debt > state.guild.treasury * 2 ? 'danger-text' : ''}`}><b>{state.guild.debt}</b><small>долг</small></span>
           </div>
           <button className="topbar-settings" title="Настройки" onClick={() => setSettingsModal(true)} aria-label="Настройки"><SettingsIcon size={18} /></button>
         </header>
+        <div className="mobile-status-strip">
+          <span><small>Казна</small><b>{state.guild.treasury}</b></span>
+          <span><small>Припасы</small><b>{state.guild.supplies}</b></span>
+          <span className={state.guild.debt > state.guild.treasury * 2 ? 'danger-text' : ''}><small>Долг</small><b>{state.guild.debt}</b></span>
+        </div>
         <main><Suspense fallback={<div className="view-loading">Загрузка раздела…</div>}>{renderView()}</Suspense></main>
       </div>
 
