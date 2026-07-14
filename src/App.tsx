@@ -5,7 +5,6 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarDays,
-  ChevronLeft,
   ChevronRight,
   Clock3,
   Compass,
@@ -103,13 +102,9 @@ const viewGroups: Array<{ label: string; items: Array<{ id: ViewId; label: strin
   ] },
 ]
 
-type MobileMenuSection = 'guild' | 'expeditions' | 'world' | 'system'
-
-const mobileMenuSections: Array<{ id: MobileMenuSection; label: string; description: string; icon: typeof Building2; itemIds?: ViewId[] }> = [
-  { id: 'guild', label: 'Гильдия', description: 'Люди, развитие и управление', icon: Building2, itemIds: ['headquarters', 'campaign', 'hiring', 'roster', 'rooms', 'positions', 'academy', 'council', 'legacy'] },
-  { id: 'expeditions', label: 'Экспедиции', description: 'Контракты, походы и карта', icon: Compass, itemIds: ['expeditions', 'active_expeditions', 'world'] },
-  { id: 'world', label: 'Мир и знания', description: 'Архив, влияние и история', icon: Landmark, itemIds: ['archive', 'influence', 'living_world', 'lore'] },
-  { id: 'system', label: 'Система', description: 'Настройки и новая кампания', icon: SettingsIcon },
+const mobileMenuGroups: Array<{ label: string; itemIds: ViewId[] }> = [
+  { label: 'Гильдия', itemIds: ['campaign', 'hiring', 'roster', 'rooms', 'positions', 'academy', 'council', 'legacy'] },
+  { label: 'Мир и знания', itemIds: ['archive', 'influence', 'living_world', 'lore'] },
 ]
 
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
@@ -141,7 +136,6 @@ export default function App() {
   const [state, setState] = useState<GameState>(initialState)
   const [view, setView] = useState<ViewId>('headquarters')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [mobileMenuSection, setMobileMenuSection] = useState<MobileMenuSection | null>(null)
   const [seedModal, setSeedModal] = useState(false)
   const [settingsModal, setSettingsModal] = useState(false)
   const [seedInput, setSeedInput] = useState('')
@@ -196,7 +190,7 @@ export default function App() {
     { id: 'expeditions', label: 'Контракты', icon: Compass, badge: state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day).length },
     { id: 'active_expeditions', label: 'Походы', icon: Activity, badge: activeExpeditions.length + state.expeditions.filter((entry) => entry.status === 'missing').length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0) },
     { id: 'world', label: 'Карта', icon: Map },
-    { id: 'menu', label: 'Меню', icon: Menu },
+    { id: 'menu', label: 'Ещё', icon: Menu },
   ]
 
 
@@ -214,13 +208,9 @@ export default function App() {
         : itemId === 'positions' ? state.guild.positions.filter((entry) => !entry.holderId).length
         : 0
 
-  const mobileMenuItems = mobileMenuSection && mobileMenuSection !== 'system'
-    ? viewGroups.flatMap((group) => group.items).filter((item) => mobileMenuSections.find((section) => section.id === mobileMenuSection)?.itemIds?.includes(item.id))
-    : []
   const changeView = (next: ViewId) => {
     setView(next)
     setMenuOpen(false)
-    setMobileMenuSection(null)
     if (next === 'roster') markTutorial('roster')
     if (next === 'expeditions' || next === 'active_expeditions') markTutorial('expeditions')
   }
@@ -303,7 +293,7 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'campaign': return <CampaignView state={state} onSelectGoal={(goalId) => setState((current) => selectCampaignGoal(current, goalId))} />
+      case 'campaign': return <CampaignView state={state} onSelectGoal={(goalId) => setState((current) => selectCampaignGoal(current, goalId))} onNavigate={changeView} />
       case 'hiring': return <HiringPanel state={state} onHire={hireFromHeadquarters} />
       case 'roster': return <RosterView state={state} onDismiss={(characterId) => setState((current) => dismissCharacter(current, characterId))} />
       case 'rooms': return <RoomsView state={state} onUpgrade={(roomId) => { markTutorial('upgrade'); setState((current) => upgradeRoom(current, roomId)) }} />
@@ -330,7 +320,7 @@ export default function App() {
             <img className="brand-logo" src={BRAND_FULL} alt="The Last Guild" />
             <span className="brand-subtitle">Экспедиционный архив</span>
           </div>
-          <button className="mobile-close" onClick={() => { setMenuOpen(false); setMobileMenuSection(null) }} aria-label="Закрыть меню"><X /></button>
+          <button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню"><X /></button>
         </div>
 
         <nav className="grouped-sidebar-nav desktop-sidebar-nav">
@@ -345,36 +335,29 @@ export default function App() {
         </nav>
 
         <div className="mobile-menu-content">
-          {!mobileMenuSection ? <>
-            <div className="mobile-menu-title"><strong>Разделы</strong><small>Открывай только нужную часть игры</small></div>
-            <div className="mobile-menu-categories">
-              {mobileMenuSections.map((section) => {
-                const Icon = section.icon
-                const badge = section.itemIds?.reduce((sum, itemId) => sum + badgeForView(itemId), 0) ?? 0
-                return <button key={section.id} onClick={() => setMobileMenuSection(section.id)}>
-                  <Icon size={21} />
-                  <span><strong>{section.label}</strong><small>{section.description}</small></span>
-                  {badge > 0 && <b>{badge}</b>}
-                  <ChevronRight size={16} />
-                </button>
-              })}
+          <div className="mobile-menu-title"><strong>Ещё</strong></div>
+          {mobileMenuGroups.map((group) => (
+            <section className="mobile-menu-group" key={group.label}>
+              <p>{group.label}</p>
+              <div className="mobile-menu-grid">
+                {viewGroups.flatMap((entry) => entry.items).filter((item) => group.itemIds.includes(item.id)).map((item) => {
+                  const Icon = item.icon
+                  const badge = badgeForView(item.id)
+                  return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}>
+                    <span className="mobile-menu-grid-icon"><Icon size={18} />{badge > 0 && <b>{badge}</b>}</span>
+                    <strong>{item.id === 'campaign' ? 'Цели' : item.label}</strong>
+                  </button>
+                })}
+              </div>
+            </section>
+          ))}
+          <section className="mobile-menu-group mobile-system-group">
+            <p>Система</p>
+            <div className="mobile-menu-grid">
+              <button onClick={() => { setMenuOpen(false); setSettingsModal(true) }}><SettingsIcon size={18} /><strong>Настройки</strong></button>
+              <button onClick={() => { setMenuOpen(false); openWorldSetup() }}><RotateCcw size={18} /><strong>Новый мир</strong></button>
             </div>
-          </> : <>
-            <div className="mobile-menu-subheader">
-              <button onClick={() => setMobileMenuSection(null)}><ChevronLeft size={18} />Разделы</button>
-              <strong>{mobileMenuSections.find((section) => section.id === mobileMenuSection)?.label}</strong>
-            </div>
-            {mobileMenuSection === 'system' ? <div className="mobile-menu-items">
-              <button onClick={() => { setMenuOpen(false); setMobileMenuSection(null); setSettingsModal(true) }}><SettingsIcon size={19} /><span><strong>Настройки</strong><small>Интерфейс, симуляция и сохранения</small></span><ChevronRight size={15} /></button>
-              <button onClick={() => { setMenuOpen(false); setMobileMenuSection(null); openWorldSetup() }}><RotateCcw size={19} /><span><strong>Новый мир</strong><small>Создать новую кампанию</small></span><ChevronRight size={15} /></button>
-            </div> : <div className="mobile-menu-items">
-              {mobileMenuItems.map((item) => {
-                const Icon = item.icon
-                const badge = badgeForView(item.id)
-                return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={19} /><span><strong>{item.label}</strong></span>{badge > 0 && <b>{badge}</b>}<ChevronRight size={15} /></button>
-              })}
-            </div>}
-          </>}
+          </section>
         </div>
 
         <div className="sidebar-world desktop-sidebar-meta">
@@ -387,13 +370,13 @@ export default function App() {
         <div className="sidebar-footer desktop-sidebar-meta">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.8.3.3 · Mobile IA</small>
+          <small>v0.8.3.4 · Compact UI</small>
         </div>
       </aside>
 
       <div className="main-shell">
         <header className="topbar">
-          <button className="menu-button" onClick={() => { setMobileMenuSection(null); setMenuOpen(true) }} aria-label="Открыть меню"><Menu /></button>
+          <button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="Открыть меню"><Menu /></button>
           <div className="topbar-date"><CalendarDays size={18} /><div><strong>{state.year} год · день {state.day}</strong><span>{seasons[state.season]}</span></div></div>
           <div className="time-controls desktop-time-controls">
             <Clock3 size={17} />
@@ -425,7 +408,7 @@ export default function App() {
             <button
               key={item.id}
               className={active ? 'active' : ''}
-              onClick={() => item.id === 'menu' ? (setMobileMenuSection(null), setMenuOpen(true)) : changeView(item.id)}
+              onClick={() => item.id === 'menu' ? setMenuOpen(true) : changeView(item.id)}
               aria-label={item.label}
             >
               <span className="mobile-nav-icon">
@@ -439,7 +422,7 @@ export default function App() {
       </nav>
 
       {preferences.tutorialEnabled && <TutorialPanel completed={tutorialCompleted} onNavigate={changeView} onDismiss={() => updatePreferences({ ...preferences, tutorialEnabled: false })} />}
-      {menuOpen && <div className="mobile-overlay" onClick={() => { setMenuOpen(false); setMobileMenuSection(null) }} />}
+      {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
       <Suspense fallback={null}>
       {seedModal && <WorldSetupModal settings={worldSettings} seed={seedInput} onSeedChange={setSeedInput} onSettingsChange={setWorldSettings} onClose={() => setSeedModal(false)} onCreate={createWorld} />}
       {settingsModal && <SettingsModal state={state} preferences={preferences} onPreferencesChange={updatePreferences} onLoadState={(next) => setState(applyCompetitors(next, preferences.competitorsEnabled))} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}

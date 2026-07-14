@@ -1,109 +1,140 @@
-import { CheckCircle2, Compass, Crown, Flag, LibraryBig, Route, Shield, Sparkles, Target, Trophy } from 'lucide-react'
-import { CAMPAIGN_PHASES, GUILD_IDENTITY_PATHS, contentRepeatRate } from '../game/campaign'
-import type { CampaignGoal, GameState, GuildIdentityPathId } from '../types/game'
+import {
+  Activity,
+  ArrowRight,
+  CheckCircle2,
+  Coins,
+  Compass,
+  Flag,
+  LibraryBig,
+  Map,
+  Shield,
+  Sparkles,
+  Target,
+  Trophy,
+  UserPlus,
+} from 'lucide-react'
+import { CAMPAIGN_PHASES, GUILD_IDENTITY_PATHS } from '../game/campaign'
+import type { CampaignGoal, CampaignGoalType, GameState, ViewId } from '../types/game'
 
 interface Props {
   state: GameState
   onSelectGoal: (goalId: string) => void
+  onNavigate: (view: ViewId) => void
 }
 
 const goalIcons = {
-  map_region: Route,
+  map_region: Map,
   find_empire: LibraryBig,
   slay_legend: Shield,
-  expose_lie: Crown,
+  expose_lie: Compass,
   world_institute: Trophy,
   great_artifact: Sparkles,
 }
 
-function GoalCard({ goal, selected, onSelect, compact = false }: { goal: CampaignGoal; selected: boolean; onSelect: () => void; compact?: boolean }) {
+const goalActions: Record<CampaignGoalType, { text: string; button: string; view: ViewId }> = {
+  map_region: { text: 'Открывай неизвестные гексы и заверши картографические контракты.', button: 'Открыть карту', view: 'world' },
+  find_empire: { text: 'Ищи древние руины, документы и связанные сюжетные зацепки.', button: 'Искать контракт', view: 'expeditions' },
+  slay_legend: { text: 'Собери сведения о легендарном чудовище и подготовь охотничий отряд.', button: 'К контрактам', view: 'expeditions' },
+  expose_lie: { text: 'Проходи исторические цепочки и публикуй подтверждённые документы.', button: 'Открыть знания', view: 'lore' },
+  world_institute: { text: 'Развивай помещения, академию, архив и авторитет гильдии.', button: 'Развивать штаб', view: 'rooms' },
+  great_artifact: { text: 'Ищи части артефакта в руинах и сюжетных экспедициях.', button: 'К контрактам', view: 'expeditions' },
+}
+
+function GoalOption({ goal, selected, onSelect }: { goal: CampaignGoal; selected: boolean; onSelect: () => void }) {
   const Icon = goalIcons[goal.type]
   const progress = Math.min(100, Math.round((goal.progress / Math.max(1, goal.target)) * 100))
 
   return (
-    <article className={`campaign-goal-card ${compact ? 'compact' : ''} ${selected ? 'selected' : ''} ${goal.status === 'completed' ? 'completed' : ''}`}>
-      <div className="campaign-goal-head">
-        <Icon size={compact ? 17 : 20} />
-        <div>
-          <p className="eyebrow">{goal.status === 'completed' ? 'Завершено' : selected ? 'Главная цель' : 'Доступная цель'}</p>
-          <h3>{goal.title}</h3>
-        </div>
-      </div>
-      <p className="campaign-goal-description">{goal.description}</p>
-      <div className="progress-track"><span style={{ width: `${progress}%` }} /></div>
-      <div className="campaign-goal-progress"><strong>{goal.progress}/{goal.target}</strong><span>{progress}%</span></div>
-      {!compact && <small>{goal.rewardText}</small>}
-      {!selected && goal.status !== 'completed' && <button className="secondary-button" onClick={onSelect}><Target size={15} />Выбрать</button>}
-      {goal.status === 'completed' && <span className="completed-label"><CheckCircle2 size={15} />Выполнено</span>}
-    </article>
+    <button className={`campaign-goal-option ${selected ? 'selected' : ''}`} onClick={onSelect} disabled={goal.status === 'completed'}>
+      <Icon size={17} />
+      <span>
+        <strong>{goal.title}</strong>
+        <small>{goal.status === 'completed' ? 'Выполнено' : `${progress}% · ${goal.progress}/${goal.target}`}</small>
+      </span>
+      {goal.status === 'completed' ? <CheckCircle2 size={16} /> : <ArrowRight size={15} />}
+    </button>
   )
 }
 
-export default function CampaignView({ state, onSelectGoal }: Props) {
-  const phaseIndex = CAMPAIGN_PHASES.findIndex((entry) => entry.id === state.campaign.phase.id)
-  const currentPhase = CAMPAIGN_PHASES[Math.max(0, phaseIndex)]
+export default function CampaignView({ state, onSelectGoal, onNavigate }: Props) {
+  const phaseIndex = Math.max(0, CAMPAIGN_PHASES.findIndex((entry) => entry.id === state.campaign.phase.id))
+  const currentPhase = CAMPAIGN_PHASES[phaseIndex]
   const nextPhase = CAMPAIGN_PHASES[phaseIndex + 1]
-  const identityEntries = Object.entries(state.campaign.identity.scores) as Array<[GuildIdentityPathId, number]>
-  const activeChains = state.storyChains.filter((chain) => chain.status === 'active')
-  const dormantChains = state.storyChains.filter((chain) => chain.status === 'dormant')
   const selectedGoal = state.campaign.goals.find((goal) => goal.id === state.campaign.selectedGoalId)
-  const otherGoals = state.campaign.goals.filter((goal) => goal.id !== state.campaign.selectedGoalId)
-  const repeatRate = contentRepeatRate(state)
-  const totalEvents = state.campaign.telemetry.totalEvents
-  const uniqueEvents = Object.keys(state.campaign.telemetry.eventCounts).length
   const primaryPath = state.campaign.identity.primaryPath ? GUILD_IDENTITY_PATHS[state.campaign.identity.primaryPath] : undefined
+  const activeExpeditions = state.expeditions.filter((entry) => ['active', 'returning'].includes(entry.status))
+  const fieldRoster = state.characters.filter((entry) => entry.employed && !['dead', 'missing', 'retired'].includes(entry.status))
+  const openContracts = state.opportunities.filter((entry) => !entry.accepted && entry.deadlineDay >= state.day)
+  const activeStories = state.storyChains.filter((entry) => entry.status === 'active')
+
+  const tasks: Array<{ title: string; detail: string; view?: ViewId; icon: typeof Flag }> = []
+  if (!selectedGoal) tasks.push({ title: 'Выбери долгую цель', detail: 'Она задаст направление кампании.', icon: Target })
+  if (state.guild.debt > 0) tasks.push({ title: 'Сократи долг', detail: `${state.guild.debt} крон осталось`, view: 'headquarters', icon: Coins })
+  if (fieldRoster.length < 6) tasks.push({ title: 'Усиль состав', detail: `${fieldRoster.length}/6 готовых сотрудников`, view: 'hiring', icon: UserPlus })
+  if (activeExpeditions.length === 0) tasks.push({ title: 'Отправь экспедицию', detail: `${openContracts.length} контрактов доступно`, view: 'expeditions', icon: Compass })
+  else tasks.push({ title: 'Следи за походами', detail: `${activeExpeditions.length} отрядов в пути`, view: 'active_expeditions', icon: Activity })
+  if (selectedGoal) {
+    const action = goalActions[selectedGoal.type]
+    tasks.push({ title: action.button, detail: action.text, view: action.view, icon: goalIcons[selectedGoal.type] })
+  }
+
+  const goalProgress = selectedGoal ? Math.min(100, Math.round((selectedGoal.progress / Math.max(1, selectedGoal.target)) * 100)) : 0
 
   return (
-    <div className="campaign-view view-stack">
-      <header className="view-header compact-header campaign-header">
+    <section className="view campaign-view campaign-compact-view">
+      <header className="campaign-compact-header">
         <div>
-          <p className="eyebrow">Кампания</p>
-          <h1>Путь гильдии</h1>
-          <p className="campaign-header-description">Главная цель, этап развития и репутация организации.</p>
+          <h1>Кампания</h1>
+          <span>Этап {phaseIndex + 1}/{CAMPAIGN_PHASES.length} · {currentPhase.label}</span>
         </div>
-        <div className="campaign-phase-chip"><Flag size={16} /><span><small>Этап {phaseIndex + 1}/{CAMPAIGN_PHASES.length}</small><strong>{currentPhase.label}</strong></span></div>
+        <b>{state.campaign.phase.progress}%</b>
       </header>
 
-      <section className="campaign-phase-card paper-card">
-        <div className="campaign-phase-main">
-          <Compass size={22} />
-          <div>
-            <p className="eyebrow">Текущий этап</p>
-            <h2>{currentPhase.label}</h2>
-            <p>{currentPhase.description}</p>
+      <div className="campaign-stage-line">
+        <span style={{ width: `${state.campaign.phase.progress}%` }} />
+      </div>
+      <p className="campaign-stage-hint">{nextPhase ? `До этапа «${nextPhase.label}»: ${100 - state.campaign.phase.progress}%` : 'Высший этап достигнут'}</p>
+
+      <section className="campaign-action-card paper-card">
+        <div className="campaign-action-title"><Flag size={17} /><h2>Что делать сейчас</h2></div>
+        <div className="campaign-task-list">
+          {tasks.slice(0, 3).map((task) => {
+            const Icon = task.icon
+            return (
+              <button key={`${task.title}-${task.detail}`} onClick={() => task.view && onNavigate(task.view)} disabled={!task.view}>
+                <Icon size={16} />
+                <span><strong>{task.title}</strong><small>{task.detail}</small></span>
+                {task.view && <ArrowRight size={14} />}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="campaign-goal-compact paper-card">
+        <div className="campaign-section-head">
+          <Target size={17} />
+          <div><small>Долгая цель</small><h2>{selectedGoal?.title ?? 'Не выбрана'}</h2></div>
+          {selectedGoal && <b>{goalProgress}%</b>}
+        </div>
+
+        {selectedGoal ? <>
+          <div className="campaign-stage-line"><span style={{ width: `${goalProgress}%` }} /></div>
+          <p>{goalActions[selectedGoal.type].text}</p>
+          <div className="campaign-goal-actions">
+            <button className="primary-button" onClick={() => onNavigate(goalActions[selectedGoal.type].view)}>{goalActions[selectedGoal.type].button}<ArrowRight size={14} /></button>
+            <details>
+              <summary>Сменить</summary>
+              <div className="campaign-goal-options">{state.campaign.goals.filter((goal) => goal.id !== selectedGoal.id).map((goal) => <GoalOption key={goal.id} goal={goal} selected={false} onSelect={() => onSelectGoal(goal.id)} />)}</div>
+            </details>
           </div>
-        </div>
-        <div className="progress-track large"><span style={{ width: `${state.campaign.phase.progress}%` }} /></div>
-        <div className="campaign-phase-footer"><strong>{state.campaign.phase.progress}%</strong><span>{nextPhase ? `Далее: ${nextPhase.label}` : 'Высший этап достигнут'}</span></div>
-        <details className="campaign-phase-details">
-          <summary>Все этапы кампании</summary>
-          <div className="campaign-phase-list">{CAMPAIGN_PHASES.map((phase, index) => <span key={phase.id} className={index <= phaseIndex ? 'reached' : ''}>{index < phaseIndex ? <CheckCircle2 size={14} /> : index === phaseIndex ? <Flag size={14} /> : <span className="phase-dot" />}{phase.label}</span>)}</div>
-        </details>
+        </> : <div className="campaign-goal-options">{state.campaign.goals.map((goal) => <GoalOption key={goal.id} goal={goal} selected={false} onSelect={() => onSelectGoal(goal.id)} />)}</div>}
       </section>
 
-      <section className="campaign-goal-section">
-        <div className="section-title"><Target size={18} /><div><p className="eyebrow">Главная цель</p><h2>{selectedGoal ? selectedGoal.title : 'Выбери направление'}</h2></div></div>
-        {selectedGoal ? <GoalCard goal={selectedGoal} selected onSelect={() => undefined} /> : <div className="campaign-goal-grid">{state.campaign.goals.map((goal) => <GoalCard key={goal.id} goal={goal} selected={false} onSelect={() => onSelectGoal(goal.id)} />)}</div>}
-        {selectedGoal && otherGoals.length > 0 && <details className="campaign-other-goals"><summary>Сменить долгую цель</summary><div className="campaign-goal-grid">{otherGoals.map((goal) => <GoalCard key={goal.id} goal={goal} selected={false} compact onSelect={() => onSelectGoal(goal.id)} />)}</div></details>}
-      </section>
-
-      <details className="paper-card campaign-disclosure">
-        <summary><Crown size={18} /><span><small>Репутационный путь</small><strong>{primaryPath?.label ?? 'Ещё не определён'}</strong></span></summary>
-        <div className="campaign-disclosure-content">
-          <p className="muted">Путь меняется от публикаций, охоты, политики, торговли и работы с опасными знаниями.</p>
-          <div className="identity-grid">{identityEntries.sort((a, b) => b[1] - a[1]).map(([id, score]) => <article key={id} className={state.campaign.identity.primaryPath === id ? 'primary' : ''}><div><strong>{GUILD_IDENTITY_PATHS[id].label}</strong><b>{score}</b></div><div className="progress-track"><span style={{ width: `${score}%` }} /></div><small>{GUILD_IDENTITY_PATHS[id].description}</small></article>)}</div>
-        </div>
-      </details>
-
-      <details className="paper-card campaign-disclosure campaign-statistics">
-        <summary><Sparkles size={18} /><span><small>Статистика кампании</small><strong>{activeChains.length} активных историй</strong></span></summary>
-        <div className="campaign-pacing-grid campaign-disclosure-content">
-          <article><span><Sparkles size={18} /><strong>Темп историй</strong></span><b>{activeChains.length}</b><small>{dormantChains.length} ждут этапа</small></article>
-          <article><span><LibraryBig size={18} /><strong>События</strong></span><b>{totalEvents}</b><small>{uniqueEvents} уникальных сцен</small></article>
-          <article className={repeatRate > 35 ? 'warning-card' : ''}><span><Sparkles size={18} /><strong>Повторы</strong></span><b>{repeatRate}%</b><small>{repeatRate <= 25 ? 'вариативность стабильна' : 'вес повторов снижается'}</small></article>
-          <article><span><Trophy size={18} /><strong>Линии</strong></span><b>{state.campaign.telemetry.completedChainIds.length}</b><small>завершено</small></article>
-        </div>
-      </details>
-    </div>
+      <footer className="campaign-compact-footer">
+        <button onClick={() => onNavigate('lore')}><LibraryBig size={15} /><span><strong>{activeStories.length}</strong> активных историй</span></button>
+        <span><Sparkles size={15} />{primaryPath?.label ?? 'Репутация формируется'}</span>
+      </footer>
+    </section>
   )
 }

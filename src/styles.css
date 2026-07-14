@@ -4034,3 +4034,985 @@ body,
     grid-template-columns: minmax(0, 1fr) 38px 38px;
   }
 }
+
+/* v0.8.3.4 — compact UI, flat mobile navigation and actionable campaign */
+.campaign-compact-view {
+  display: grid;
+  gap: 12px;
+  max-width: 980px;
+}
+
+.campaign-compact-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.campaign-compact-header h1 {
+  margin: 0 0 3px;
+}
+
+.campaign-compact-header span,
+.campaign-stage-hint {
+  color: var(--text-dim);
+  font-size: .7rem;
+}
+
+.campaign-compact-header > b {
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.campaign-stage-line {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(255,255,255,.06);
+}
+
+.campaign-stage-line > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #6e5432, var(--accent));
+}
+
+.campaign-stage-hint {
+  margin: -6px 0 0;
+}
+
+.campaign-action-card,
+.campaign-goal-compact {
+  padding: 14px;
+}
+
+.campaign-action-title,
+.campaign-section-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+.campaign-action-title svg,
+.campaign-section-head > svg {
+  color: var(--accent);
+}
+
+.campaign-action-title h2,
+.campaign-section-head h2 {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 1rem;
+}
+
+.campaign-section-head > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.campaign-section-head small {
+  display: block;
+  color: var(--text-dim);
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.campaign-section-head b {
+  color: var(--accent);
+}
+
+.campaign-task-list,
+.campaign-goal-options {
+  display: grid;
+  gap: 6px;
+}
+
+.campaign-task-list button,
+.campaign-goal-option {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  color: var(--text);
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.018);
+  cursor: pointer;
+}
+
+.campaign-task-list button:disabled {
+  cursor: default;
+  opacity: .78;
+}
+
+.campaign-task-list button > svg:first-child,
+.campaign-goal-option > svg:first-child {
+  color: var(--accent);
+}
+
+.campaign-task-list button span,
+.campaign-goal-option span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.campaign-task-list strong,
+.campaign-goal-option strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: .75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-task-list small,
+.campaign-goal-option small {
+  color: var(--text-dim);
+  font-size: .61rem;
+  line-height: 1.25;
+}
+
+.campaign-goal-compact > p {
+  margin: 8px 0;
+  color: var(--text-soft);
+  font-size: .72rem;
+}
+
+.campaign-goal-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.campaign-goal-actions details {
+  min-width: 150px;
+}
+
+.campaign-goal-actions summary {
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 7px 10px;
+  color: var(--text-soft);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.campaign-goal-actions details[open] {
+  flex: 1;
+}
+
+.campaign-goal-actions details[open] summary {
+  margin-bottom: 7px;
+}
+
+.campaign-goal-option.selected {
+  border-color: rgba(185,145,85,.45);
+  background: rgba(185,145,85,.08);
+}
+
+.campaign-compact-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.campaign-compact-footer > button,
+.campaign-compact-footer > span {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  color: var(--text-soft);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255,255,255,.018);
+  font-size: .65rem;
+}
+
+.campaign-compact-footer > button {
+  cursor: pointer;
+}
+
+.campaign-compact-footer svg {
+  color: var(--accent);
+}
+
+/* Moderate density reduction for laptop and desktop. */
+@media (min-width: 981px) {
+  .topbar {
+    min-height: 56px;
+    height: 56px;
+    padding-inline: 18px;
+    gap: 14px;
+  }
+
+  .view {
+    padding: 24px 26px 58px;
+  }
+
+  .view-heading {
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 3vw, 2.65rem);
+  }
+
+  h2 {
+    font-size: 1.38rem;
+  }
+
+  h3 {
+    font-size: 1.05rem;
+  }
+
+  .metric-grid,
+  .character-grid,
+  .archive-summary,
+  .living-grid,
+  .campaign-pacing-grid,
+  .influence-grid,
+  .position-grid,
+  .academy-grid,
+  .legacy-grid {
+    gap: 8px;
+  }
+
+  .metric-card {
+    min-height: 72px;
+    padding: 10px;
+  }
+
+  .paper-card,
+  .living-panel,
+  .war-card,
+  .opportunity-card,
+  .active-expedition,
+  .discovery-record,
+  .site-record,
+  .remembered-person {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+}
+
+@media (max-width: 980px) {
+  :root {
+    font-size: 13px;
+    --mobile-topbar-height: 44px;
+    --mobile-nav-height: 50px;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  html,
+  body,
+  #root,
+  .app-shell,
+  .main-shell,
+  main,
+  .view {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  body {
+    overflow-x: clip;
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    min-height: var(--mobile-topbar-height) !important;
+    height: var(--mobile-topbar-height) !important;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 5px 7px !important;
+  }
+
+  .menu-button,
+  .topbar-settings {
+    display: none !important;
+  }
+
+  .topbar-date {
+    min-width: 0 !important;
+    flex: 1;
+    gap: 5px;
+  }
+
+  .topbar-date svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .topbar-date strong {
+    font-size: .67rem !important;
+    white-space: nowrap;
+  }
+
+  .topbar-date span {
+    display: none !important;
+  }
+
+  .mobile-time-actions {
+    display: flex !important;
+    gap: 4px;
+  }
+
+  .mobile-time-actions button {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border-radius: 7px !important;
+  }
+
+  .mobile-time-actions button:first-child {
+    width: 48px !important;
+  }
+
+  .mobile-time-actions svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .mobile-time-actions span {
+    font-size: .6rem;
+  }
+
+  .time-blocked {
+    position: fixed;
+    top: var(--mobile-topbar-height);
+    left: 6px;
+    right: 6px;
+    z-index: 18;
+    min-height: 28px;
+    padding: 5px 7px;
+    font-size: .58rem;
+  }
+
+  .view {
+    padding: 7px 6px calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .view-stack,
+  .living-world-view,
+  .lore-codex-view,
+  .campaign-view,
+  .archive-view,
+  .influence-view,
+  .guild-view,
+  .active-expeditions-view,
+  .planner-view,
+  .roster-view,
+  .academy-view,
+  .legacy-view,
+  .rooms-view,
+  .positions-view,
+  .council-view {
+    gap: 6px !important;
+  }
+
+  .view-heading,
+  .view-header,
+  .compact-page-heading,
+  .campaign-compact-header {
+    min-height: 28px;
+    margin: 0 0 6px !important;
+    padding: 0 2px;
+  }
+
+  h1,
+  .view-heading h1,
+  .view-header h1,
+  .compact-page-heading h1,
+  .campaign-compact-header h1 {
+    margin: 0;
+    font-family: Inter, system-ui, sans-serif !important;
+    font-size: 1.02rem !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0 !important;
+  }
+
+  h2,
+  .section-title h2,
+  .compact-panel-heading h2,
+  .codex-card h2,
+  .war-card h2,
+  .history-event-card h2,
+  .knowledge-spread-card h2,
+  .story-chain-card h2 {
+    font-family: Inter, system-ui, sans-serif !important;
+    font-size: .78rem !important;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-family: Inter, system-ui, sans-serif !important;
+    font-size: .72rem !important;
+  }
+
+  p,
+  li,
+  label,
+  input,
+  select,
+  textarea,
+  button {
+    font-size: .65rem;
+  }
+
+  p {
+    line-height: 1.3;
+  }
+
+  .view-heading p:not(.eyebrow),
+  .view-header p:not(.eyebrow),
+  .compact-page-heading p:not(.eyebrow),
+  .section-title p,
+  .campaign-header-description,
+  .world-setup-header p,
+  .settings-section-title p {
+    display: none !important;
+  }
+
+  .eyebrow {
+    margin-bottom: 2px !important;
+    font-size: .48rem !important;
+    letter-spacing: .1em;
+  }
+
+  .paper-card,
+  .metric-card,
+  .room-card,
+  .character-card,
+  .opportunity-card,
+  .active-expedition,
+  .living-panel,
+  .war-card,
+  .knowledge-spread-card,
+  .history-event-card,
+  .story-chain-card,
+  .codex-card,
+  .settings-panel-section,
+  .settings-hero-card,
+  .settings-summary-grid article,
+  .campaign-action-card,
+  .campaign-goal-compact {
+    border-radius: 6px !important;
+  }
+
+  .metric-grid,
+  .room-grid,
+  .side-stack,
+  .character-grid,
+  .archive-summary,
+  .archive-card-grid,
+  .living-grid,
+  .campaign-goal-grid,
+  .campaign-pacing-grid,
+  .influence-grid,
+  .position-grid,
+  .academy-grid,
+  .legacy-grid,
+  .settings-grid,
+  .settings-summary-grid,
+  .debrief-summary-grid {
+    gap: 4px !important;
+  }
+
+  .metric-card {
+    min-height: 48px !important;
+    gap: 5px !important;
+    padding: 6px !important;
+  }
+
+  .metric-card svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .metric-card span {
+    font-size: .48rem !important;
+  }
+
+  .metric-card strong {
+    margin: 1px 0 !important;
+    font-size: .92rem !important;
+  }
+
+  .metric-card small {
+    display: none !important;
+  }
+
+  .rooms-panel,
+  .finance-panel,
+  .stores-panel,
+  .knowledge-panel,
+  .living-panel,
+  .war-card,
+  .knowledge-spread-card,
+  .history-event-card,
+  .opportunity-card,
+  .active-expedition,
+  .discovery-record,
+  .site-record,
+  .remembered-person,
+  .compact-world-panel,
+  .compact-codex-card,
+  .compact-story-card,
+  .campaign-action-card,
+  .campaign-goal-compact {
+    padding: 7px !important;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .text-button,
+  .icon-button,
+  .compact-list-toggle,
+  .segmented-control button,
+  .archive-tabs button,
+  .codex-tabs button {
+    min-height: 28px !important;
+    padding: 5px 7px !important;
+    border-radius: 5px !important;
+    font-size: .6rem !important;
+  }
+
+  .icon-button {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .section-title,
+  .compact-panel-heading {
+    min-height: 22px !important;
+    gap: 5px !important;
+    margin-bottom: 5px !important;
+  }
+
+  .section-title svg,
+  .compact-panel-heading svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .toolbar,
+  .compact-toolbar,
+  .codex-toolbar {
+    min-height: 34px !important;
+    gap: 4px !important;
+    margin-bottom: 5px !important;
+    padding: 4px 5px !important;
+  }
+
+  .search-box,
+  .toolbar select,
+  .planner-settings select,
+  .mobile-tab-select,
+  .mobile-tab-select select {
+    min-height: 29px !important;
+    height: 29px !important;
+    padding: 3px 6px !important;
+    font-size: .6rem !important;
+  }
+
+  .character-card {
+    min-height: 68px;
+    gap: 7px !important;
+    padding: 6px !important;
+  }
+
+  .character-card .portrait {
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 62px !important;
+  }
+
+  .character-name h3 {
+    font-size: .72rem !important;
+  }
+
+  .character-body p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-bottom: 2px !important;
+    font-size: .55rem !important;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+
+  .mini-stats {
+    gap: 6px !important;
+    margin-top: 4px !important;
+    font-size: .52rem !important;
+  }
+
+  .tag-list {
+    gap: 3px !important;
+  }
+
+  .tag-list span,
+  .codex-tags span {
+    padding: 2px 4px !important;
+    font-size: .48rem !important;
+  }
+
+  .opportunity-card h3,
+  .active-expedition h3 {
+    margin: 5px 0 2px !important;
+    font-size: .78rem !important;
+  }
+
+  .opportunity-card > p,
+  .active-expedition p,
+  .room-card p,
+  .codex-primary-line {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 3px 0 !important;
+    font-size: .56rem !important;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+
+  .opportunity-stats,
+  .expedition-stat-row {
+    gap: 7px !important;
+    margin: 5px 0 !important;
+    font-size: .52rem !important;
+  }
+
+  .mobile-bottom-nav {
+    min-height: var(--mobile-nav-height) !important;
+    height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+    gap: 0 !important;
+    padding: 3px 4px calc(3px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .mobile-bottom-nav button {
+    min-height: 42px !important;
+    gap: 1px !important;
+    padding: 3px 1px !important;
+    border: 0 !important;
+    border-radius: 5px !important;
+    background: transparent !important;
+  }
+
+  .mobile-bottom-nav button.active {
+    color: #efd39a !important;
+    background: rgba(185,145,85,.1) !important;
+  }
+
+  .mobile-bottom-nav svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .mobile-bottom-nav small {
+    font-size: .48rem !important;
+  }
+
+  /* One flat secondary menu. Primary bottom-navigation pages are not repeated here. */
+  .sidebar {
+    width: 100dvw !important;
+    min-width: 100dvw !important;
+    max-width: 100dvw !important;
+    left: -100dvw !important;
+    box-shadow: none !important;
+  }
+
+  .sidebar.open {
+    left: 0 !important;
+  }
+
+  .brand {
+    min-height: 48px !important;
+    padding: 6px 9px !important;
+  }
+
+  .brand-logo {
+    width: 142px !important;
+  }
+
+  .brand-subtitle {
+    display: none !important;
+  }
+
+  .mobile-close {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+
+  .mobile-menu-content {
+    display: block !important;
+    overflow-y: auto;
+    padding: 6px 8px calc(10px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .mobile-menu-title {
+    min-height: 28px;
+    padding: 2px 2px 5px !important;
+  }
+
+  .mobile-menu-title strong {
+    font-size: .82rem !important;
+  }
+
+  .mobile-menu-group {
+    margin-bottom: 8px;
+  }
+
+  .mobile-menu-group > p {
+    margin: 0 2px 4px;
+    color: var(--text-dim);
+    font-size: .5rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  .mobile-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 4px;
+  }
+
+  .mobile-menu-grid button {
+    position: relative;
+    min-width: 0;
+    min-height: 58px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 4px;
+    padding: 5px 2px;
+    color: var(--text-soft);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: rgba(255,255,255,.018);
+  }
+
+  .mobile-menu-grid button.active {
+    color: #efd39a;
+    border-color: rgba(185,145,85,.38);
+    background: rgba(185,145,85,.08);
+  }
+
+  .mobile-menu-grid button > svg,
+  .mobile-menu-grid-icon > svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .mobile-menu-grid button > strong {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: .55rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-menu-grid-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  .mobile-menu-grid-icon b {
+    position: absolute;
+    top: -8px;
+    right: -10px;
+    min-width: 15px;
+    height: 15px;
+    display: grid;
+    place-items: center;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: var(--danger);
+    color: #fff;
+    font-size: .45rem;
+  }
+
+  .mobile-system-group {
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+
+  .campaign-compact-view {
+    gap: 6px !important;
+  }
+
+  .campaign-compact-header > div > span,
+  .campaign-stage-hint {
+    font-size: .54rem !important;
+  }
+
+  .campaign-compact-header > b {
+    font-size: .72rem;
+  }
+
+  .campaign-stage-line {
+    height: 3px;
+  }
+
+  .campaign-stage-hint {
+    margin: -3px 1px 0;
+  }
+
+  .campaign-action-card,
+  .campaign-goal-compact {
+    padding: 7px !important;
+  }
+
+  .campaign-action-title,
+  .campaign-section-head {
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+
+  .campaign-action-title h2,
+  .campaign-section-head h2 {
+    font-size: .74rem !important;
+  }
+
+  .campaign-action-title svg,
+  .campaign-section-head svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .campaign-task-list,
+  .campaign-goal-options {
+    gap: 3px;
+  }
+
+  .campaign-task-list button,
+  .campaign-goal-option {
+    min-height: 38px;
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: 5px;
+  }
+
+  .campaign-task-list strong,
+  .campaign-goal-option strong {
+    font-size: .62rem;
+  }
+
+  .campaign-task-list small,
+  .campaign-goal-option small {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: .51rem;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+
+  .campaign-goal-compact > p {
+    margin: 5px 0;
+    font-size: .56rem;
+  }
+
+  .campaign-goal-actions {
+    gap: 5px;
+    margin-top: 6px;
+  }
+
+  .campaign-goal-actions details {
+    min-width: 72px;
+  }
+
+  .campaign-goal-actions summary {
+    min-height: 28px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    font-size: .57rem;
+  }
+
+  .campaign-compact-footer {
+    gap: 4px;
+  }
+
+  .campaign-compact-footer > button,
+  .campaign-compact-footer > span {
+    min-height: 28px;
+    padding: 4px 6px;
+    font-size: .55rem;
+  }
+
+  .settings-category-nav button {
+    min-height: 40px !important;
+    padding: 5px 7px !important;
+  }
+
+  .settings-category-nav strong {
+    font-size: .65rem !important;
+  }
+
+  .settings-modal-header {
+    min-height: 42px;
+    padding: 6px 8px !important;
+  }
+
+  .settings-content {
+    padding: 6px !important;
+  }
+
+  .settings-panel-section {
+    padding: 7px !important;
+  }
+
+  .settings-toggle {
+    min-height: 38px !important;
+    padding: 5px 0 !important;
+  }
+
+  .settings-toggle strong {
+    font-size: .62rem;
+  }
+
+  .settings-toggle small {
+    display: none !important;
+  }
+
+  .settings-toggle input {
+    width: 34px !important;
+    height: 18px !important;
+  }
+
+  .tutorial-panel {
+    display: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .mobile-menu-grid {
+    grid-template-columns: repeat(3, minmax(0,1fr));
+  }
+
+  .metric-grid,
+  .archive-summary {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  }
+}
