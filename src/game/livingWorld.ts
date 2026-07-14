@@ -14,6 +14,8 @@ import type {
 } from '../types/game'
 import { coordinateNoise, RNG } from './rng'
 import { loadPreferences, type AppPreferences } from './preferences'
+import { ecosystemMonthTick } from './ecosystem'
+import { societyYearTick } from './society'
 
 const STAGES: KnowledgeSpreadStage[] = ['found', 'verified', 'published', 'contested', 'spreading', 'used']
 const GOODS = ['зерно', 'соль', 'железо', 'древесина', 'лекарства', 'ткань', 'книги', 'магические реагенты']
@@ -385,6 +387,8 @@ export function livingWorldDayTick(state: GameState): GameState {
   const preferences = loadPreferences()
   let next = ensureKnowledgeSpreads(state)
   if (next.day % 30 === 0) {
+    next = ecosystemMonthTick(next)
+    next = societyYearTick(next)
     const rng = new RNG(`${next.seed}:living-world:${next.year}:${next.day}`)
     next = tickEconomy(next, rng, preferences)
     next = tickKnowledge(next, rng)

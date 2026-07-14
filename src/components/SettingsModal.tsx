@@ -155,7 +155,7 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
 
             {activeTab === 'general' && <>
               <section className="settings-hero-card">
-                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.7</strong><small>Очистка ядра и планировщика</small></span></div>
+                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.5</strong><small>Народы, культуры и поселения</small></span></div>
                 <span className="version-chip">save v10</span>
               </section>
 
@@ -234,7 +234,7 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
                   <div><b>{state.storyChains.filter((chain) => chain.status === 'active').length}</b><small>цепочек</small></div>
                 </div>
                 <div className="audit-controls">
-                  <label><span>Аудит</span><select value={auditYears} onChange={(event) => setAuditYears(Number(event.target.value))}><option value={1}>1 год</option><option value={10}>10 лет</option><option value={50}>50 лет</option><option value={100}>100 лет</option></select></label>
+                  <label><span>Аудит</span><select value={auditYears} onChange={(event) => setAuditYears(Number(event.target.value))}><option value={1}>1 год</option><option value={10}>10 лет</option><option value={50}>50 лет</option><option value={100}>100 лет</option><option value={300}>300 лет</option></select></label>
                   <button className="secondary-button" disabled={auditing} onClick={runAudit}><Activity size={15} />{auditing ? 'Считаю…' : 'Запустить'}</button>
                   <button className="secondary-button" onClick={() => downloadDebugLog(state, audit)}><Download size={15} />Журнал</button>
                 </div>
@@ -244,6 +244,9 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
                   <div><b>{audit.ruinedSettlements}</b><small>руины</small></div>
                   <div><b>{audit.activeWars}</b><small>войны</small></div>
                   <div><b>{audit.abandonedRoutes}</b><small>пути</small></div>
+                  <div><b>{audit.faunaChange > 0 ? '+' : ''}{audit.faunaChange}%</b><small>фауна</small></div>
+                  <div><b>{audit.ecosystemHealth}</b><small>экосистема</small></div>
+                  <div><b>{audit.peoples}/{audit.cultures}</b><small>народы/культуры</small></div>
                   <ul>{audit.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
                 </div>}
               </div>}

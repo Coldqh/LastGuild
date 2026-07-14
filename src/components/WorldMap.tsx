@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Castle, ChevronDown, ChevronUp, Compass, Flag, MapPin, Minus, Plus, Route, Skull, Sparkles, TentTree, Waves, X } from 'lucide-react'
+import { Castle, ChevronDown, ChevronUp, Compass, Droplets, Flag, MapPin, Minus, Plus, Route, Skull, Sparkles, Sprout, TentTree, Waves, X } from 'lucide-react'
 import { BIOME_COLORS, BIOME_LABELS } from '../data/content'
 import type { GameState, WorldTile } from '../types/game'
 
@@ -9,6 +9,12 @@ const HEX_W = 28
 const HEX_H = 24
 const X_STEP = 21
 const Y_STEP = 24
+
+function colorFromId(id: string): string {
+  let hash = 0
+  for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) >>> 0
+  return `hsl(${hash % 360} 42% 38%)`
+}
 
 function center(hex: WorldTile): [number, number] {
   return [20 + hex.x * X_STEP, 22 + hex.y * Y_STEP + (hex.x % 2 ? 12 : 0)]
@@ -24,7 +30,7 @@ function isMobileViewport(): boolean {
 
 export default function WorldMap({ state }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [layer, setLayer] = useState<'geography' | 'politics' | 'danger' | 'knowledge' | 'history'>('geography')
+  const [layer, setLayer] = useState<'geography' | 'ecosystem' | 'population' | 'culture' | 'politics' | 'danger' | 'knowledge' | 'history'>('geography')
   const [zoom, setZoom] = useState(() => isMobileViewport() ? 1.65 : 1)
   const [detailExpanded, setDetailExpanded] = useState(() => !isMobileViewport())
   const mapScrollRef = useRef<HTMLDivElement>(null)
@@ -36,10 +42,13 @@ export default function WorldMap({ state }: Props) {
   const tile = state.world.tiles.find((candidate) => candidate.id === selectedId)
   const tileMap = useMemo(() => new Map(state.world.tiles.map((entry) => [entry.id, entry])), [state.world.tiles])
   const realmMap = useMemo(() => new Map(state.world.realms.map((realm) => [realm.id, realm])), [state.world.realms])
+  const peopleMap = useMemo(() => new Map(state.world.peoples.map((people) => [people.id, people])), [state.world.peoples])
+  const cultureMap = useMemo(() => new Map(state.world.cultures.map((culture) => [culture.id, culture])), [state.world.cultures])
   const settlementMap = useMemo(() => new Map(state.world.settlements.map((settlement) => [settlement.id, settlement])), [state.world.settlements])
   const siteMap = useMemo(() => new Map(state.world.sites.map((site) => [site.id, site])), [state.world.sites])
   const populationMap = useMemo(() => new Map(state.world.monsterPopulations.map((population) => [population.id, population])), [state.world.monsterPopulations])
   const speciesMap = useMemo(() => new Map(state.world.monsterSpecies.map((species) => [species.id, species])), [state.world.monsterSpecies])
+  const depositsByTile = useMemo(() => state.world.resourceDeposits.reduce((map, deposit) => { const list = map.get(deposit.tileId) ?? []; list.push(deposit); map.set(deposit.tileId, list); return map }, new Map<string, GameState['world']['resourceDeposits']>()), [state.world.resourceDeposits])
   const initialFocusTile = useMemo(() => state.world.tiles.find((entry) => entry.settlementId && entry.knowledge > 0) ?? state.world.tiles.find((entry) => entry.knowledge > 0), [state.world.tiles])
 
   useEffect(() => {
@@ -110,6 +119,13 @@ export default function WorldMap({ state }: Props) {
 
   const fillFor = (hex: WorldTile): string => {
     if (hex.knowledge === 0) return '#100f0c'
+    if (layer === 'ecosystem') return `hsl(${Math.round(18 + hex.ecosystemHealth * 1.05)} 42% ${Math.round(18 + hex.ecosystemHealth * 0.28)}%)`
+    if (layer === 'population') {
+      const density = Math.max(0, hex.populationDensity ?? 0)
+      const light = Math.max(18, Math.min(62, 18 + Math.log10(density + 1) * 15))
+      return `hsl(34 68% ${light}%)`
+    }
+    if (layer === 'culture') return hex.dominantCultureId ? colorFromId(hex.dominantCultureId) : '#242521'
     if (layer === 'politics') return realmMap.get(hex.stateId ?? '')?.color ?? '#2c2922'
     if (layer === 'danger') return `hsl(${Math.max(0, 115 - hex.danger * 13)} 42% ${Math.max(17, 52 - hex.danger * 3.2)}%)`
     if (layer === 'knowledge') return ['#100f0c', '#292820', '#46493a', '#687050', '#8d945e', '#b6ad75'][hex.knowledge]
@@ -136,7 +152,10 @@ export default function WorldMap({ state }: Props) {
   const selectedPopulation = tile?.monsterPopulationId ? populationMap.get(tile.monsterPopulationId) : undefined
   const selectedSpecies = selectedPopulation ? speciesMap.get(selectedPopulation.speciesId) : undefined
   const selectedRealm = tile?.stateId ? realmMap.get(tile.stateId) : undefined
+  const selectedPeople = tile?.dominantPeopleId ? peopleMap.get(tile.dominantPeopleId) : undefined
+  const selectedCulture = tile?.dominantCultureId ? cultureMap.get(tile.dominantCultureId) : undefined
   const localRoutes = tile ? state.world.routes.filter((route) => route.tileIds.includes(tile.id)) : []
+  const localDeposits = tile ? depositsByTile.get(tile.id) ?? [] : []
   const selectedTitle = tile?.knowledge === 0 ? 'Неизвестная земля' : selectedSettlement?.name ?? selectedSite?.name ?? (tile ? BIOME_LABELS[tile.biome] : '')
 
   const selectTile = (id: string) => {
@@ -160,6 +179,9 @@ export default function WorldMap({ state }: Props) {
         <div className="map-toolbar">
           <div className="segmented-control map-layers">
             <button className={layer === 'geography' ? 'active' : ''} onClick={() => setLayer('geography')}>Рельеф</button>
+            <button className={layer === 'ecosystem' ? 'active' : ''} onClick={() => setLayer('ecosystem')}>Экология</button>
+            <button className={layer === 'population' ? 'active' : ''} onClick={() => setLayer('population')}>Население</button>
+            <button className={layer === 'culture' ? 'active' : ''} onClick={() => setLayer('culture')}>Культуры</button>
             <button className={layer === 'politics' ? 'active' : ''} onClick={() => setLayer('politics')}>Границы</button>
             <button className={layer === 'danger' ? 'active' : ''} onClick={() => setLayer('danger')}>Опасность</button>
             <button className={layer === 'knowledge' ? 'active' : ''} onClick={() => setLayer('knowledge')}>Знания</button>
@@ -256,11 +278,15 @@ export default function WorldMap({ state }: Props) {
                       <div className="detail-row"><Compass size={15} /><span>{BIOME_LABELS[tile.biome]}, проходимость {tile.travelCost.toFixed(1)}</span></div>
                       <div className="detail-row"><Skull size={15} /><span>Опасность {tile.danger.toFixed(1)}/10</span></div>
                       <div className="detail-row"><Sparkles size={15} /><span>Магический фон {Math.round(tile.magic * 100)}%</span></div>
+                      <div className="detail-row"><Sprout size={15} /><span>Экосистема {Math.round(tile.ecosystemHealth)} · растительность {Math.round(tile.vegetation)}</span></div>
+                      <div className="detail-row"><Droplets size={15} /><span>Вода {Math.round(tile.waterAvailability)} · почва {Math.round(tile.soilFertility)}</span></div>
                       <div className="detail-row"><MapPin size={15} /><span>Изученность {tile.knowledge}/5</span></div>
                     </div>
                     {tile.hasRiver && <div className="detail-row"><Waves size={15} /><span>Через район проходит река</span></div>}
+                    {tile.knowledge >= 3 && localDeposits.length > 0 && <div className="detail-row"><Sprout size={15} /><span>Ресурсы: {localDeposits.slice(0, 4).map((entry) => `${entry.kind} ${Math.round(entry.abundance)}`).join(' · ')}</span></div>}
                     {localRoutes.filter((entry) => entry.type !== 'river').map((entry) => <div className="detail-row" key={entry.id}><Route size={15} /><span>{entry.name} · {entry.status === 'active' ? `${entry.income} дохода` : entry.status === 'disrupted' ? 'движение нарушено' : 'заброшен'}</span></div>)}
                     {selectedRealm && <div className="detail-block realm-detail" style={{ borderColor: selectedRealm.color }}><h3><Castle size={16} /> {selectedRealm.name}</h3><p>{selectedRealm.government}; правитель — {selectedRealm.ruler}.</p><p>Культура: {selectedRealm.culture}. Вера: {selectedRealm.dominantFaith}.</p><p className="danger-text">{selectedRealm.currentIssue}</p></div>}
+                    {(selectedPeople || selectedCulture) && <div className="detail-block"><h3><Flag size={16} /> Население</h3><p>{selectedPeople?.name ?? 'Смешанное население'} · {selectedPeople?.ancestry ?? 'разные народы'}.</p>{selectedCulture && <p>{selectedCulture.name}: {selectedCulture.subsistence}. {selectedCulture.architecture}.</p>}{tile.populationDensity !== undefined && <p>Плотность {Math.round(tile.populationDensity)} · миграционное давление {Math.round(tile.migrationPressure ?? 0)}.</p>}</div>}
                     {selectedSettlement && <div className="detail-block"><h3><Flag size={16} /> {selectedSettlement.name}</h3><p>Благополучие {Math.round(selectedSettlement.prosperity)}/100 · безопасность {Math.round(selectedSettlement.safety)}/100</p><p>Рост {selectedSettlement.growth.toFixed(1)} · волнения {Math.round(selectedSettlement.unrest)} · продовольствие {Math.round(selectedSettlement.foodSecurity)}</p><p>Производит: {selectedSettlement.production.join(', ')}. Нуждается: {selectedSettlement.demand.join(', ')}.</p></div>}
                     {selectedSite && tile.knowledge >= 2 && <div className="detail-block danger-block"><h3>{selectedSite.type}</h3><p>{selectedSite.origin}. Возраст около {selectedSite.age} лет.</p><p>Глубина {selectedSite.depth}, опасность {selectedSite.danger}/10.</p><div className="zone-mini-list">{selectedSite.zones.slice(0, 5).map((zone) => <span key={zone.id}>{zone.explored ? '✓' : '○'} {zone.name}</span>)}</div></div>}
                     {selectedPopulation && selectedSpecies && tile.knowledge >= 2 && <div className="detail-block monster-block"><h3>{selectedSpecies.name}</h3><p>{selectedSpecies.behavior}. Численность около {selectedPopulation.size}.</p>{selectedPopulation.legendary && <p className="legendary-warning">★ {selectedPopulation.legendaryName}: {selectedPopulation.history}</p>}<p>Слабость: {selectedSpecies.weakness}.</p></div>}

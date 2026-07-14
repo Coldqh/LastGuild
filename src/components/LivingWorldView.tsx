@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { BookOpenCheck, Castle, Coins, Landmark, Network, Route, ScrollText, ShieldAlert, Swords, TrendingDown, TrendingUp } from 'lucide-react'
+import { BookOpenCheck, Castle, Coins, Droplets, Home, Landmark, Mountain, Network, PawPrint, Route, ScrollText, ShieldAlert, Sprout, Swords, TrendingDown, TrendingUp, Users } from 'lucide-react'
 import type { GameState, HistoricalMapSnapshot, WorldTile } from '../types/game'
 
 interface Props { state: GameState }
-type Tab = 'economy' | 'wars' | 'knowledge' | 'history' | 'map'
+type Tab = 'ecosystem' | 'society' | 'economy' | 'wars' | 'knowledge' | 'history' | 'map'
 
 const HEX_W = 20
 const HEX_H = 18
@@ -17,6 +17,8 @@ const stageLabels = {
 }
 
 const tabs: Array<{ id: Tab; label: string; icon: typeof Coins }> = [
+  { id: 'ecosystem', label: 'Экосистема', icon: Sprout },
+  { id: 'society', label: 'Народы', icon: Users },
   { id: 'economy', label: 'Экономика', icon: Coins },
   { id: 'wars', label: 'Войны', icon: Swords },
   { id: 'knowledge', label: 'Знания', icon: Network },
@@ -51,7 +53,7 @@ function MiniHistoryMap({ state, snapshot }: { state: GameState; snapshot: Histo
 }
 
 export default function LivingWorldView({ state }: Props) {
-  const [tab, setTab] = useState<Tab>('economy')
+  const [tab, setTab] = useState<Tab>('ecosystem')
   const [snapshotId, setSnapshotId] = useState(state.historySnapshots.at(-1)?.id ?? '')
   const [showAllRoutes, setShowAllRoutes] = useState(false)
   const [showAllHistory, setShowAllHistory] = useState(false)
@@ -64,12 +66,39 @@ export default function LivingWorldView({ state }: Props) {
   const routes = [...state.world.routes].filter((route) => route.type !== 'river').sort((a, b) => b.income - a.income)
   const history = [...state.world.history].sort((a, b) => b.year - a.year).slice(0, showAllHistory ? 80 : 16)
   const visibleRoutes = routes.slice(0, showAllRoutes ? 30 : 8)
+  const ecologySpeciesMap = new Map(state.world.ecologySpecies.map((entry) => [entry.id, entry]))
+  const speciesTotals = [...state.world.ecologyPopulations.reduce((map, population) => {
+    map.set(population.speciesId, (map.get(population.speciesId) ?? 0) + population.amount)
+    return map
+  }, new Map<string, number>()).entries()]
+    .map(([speciesId, amount]) => ({ species: ecologySpeciesMap.get(speciesId), amount }))
+    .filter((entry) => entry.species)
+    .sort((a, b) => b.amount - a.amount)
+  const landTiles = state.world.tiles.filter((tile) => tile.biome !== 'ocean')
+  const averageEcosystemHealth = landTiles.length ? landTiles.reduce((sum, tile) => sum + tile.ecosystemHealth, 0) / landTiles.length : 0
+  const averageWater = landTiles.length ? landTiles.reduce((sum, tile) => sum + tile.waterAvailability, 0) / landTiles.length : 0
+  const averageVegetation = landTiles.length ? landTiles.reduce((sum, tile) => sum + tile.vegetation, 0) / landTiles.length : 0
+  const ecosystemEvents = [...state.world.ecosystem.recentEvents].sort((a, b) => b.year - a.year || b.day - a.day).slice(0, 12)
+  const peopleTotals = [...state.world.peoples].sort((a, b) => b.population - a.population)
+  const activeSettlements = state.world.settlements.filter((entry) => entry.status !== 'ruined')
+  const societyEvents = [...state.world.society.recentEvents].sort((a, b) => b.year - a.year).slice(0, 12)
+  const migrationHotspots = [...activeSettlements].sort((a, b) => b.migrationPressure - a.migrationPressure).slice(0, 8)
+  const cultureMap = new Map(state.world.cultures.map((entry) => [entry.id, entry]))
+  const biomeHealth = [...landTiles.reduce((map, tile) => {
+    const current = map.get(tile.biome) ?? { total: 0, count: 0 }
+    current.total += tile.ecosystemHealth
+    current.count += 1
+    map.set(tile.biome, current)
+    return map
+  }, new Map<string, { total: number; count: number }>()).entries()]
+    .map(([biome, value]) => ({ biome, health: value.total / value.count }))
+    .sort((a, b) => b.health - a.health)
 
   return (
     <section className="view living-world-view compact-living-world">
       <header className="view-heading compact-page-heading">
         <div><p className="eyebrow">Регион</p><h1>Живой мир</h1></div>
-        <span className="world-status-line">{activeWars.length} войн · {activeRoutes.length} путей · {state.knowledgeSpreads.filter((entry) => entry.stage !== 'used').length} открытий</span>
+        <span className="world-status-line">здоровье {Math.round(averageEcosystemHealth)} · {Math.round(state.world.ecosystem.totalFauna).toLocaleString('ru-RU')} фауны · {activeWars.length} войн</span>
       </header>
 
       <label className="mobile-tab-select">
@@ -82,6 +111,73 @@ export default function LivingWorldView({ state }: Props) {
       <div className="segmented-control living-tabs desktop-living-tabs">
         {tabs.map((entry) => { const Icon = entry.icon; return <button key={entry.id} className={tab === entry.id ? 'active' : ''} onClick={() => setTab(entry.id)}><Icon size={15} />{entry.label}</button> })}
       </div>
+
+      {tab === 'ecosystem' && <div className="ecosystem-view">
+        <div className="ecosystem-metrics">
+          <article><Sprout size={16} /><b>{Math.round(averageEcosystemHealth)}</b><span>здоровье</span></article>
+          <article><PawPrint size={16} /><b>{Math.round(state.world.ecosystem.totalFauna).toLocaleString('ru-RU')}</b><span>фауна</span></article>
+          <article><Droplets size={16} /><b>{Math.round(averageWater)}</b><span>вода</span></article>
+          <article><Mountain size={16} /><b>{state.world.resourceDeposits.length}</b><span>ресурсы</span></article>
+        </div>
+
+        <div className="living-grid compact-living-grid ecosystem-grid">
+          <article className="paper-card living-panel compact-world-panel">
+            <div className="compact-panel-heading"><PawPrint size={18} /><h2>Популяции</h2><span>{speciesTotals.length}</span></div>
+            <div className="ecosystem-species-list">
+              {speciesTotals.slice(0, 12).map(({ species, amount }) => <div key={species!.id}>
+                <span><strong>{species!.name}</strong><small>{species!.kind === 'herbivore' ? 'травоядные' : species!.kind === 'predator' ? 'хищники' : species!.kind === 'scavenger' ? 'падальщики' : 'монстры'}</small></span>
+                <b>{Math.round(amount).toLocaleString('ru-RU')}</b>
+              </div>)}
+            </div>
+          </article>
+
+          <article className="paper-card living-panel compact-world-panel">
+            <div className="compact-panel-heading"><Sprout size={18} /><h2>Среда</h2></div>
+            <div className="ecosystem-biome-list">
+              {biomeHealth.slice(0, 8).map((entry) => <div key={entry.biome}><span>{entry.biome}</span><b>{Math.round(entry.health)}</b></div>)}
+            </div>
+            <p className="ecosystem-line">Растительность {Math.round(averageVegetation)} · миграций {state.world.ecosystem.migrations} · спадов {state.world.ecosystem.collapses}</p>
+          </article>
+
+          <article className="paper-card living-panel wide-panel compact-world-panel">
+            <div className="compact-panel-heading"><ScrollText size={18} /><h2>Изменения природы</h2></div>
+            <div className="ecosystem-event-list">
+              {ecosystemEvents.length === 0 && <p className="muted">Крупных изменений пока не зафиксировано.</p>}
+              {ecosystemEvents.map((event) => <div key={event.id}><b>{event.year}</b><span><strong>{event.title}</strong><small>{event.description}</small></span><em>{Math.round(event.magnitude)}</em></div>)}
+            </div>
+          </article>
+        </div>
+      </div>}
+
+      {tab === 'society' && <div className="society-view">
+        <div className="ecosystem-metrics society-metrics">
+          <article><Users size={16} /><b>{Math.round(state.world.society.totalPopulation).toLocaleString('ru-RU')}</b><span>жителей</span></article>
+          <article><Home size={16} /><b>{activeSettlements.length}</b><span>поселений</span></article>
+          <article><Landmark size={16} /><b>{state.world.peoples.length}</b><span>народов</span></article>
+          <article><ScrollText size={16} /><b>{state.world.cultures.length}</b><span>культур</span></article>
+        </div>
+        <div className="living-grid compact-living-grid society-grid">
+          <article className="paper-card living-panel compact-world-panel">
+            <div className="compact-panel-heading"><Users size={18} /><h2>Народы</h2><span>{peopleTotals.length}</span></div>
+            <div className="society-people-list">
+              {peopleTotals.slice(0, 10).map((people) => { const culture = cultureMap.get(people.cultureId); return <div key={people.id}><span><strong>{people.name}</strong><small>{people.ancestry} · {culture?.name ?? 'культура неизвестна'}</small></span><b>{Math.round(people.population).toLocaleString('ru-RU')}</b><em>{people.status === 'stable' ? 'устойчив' : people.status === 'migrating' ? 'мигрирует' : people.status === 'declining' ? 'сокращается' : 'рассеян'}</em></div> })}
+            </div>
+          </article>
+          <article className="paper-card living-panel compact-world-panel">
+            <div className="compact-panel-heading"><Home size={18} /><h2>Давление миграции</h2></div>
+            <div className="society-settlement-list">
+              {migrationHotspots.map((settlement) => <div key={settlement.id}><span><strong>{settlement.name}</strong><small>{settlement.specialization} · {settlement.population.toLocaleString('ru-RU')}</small></span><b>{Math.round(settlement.migrationPressure)}</b></div>)}
+            </div>
+          </article>
+          <article className="paper-card living-panel wide-panel compact-world-panel">
+            <div className="compact-panel-heading"><ScrollText size={18} /><h2>Изменения общества</h2></div>
+            <div className="society-event-list">
+              {societyEvents.length === 0 && <p className="muted">Крупных переселений и оснований пока нет.</p>}
+              {societyEvents.map((event) => <div key={event.id}><b>{event.year}</b><span><strong>{event.title}</strong><small>{event.description}</small></span><em>{Math.round(event.magnitude)}</em></div>)}
+            </div>
+          </article>
+        </div>
+      </div>}
 
       {tab === 'economy' && <div className="living-grid compact-living-grid">
         <article className="paper-card living-panel wide-panel compact-world-panel">

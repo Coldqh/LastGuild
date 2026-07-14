@@ -6,11 +6,13 @@ import { loadPreferences } from './preferences'
 import { createGuildLegacy } from './guildPolitics'
 import { ensureStoryOpportunities, initializeContentEngine, validateContent } from './contentEngine'
 import { createCampaignProgress, refreshCampaignProgress } from './campaign'
+import { ensureEcosystem } from './ecosystem'
+import { ensureSociety } from './society'
 
-const SAVE_KEY = 'last-guild-save-v10'
-const LEGACY_KEYS = ['last-guild-save-v9', 'last-guild-save-v8', 'last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v12'
+const LEGACY_KEYS = ['last-guild-save-v11', 'last-guild-save-v10', 'last-guild-save-v9', 'last-guild-save-v8', 'last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 const SLOT_PREFIX = 'last-guild-slot-v1-'
-const BACKUP_KEY = 'last-guild-backup-v10'
+const BACKUP_KEY = 'last-guild-backup-v12'
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -75,12 +77,12 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4, 5, 6, 7, 8, 9, 10].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
   const hadCampaign = Boolean(parsed.campaign)
   const normalized: GameState = {
     ...parsed,
-    version: 10,
+    version: 12,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
@@ -98,7 +100,7 @@ function normalizeState(parsed: any): GameState | null {
     world: {
       ...parsed.world,
       routes: (parsed.world?.routes ?? []).map((route: any) => ({ ...route, goods: route.goods ?? [], income: route.income ?? (route.importance ?? 1) * 18, safety: route.safety ?? 65, seasonality: route.seasonality ?? 20, status: route.status ?? 'active', establishedYear: route.establishedYear ?? 780 })),
-      tiles: (parsed.world?.tiles ?? []).map((tile: any) => ({ ...tile, magic: tile.magic ?? 0.35, hasRoad: tile.hasRoad ?? false, hasRiver: tile.hasRiver ?? false })),
+      tiles: (parsed.world?.tiles ?? []).map((tile: any) => ({ ...tile, magic: tile.magic ?? 0.35, slope: tile.slope ?? 0, soilFertility: tile.soilFertility ?? 0, waterAvailability: tile.waterAvailability ?? 0, vegetation: tile.vegetation ?? 0, resourceRichness: tile.resourceRichness ?? 0, ecosystemHealth: tile.ecosystemHealth ?? 0, hasRoad: tile.hasRoad ?? false, hasRiver: tile.hasRiver ?? false, dominantPeopleId: tile.dominantPeopleId, dominantCultureId: tile.dominantCultureId, populationDensity: tile.populationDensity ?? 0, migrationPressure: tile.migrationPressure ?? 0 })),
       realms: (parsed.world?.realms ?? []).map((realm: any) => ({ ...realm, dominantFaith: realm.dominantFaith ?? 'местные культы', currentIssue: realm.currentIssue ?? 'пограничные споры', relations: realm.relations ?? {} })),
       settlements: (parsed.world?.settlements ?? []).map((settlement: any) => ({ ...settlement, foundedYear: settlement.foundedYear ?? 700, status: settlement.status ?? 'active', production: settlement.production ?? ['зерно'], demand: settlement.demand ?? ['железо', 'соль'], tradeBalance: settlement.tradeBalance ?? 0, growth: settlement.growth ?? 0, foodSecurity: settlement.foodSecurity ?? 55, unrest: settlement.unrest ?? 20 })),
       sites: (parsed.world?.sites ?? []).map((site: any) => {
@@ -110,6 +112,14 @@ function normalizeState(parsed: any): GameState | null {
       }),
       monsterSpecies: (parsed.world?.monsterSpecies ?? []).map((species: any) => ({ ...species, abilities: species.abilities ?? ['особая атака'], trophy: species.trophy ?? 'неизвестный трофей', armor: species.armor ?? Math.max(0, Math.floor((species.threat ?? 2) / 2)), movement: species.movement ?? 2 })),
       monsterPopulations: (parsed.world?.monsterPopulations ?? []).map((population: any) => ({ ...population, legendary: population.legendary ?? false, scars: population.scars ?? [] })),
+      resourceDeposits: parsed.world?.resourceDeposits ?? [],
+      ecologySpecies: parsed.world?.ecologySpecies ?? [],
+      ecologyPopulations: parsed.world?.ecologyPopulations ?? [],
+      ecosystem: parsed.world?.ecosystem ?? { initializedYear: parsed.year ?? 912, lastTickYear: parsed.year ?? 912, lastTickDay: parsed.day ?? 1, totalFauna: 0, averageHealth: 0, migrations: 0, collapses: 0, extinctions: 0, recentEvents: [] },
+      peoples: parsed.world?.peoples ?? [],
+      cultures: parsed.world?.cultures ?? [],
+      communities: parsed.world?.communities ?? [],
+      society: parsed.world?.society ?? { initializedYear: parsed.year ?? 912, lastTickYear: (parsed.year ?? 912) - 1, totalPopulation: 0, migrations: 0, foundations: 0, abandonments: 0, culturalBlends: 0, recentEvents: [] },
     },
     characters: (parsed.characters ?? []).filter((character: any) => !character.formerGuildMember).map((character: any) => normalizeCharacter(character, parsed)),
     opportunities: (parsed.opportunities ?? []).map((opportunity: any) => ({
@@ -143,6 +153,9 @@ function normalizeState(parsed: any): GameState | null {
     contentValidation: parsed.contentValidation ?? [],
     campaign: parsed.campaign ?? createCampaignProgress(parsed.seed ?? 'legacy-world', parsed.year ?? 912, parsed.day ?? 1),
   }
+
+  normalized.world = ensureEcosystem(normalized.seed, normalized.world, normalized.settings, normalized.year)
+  normalized.world = ensureSociety(normalized.seed, normalized.world, normalized.settings, normalized.year)
 
   if (normalized.civilizations.length === 0 || normalized.artifactsCatalog.length === 0 || normalized.storyChains.length === 0 || normalized.regionalIdentities.length === 0) {
     const content = initializeContentEngine(normalized.seed, normalized.world, normalized.settings)

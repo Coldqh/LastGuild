@@ -61,6 +61,155 @@ export type CampaignGoalStatus = 'offered' | 'selected' | 'completed'
 export type GuildIdentityPathId = 'scholars' | 'hunters' | 'royal' | 'independent' | 'traders' | 'wardens'
 export type ContentEventRarity = 'common' | 'regional' | 'rare' | 'legendary'
 
+export type ResourceKind = 'fresh_water' | 'fertile_soil' | 'timber' | 'game' | 'fish' | 'stone' | 'iron' | 'salt' | 'herbs' | 'crystal' | 'obsidian'
+export type EcologySpeciesKind = 'herbivore' | 'predator' | 'scavenger' | 'monster'
+export type EcosystemEventKind = 'migration' | 'population_boom' | 'population_collapse' | 'habitat_shift' | 'predator_pressure' | 'resource_change'
+export type PeopleStatus = 'stable' | 'migrating' | 'declining' | 'displaced'
+export type CommunityStatus = 'settled' | 'migrating' | 'nomadic'
+export type SettlementSpecialization = 'subsistence' | 'farming' | 'fishing' | 'mining' | 'forestry' | 'trade' | 'fortress' | 'religious' | 'arcane' | 'craft'
+export type SocietyEventKind = 'migration' | 'settlement_founded' | 'settlement_abandoned' | 'cultural_blend' | 'famine' | 'recovery' | 'population_growth'
+
+
+export interface ResourceDeposit {
+  id: string
+  tileId: string
+  kind: ResourceKind
+  abundance: number
+  accessibility: number
+  renewable: boolean
+  regeneration: number
+  discovered: boolean
+}
+
+export interface EcologySpecies {
+  id: string
+  name: string
+  kind: EcologySpeciesKind
+  habitats: BiomeId[]
+  foodSpeciesIds: string[]
+  temperatureRange: [number, number]
+  moistureRange: [number, number]
+  reproduction: number
+  migration: number
+  danger: number
+  magical: boolean
+}
+
+export interface EcologyPopulation {
+  id: string
+  speciesId: string
+  tileId: string
+  amount: number
+  carryingCapacity: number
+  health: number
+  migrationPressure: number
+  lastChange: number
+  sourceMonsterPopulationId?: string
+}
+
+export interface EcosystemEvent {
+  id: string
+  year: number
+  day: number
+  kind: EcosystemEventKind
+  title: string
+  description: string
+  tileIds: string[]
+  speciesIds: string[]
+  magnitude: number
+}
+
+export interface EcosystemState {
+  initializedYear: number
+  lastTickYear: number
+  lastTickDay: number
+  totalFauna: number
+  averageHealth: number
+  migrations: number
+  collapses: number
+  extinctions: number
+  recentEvents: EcosystemEvent[]
+}
+
+
+export interface PeopleGroup {
+  id: string
+  name: string
+  ancestry: string
+  population: number
+  homelandTileIds: string[]
+  cultureId: string
+  subsistence: string
+  climateAdaptation: string
+  magicAttitude: string
+  migrationPressure: number
+  health: number
+  relations: Record<string, number>
+  foundedYear: number
+  status: PeopleStatus
+}
+
+export interface CultureProfile {
+  id: string
+  name: string
+  peopleId: string
+  originBiome: BiomeId
+  subsistence: string
+  architecture: string
+  dress: string
+  militaryTradition: string
+  religion: string
+  magicAttitude: string
+  monsterPolicy: string
+  values: string[]
+  taboos: string[]
+  valuedResources: ResourceKind[]
+  settlementStyle: string
+  language: string
+  formedYear: number
+  parentCultureIds: string[]
+}
+
+export interface PopulationCommunity {
+  id: string
+  peopleId: string
+  cultureId: string
+  tileId: string
+  settlementId?: string
+  amount: number
+  health: number
+  foodSecurity: number
+  waterSecurity: number
+  housing: number
+  migrationPressure: number
+  status: CommunityStatus
+  lastChange: number
+}
+
+export interface SocietyEvent {
+  id: string
+  year: number
+  kind: SocietyEventKind
+  title: string
+  description: string
+  tileIds: string[]
+  settlementIds: string[]
+  peopleIds: string[]
+  cultureIds: string[]
+  magnitude: number
+}
+
+export interface SocietyState {
+  initializedYear: number
+  lastTickYear: number
+  totalPopulation: number
+  migrations: number
+  foundations: number
+  abandonments: number
+  culturalBlends: number
+  recentEvents: SocietyEvent[]
+}
+
 export interface WorldGenerationSettings {
   preset: WorldPresetId
   mapSize: MapSizeId
@@ -90,6 +239,12 @@ export interface WorldTile {
   moisture: number
   temperature: number
   magic: number
+  slope: number
+  soilFertility: number
+  waterAvailability: number
+  vegetation: number
+  resourceRichness: number
+  ecosystemHealth: number
   biome: BiomeId
   danger: number
   travelCost: number
@@ -100,6 +255,10 @@ export interface WorldTile {
   settlementId?: string
   siteId?: string
   monsterPopulationId?: string
+  dominantPeopleId?: string
+  dominantCultureId?: string
+  populationDensity?: number
+  migrationPressure?: number
 }
 
 export interface Realm {
@@ -139,6 +298,20 @@ export interface Settlement {
   growth: number
   foodSecurity: number
   unrest: number
+  peopleId: string
+  cultureId: string
+  cultureShares: Record<string, number>
+  originReason: string
+  specialization: SettlementSpecialization
+  waterSecurity: number
+  housing: number
+  materials: number
+  labor: number
+  sanitation: number
+  tradeAccess: number
+  migrationPressure: number
+  parentSettlementId?: string
+  abandonedYear?: number
   lastOwnerRealmId?: string
 }
 
@@ -233,6 +406,14 @@ export interface WorldData {
   routes: WorldRoute[]
   monsterSpecies: MonsterSpecies[]
   monsterPopulations: MonsterPopulation[]
+  resourceDeposits: ResourceDeposit[]
+  ecologySpecies: EcologySpecies[]
+  ecologyPopulations: EcologyPopulation[]
+  ecosystem: EcosystemState
+  peoples: PeopleGroup[]
+  cultures: CultureProfile[]
+  communities: PopulationCommunity[]
+  society: SocietyState
   startSettlementId: string
   history: HistoricalEvent[]
 }

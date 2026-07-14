@@ -4999,3 +4999,98 @@ html, body, #root {
   .realm-state-line span { flex: 1 1 46%; padding: 4px !important; font-size: .52rem !important; }
   .realm-state-line b { display: inline !important; margin: 0 0 0 3px !important; font-size: .58rem !important; }
 }
+
+/* v0.8.4 — geography and ecosystem foundation */
+.ecosystem-view { display: grid; gap: 10px; }
+.ecosystem-metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 7px; }
+.ecosystem-metrics article { min-width: 0; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; gap: 1px 7px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.018); }
+.ecosystem-metrics svg { grid-row: 1 / 3; color: var(--accent); }
+.ecosystem-metrics b { overflow: hidden; color: var(--text); font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
+.ecosystem-metrics span { color: var(--text-dim); font-size: .56rem; text-transform: uppercase; letter-spacing: .07em; }
+.ecosystem-grid { align-items: start; }
+.ecosystem-species-list, .ecosystem-biome-list, .ecosystem-event-list { display: grid; gap: 5px; }
+.ecosystem-species-list > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 7px 8px; border: 1px solid var(--line); background: rgba(255,255,255,.014); }
+.ecosystem-species-list span { min-width: 0; display: grid; gap: 1px; }
+.ecosystem-species-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ecosystem-species-list small { color: var(--text-dim); font-size: .58rem; }
+.ecosystem-species-list b { color: var(--accent); }
+.ecosystem-biome-list { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.ecosystem-biome-list > div { display: flex; justify-content: space-between; gap: 7px; padding: 6px 7px; border: 1px solid var(--line); color: var(--text-soft); font-size: .65rem; }
+.ecosystem-biome-list b { color: var(--success); }
+.ecosystem-line { margin: 8px 0 0; color: var(--text-dim); font-size: .62rem; }
+.ecosystem-event-list > div { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; gap: 9px; align-items: center; padding: 7px 8px; border-top: 1px solid var(--line); }
+.ecosystem-event-list > div > b { color: var(--accent); }
+.ecosystem-event-list span { min-width: 0; display: grid; gap: 1px; }
+.ecosystem-event-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ecosystem-event-list small { overflow: hidden; color: var(--text-dim); font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
+.ecosystem-event-list em { color: var(--text-dim); font-size: .58rem; font-style: normal; }
+
+@media (max-width: 980px) {
+  .ecosystem-view { gap: 5px; }
+  .ecosystem-metrics { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; }
+  .ecosystem-metrics article { padding: 6px 7px; border-radius: 5px; }
+  .ecosystem-metrics svg { width: 14px; height: 14px; }
+  .ecosystem-metrics b { font-size: .72rem; }
+  .ecosystem-metrics span { font-size: .46rem; }
+  .ecosystem-species-list, .ecosystem-biome-list, .ecosystem-event-list { gap: 3px; }
+  .ecosystem-species-list > div { padding: 5px 6px; }
+  .ecosystem-species-list strong { font-size: .61rem; }
+  .ecosystem-species-list small, .ecosystem-line { font-size: .48rem; }
+  .ecosystem-biome-list > div { padding: 4px 5px; font-size: .54rem; }
+  .ecosystem-event-list > div { grid-template-columns: 34px minmax(0,1fr) auto; gap: 5px; padding: 5px 4px; }
+  .ecosystem-event-list strong { font-size: .58rem; }
+  .ecosystem-event-list small, .ecosystem-event-list em { font-size: .46rem; }
+}
+
+/* v0.8.5 — peoples, cultures and settlements */
+.society-view { display: grid; gap: 10px; }
+.society-metrics { margin-bottom: 0; }
+.society-grid { align-items: start; }
+.society-people-list,
+.society-settlement-list,
+.society-event-list { display: grid; gap: 5px; }
+.society-people-list > div,
+.society-settlement-list > div,
+.society-event-list > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.018);
+  border-radius: 7px;
+}
+.society-settlement-list > div { grid-template-columns: minmax(0,1fr) auto; }
+.society-event-list > div { grid-template-columns: 42px minmax(0,1fr) auto; }
+.society-people-list span,
+.society-settlement-list span,
+.society-event-list span { min-width: 0; display: grid; gap: 2px; }
+.society-people-list strong,
+.society-settlement-list strong,
+.society-event-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.society-people-list small,
+.society-settlement-list small,
+.society-event-list small { color: var(--text-dim); }
+.society-people-list em { color: var(--text-dim); font-size: .58rem; font-style: normal; text-transform: uppercase; letter-spacing: .06em; }
+.society-event-list > div > b { color: var(--accent); }
+.society-event-list em { color: var(--text-dim); font-style: normal; }
+
+@media (max-width: 980px) {
+  .society-view { gap: 5px; }
+  .society-people-list,
+  .society-settlement-list,
+  .society-event-list { gap: 3px; }
+  .society-people-list > div,
+  .society-settlement-list > div,
+  .society-event-list > div { gap: 5px; padding: 5px 6px; border-radius: 5px; }
+  .society-people-list strong,
+  .society-settlement-list strong,
+  .society-event-list strong { font-size: .61rem; }
+  .society-people-list small,
+  .society-settlement-list small,
+  .society-event-list small,
+  .society-people-list em { font-size: .49rem; }
+  .society-event-list > div { grid-template-columns: 32px minmax(0,1fr) auto; }
+}

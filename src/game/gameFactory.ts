@@ -70,12 +70,14 @@ function createCharacters(seed: string, count: number, world: WorldData): Charac
     const profession = rng.pick(PROFESSIONS)
     const level = index === 0 ? 4 : rng.int(1, 4)
     const home = rng.pick(settlements)
+    const homeCulture = world.cultures.find((entry) => entry.id === (home as any).cultureId)
+    const homePeople = world.peoples.find((entry) => entry.id === (home as any).peopleId)
     const oldInjury = rng.bool(0.12) ? rng.pick(['старый перелом', 'повреждённое плечо', 'хроническая боль', 'магический ожог']) : undefined
     const traits = rng.shuffle(TRAITS).slice(0, 3)
     characters.push({
       id: `character-${index + 1}`,
       name: `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`,
-      portraitSeed: rng.int(1, 999999), age: index === 0 ? rng.int(49, 63) : rng.int(18, 56), ancestry: rng.pick(ANCESTRIES), culture: rng.pick(CULTURES), profession,
+      portraitSeed: rng.int(1, 999999), age: index === 0 ? rng.int(49, 63) : rng.int(18, 56), ancestry: homePeople?.ancestry ?? rng.pick(ANCESTRIES), culture: homeCulture?.name ?? rng.pick(CULTURES), profession,
       origin: `${home.name}; ${rng.pick(['семья ремесленников', 'бывший солдатский дом', 'бедная улица', 'учёная семья', 'пограничное поселение', 'храмовое воспитание'])}`,
       homeSettlementId: home.id,
       level, experience: level * 35 + rng.int(0, 45), careerStage: level >= 4 ? 'veteran' : level >= 2 ? 'field' : 'recruit',
@@ -196,7 +198,7 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
     if (character.employed) character.generationId = foundingGeneration.id
   }
   const state: GameState = {
-    version: 10, seed, settings, day: 1, year: 912, season: 0,
+    version: 12, seed, settings, day: 1, year: 912, season: 0,
     guild, world, characters, expeditions: [],
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], crises: strategic.crises, mentorships: [],

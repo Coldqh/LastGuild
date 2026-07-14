@@ -24,6 +24,8 @@ import type {
   WorldTile,
 } from '../types/game'
 import { coordinateNoise, RNG } from './rng'
+import { initializeEcosystem } from './ecosystem'
+import { initializeSociety } from './society'
 import { densityMultiplier, historyYears, worldSize } from './worldSettings'
 
 const tileId = (x: number, y: number) => `${x}:${y}`
@@ -391,7 +393,9 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
       const baseDanger = biome === 'ocean' ? 0 : Math.round(rawDanger * dangerMultiplier * 10) / 10
 
       tiles.push({
-        id: tileId(x, y), x, y, elevation, moisture, temperature, magic, biome,
+        id: tileId(x, y), x, y, elevation, moisture, temperature, magic,
+        slope: 0, soilFertility: 0, waterAvailability: 0, vegetation: 0, resourceRichness: 0, ecosystemHealth: 0,
+        biome,
         danger: Math.min(10, Math.max(1, baseDanger)),
         travelCost: travelCostFor(biome),
         knowledge: 0,
@@ -457,6 +461,8 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
       foundedYear: rng.int(120, 760), status: 'active',
       ...economyForSettlement(rng, capital, 'capital'),
       tradeBalance: rng.int(-10, 35), growth: rng.int(-2, 8), foodSecurity: rng.int(55, 92), unrest: rng.int(5, 30),
+      peopleId: '', cultureId: '', cultureShares: {}, originReason: '', specialization: 'subsistence',
+      waterSecurity: 0, housing: 0, materials: 0, labor: 0, sanitation: 0, tradeAccess: 0, migrationPressure: 0,
     }
     settlements.push(settlement)
     capital.settlementId = settlement.id
@@ -479,6 +485,8 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
       foundedYear: rng.int(420, 880), status: 'active',
       ...economyForSettlement(rng, tile, kind),
       tradeBalance: rng.int(-18, 22), growth: rng.int(-4, 6), foodSecurity: rng.int(35, 82), unrest: rng.int(8, 45),
+      peopleId: '', cultureId: '', cultureShares: {}, originReason: '', specialization: 'subsistence',
+      waterSecurity: 0, housing: 0, materials: 0, labor: 0, sanitation: 0, tradeAccess: 0, migrationPressure: 0,
     }
     settlements.push(settlement)
     tile.settlementId = settlement.id
@@ -573,11 +581,19 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
     else if (tile.siteId && sites.find((site) => site.id === tile.siteId)?.state === 'rumored') tile.knowledge = 1
   }
 
-  return {
+  const generated: WorldData = {
     seed, width, height, tiles, realms, settlements, sites, routes,
     monsterSpecies: MONSTER_SPECIES,
     monsterPopulations,
+    resourceDeposits: [],
+    ecologySpecies: [],
+    ecologyPopulations: [],
+    ecosystem: { initializedYear: 904, lastTickYear: 904, lastTickDay: 1, totalFauna: 0, averageHealth: 0, migrations: 0, collapses: 0, extinctions: 0, recentEvents: [] },
+    peoples: [], cultures: [], communities: [],
+    society: { initializedYear: 912, lastTickYear: 912, totalPopulation: 0, migrations: 0, foundations: 0, abandonments: 0, culturalBlends: 0, recentEvents: [] },
     startSettlementId: startSettlement.id,
     history: createHistory(seed, realms, sites, settings),
   }
+  const ecological = initializeEcosystem(seed, generated, settings, 912)
+  return initializeSociety(seed, ecological, settings, 912)
 }

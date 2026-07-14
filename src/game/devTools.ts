@@ -12,6 +12,13 @@ export interface SimulationAuditResult {
   collapsedCrises: number
   abandonedRoutes: number
   chronicleEntries: number
+  faunaChange: number
+  ecosystemHealth: number
+  peoples: number
+  cultures: number
+  societyMigrations: number
+  foundedSettlements: number
+  abandonedSettlements: number
   warnings: string[]
 }
 
@@ -29,12 +36,16 @@ function preparedAuditState(state: GameState): GameState {
 }
 
 export function runSimulationAudit(state: GameState, years: number): SimulationAuditResult {
-  const safeYears = Math.max(1, Math.min(100, Math.round(years)))
+  const safeYears = Math.max(1, Math.min(300, Math.round(years)))
   const startPopulation = state.world.settlements.reduce((sum, settlement) => sum + settlement.population, 0)
+  const startFauna = state.world.ecologyPopulations.reduce((sum, population) => sum + population.amount, 0)
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
   const simulated = advanceDays(preparedAuditState(state), safeYears * 360)
   const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
   const endPopulation = simulated.world.settlements.reduce((sum, settlement) => sum + settlement.population, 0)
+  const endFauna = simulated.world.ecologyPopulations.reduce((sum, population) => sum + population.amount, 0)
+  const landTiles = simulated.world.tiles.filter((tile) => tile.biome !== 'ocean')
+  const ecosystemHealth = landTiles.length ? landTiles.reduce((sum, tile) => sum + tile.ecosystemHealth, 0) / landTiles.length : 0
   const ruinedSettlements = simulated.world.settlements.filter((settlement) => settlement.status === 'ruined').length
   const activeWars = simulated.wars.filter((war) => war.status !== 'ended').length
   const collapsedCrises = simulated.crises.filter((crisis) => crisis.status === 'collapsed').length
@@ -47,6 +58,12 @@ export function runSimulationAudit(state: GameState, years: number): SimulationA
   if (activeWars > Math.max(3, simulated.world.realms.length / 2)) warnings.push('Слишком много одновременных войн.')
   if (abandonedRoutes > simulated.world.routes.length * 0.5) warnings.push('Торговая сеть разрушена более чем наполовину.')
   if (simulated.chronicle.length >= 3000) warnings.push('Хроника достигла опасного размера.')
+  const faunaRatio = startFauna > 0 ? endFauna / startFauna : 1
+  if (faunaRatio < 0.3) warnings.push('Фауна сократилась более чем на 70%.')
+  if (faunaRatio > 4) warnings.push('Фауна растёт слишком быстро.')
+  if (ecosystemHealth < 28) warnings.push('Среднее здоровье экосистемы критически низкое.')
+  if (simulated.world.peoples.length === 0 || simulated.world.cultures.length === 0) warnings.push('Народы или культуры не были созданы.')
+  if (simulated.world.society.abandonments > simulated.world.settlements.length * 0.55) warnings.push('Слишком много поселений было покинуто.')
   if (!warnings.length) warnings.push('Критических перекосов за выбранный период не найдено.')
   return {
     years: safeYears,
@@ -59,6 +76,13 @@ export function runSimulationAudit(state: GameState, years: number): SimulationA
     collapsedCrises,
     abandonedRoutes,
     chronicleEntries: simulated.chronicle.length,
+    faunaChange: Math.round((startFauna > 0 ? endFauna / startFauna - 1 : 0) * 100),
+    ecosystemHealth: Math.round(ecosystemHealth),
+    peoples: simulated.world.peoples.length,
+    cultures: simulated.world.cultures.length,
+    societyMigrations: simulated.world.society.migrations,
+    foundedSettlements: simulated.world.society.foundations,
+    abandonedSettlements: simulated.world.society.abandonments,
     warnings,
   }
 }
@@ -145,6 +169,10 @@ export function downloadDebugLog(state: GameState, audit?: SimulationAuditResult
       routes: state.world.routes.length,
       wars: state.wars.length,
       crises: state.crises.length,
+      peoples: state.world.peoples.length,
+      cultures: state.world.cultures.length,
+      communities: state.world.communities.length,
+      fauna: Math.round(state.world.ecosystem.totalFauna),
     },
     pending: {
       decision: Boolean(state.pendingDecision), debrief: Boolean(state.pendingDebrief), combat: Boolean(state.pendingCombat), dungeon: Boolean(state.pendingDungeon),
