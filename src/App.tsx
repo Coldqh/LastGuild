@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarDays,
+  ChevronLeft,
   ChevronRight,
   Clock3,
   Compass,
@@ -102,6 +103,15 @@ const viewGroups: Array<{ label: string; items: Array<{ id: ViewId; label: strin
   ] },
 ]
 
+type MobileMenuSection = 'guild' | 'expeditions' | 'world' | 'system'
+
+const mobileMenuSections: Array<{ id: MobileMenuSection; label: string; description: string; icon: typeof Building2; itemIds?: ViewId[] }> = [
+  { id: 'guild', label: 'Гильдия', description: 'Люди, развитие и управление', icon: Building2, itemIds: ['headquarters', 'campaign', 'hiring', 'roster', 'rooms', 'positions', 'academy', 'council', 'legacy'] },
+  { id: 'expeditions', label: 'Экспедиции', description: 'Контракты, походы и карта', icon: Compass, itemIds: ['expeditions', 'active_expeditions', 'world'] },
+  { id: 'world', label: 'Мир и знания', description: 'Архив, влияние и история', icon: Landmark, itemIds: ['archive', 'influence', 'living_world', 'lore'] },
+  { id: 'system', label: 'Система', description: 'Настройки и новая кампания', icon: SettingsIcon },
+]
+
 const seasons = ['Зима', 'Весна', 'Лето', 'Осень']
 const TUTORIAL_KEY = 'last-guild-tutorial-v1'
 const BRAND_FULL = `${import.meta.env.BASE_URL}branding/logo-full-dark-v2.png`
@@ -131,6 +141,7 @@ export default function App() {
   const [state, setState] = useState<GameState>(initialState)
   const [view, setView] = useState<ViewId>('headquarters')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileMenuSection, setMobileMenuSection] = useState<MobileMenuSection | null>(null)
   const [seedModal, setSeedModal] = useState(false)
   const [settingsModal, setSettingsModal] = useState(false)
   const [seedInput, setSeedInput] = useState('')
@@ -163,6 +174,11 @@ export default function App() {
     return () => document.body.classList.remove('compact-ui')
   }, [preferences.compactCardsEnabled])
 
+  useEffect(() => {
+    document.body.classList.toggle('mobile-menu-open', menuOpen)
+    return () => document.body.classList.remove('mobile-menu-open')
+  }, [menuOpen])
+
   const markTutorial = (step: TutorialStepId) => setTutorialCompleted((steps) => steps.includes(step) ? steps : [...steps, step])
   const activeExpeditions = state.expeditions.filter((expedition) => expedition.status === 'active' || expedition.status === 'returning')
   const urgentCount = useMemo(() => {
@@ -182,9 +198,29 @@ export default function App() {
     { id: 'world', label: 'Карта', icon: Map },
     { id: 'menu', label: 'Меню', icon: Menu },
   ]
+
+
+  const badgeForView = (itemId: ViewId): number => itemId === 'expeditions'
+    ? state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day).length
+    : itemId === 'active_expeditions'
+      ? activeExpeditions.length + state.expeditions.filter((entry) => entry.status === 'missing').length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
+      : itemId === 'influence'
+        ? state.crises.filter((crisis) => crisis.status === 'active').length + (preferences.competitorsEnabled ? state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length : 0)
+        : itemId === 'headquarters' ? urgentCount
+        : itemId === 'campaign' ? (state.campaign.selectedGoalId ? 0 : 1)
+        : itemId === 'hiring' ? state.characters.filter((entry) => !entry.employed && !entry.rivalGuildId && !entry.academyEnrollmentId && !['dead', 'missing', 'retired'].includes(entry.status)).length
+        : itemId === 'academy' ? state.academy.enrollments.filter((entry) => ['training', 'ready'].includes(entry.status)).length
+        : itemId === 'council' ? state.councilProposals.filter((entry) => entry.status === 'pending').length
+        : itemId === 'positions' ? state.guild.positions.filter((entry) => !entry.holderId).length
+        : 0
+
+  const mobileMenuItems = mobileMenuSection && mobileMenuSection !== 'system'
+    ? viewGroups.flatMap((group) => group.items).filter((item) => mobileMenuSections.find((section) => section.id === mobileMenuSection)?.itemIds?.includes(item.id))
+    : []
   const changeView = (next: ViewId) => {
     setView(next)
     setMenuOpen(false)
+    setMobileMenuSection(null)
     if (next === 'roster') markTutorial('roster')
     if (next === 'expeditions' || next === 'active_expeditions') markTutorial('expeditions')
   }
@@ -287,56 +323,77 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${menuOpen ? 'menu-open' : ''}`}>
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="brand">
           <div className="brand-main">
             <img className="brand-logo" src={BRAND_FULL} alt="The Last Guild" />
             <span className="brand-subtitle">Экспедиционный архив</span>
           </div>
-          <button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню"><X /></button>
+          <button className="mobile-close" onClick={() => { setMenuOpen(false); setMobileMenuSection(null) }} aria-label="Закрыть меню"><X /></button>
         </div>
 
-        <nav className="grouped-sidebar-nav">
+        <nav className="grouped-sidebar-nav desktop-sidebar-nav">
           {viewGroups.map((group) => <section className="sidebar-nav-group" key={group.label}>
             <p>{group.label}</p>
             {group.items.map((item) => {
               const Icon = item.icon
-              const badge = item.id === 'expeditions'
-                ? state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day).length
-                : item.id === 'active_expeditions'
-                  ? activeExpeditions.length + state.expeditions.filter((entry) => entry.status === 'missing').length + (state.pendingDecision ? 1 : 0) + (state.pendingDebrief ? 1 : 0) + (state.pendingCombat ? 1 : 0) + (state.pendingDungeon ? 1 : 0)
-                : item.id === 'influence'
-                  ? state.crises.filter((crisis) => crisis.status === 'active').length + (preferences.competitorsEnabled ? state.rivalExpeditions.filter((expedition) => ['preparing', 'traveling'].includes(expedition.status)).length : 0)
-                  : item.id === 'headquarters' ? urgentCount
-                  : item.id === 'campaign' ? (state.campaign.selectedGoalId ? 0 : 1)
-                  : item.id === 'hiring' ? state.characters.filter((entry) => !entry.employed && !entry.rivalGuildId && !entry.academyEnrollmentId && !['dead', 'missing', 'retired'].includes(entry.status)).length
-                  : item.id === 'academy' ? state.academy.enrollments.filter((entry) => ['training', 'ready'].includes(entry.status)).length
-                  : item.id === 'council' ? state.councilProposals.filter((entry) => entry.status === 'pending').length
-                  : item.id === 'positions' ? state.guild.positions.filter((entry) => !entry.holderId).length
-                  : 0
+              const badge = badgeForView(item.id)
               return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={18} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={14} /></button>
             })}
           </section>)}
         </nav>
 
-        <div className="sidebar-world">
+        <div className="mobile-menu-content">
+          {!mobileMenuSection ? <>
+            <div className="mobile-menu-title"><strong>Разделы</strong><small>Открывай только нужную часть игры</small></div>
+            <div className="mobile-menu-categories">
+              {mobileMenuSections.map((section) => {
+                const Icon = section.icon
+                const badge = section.itemIds?.reduce((sum, itemId) => sum + badgeForView(itemId), 0) ?? 0
+                return <button key={section.id} onClick={() => setMobileMenuSection(section.id)}>
+                  <Icon size={21} />
+                  <span><strong>{section.label}</strong><small>{section.description}</small></span>
+                  {badge > 0 && <b>{badge}</b>}
+                  <ChevronRight size={16} />
+                </button>
+              })}
+            </div>
+          </> : <>
+            <div className="mobile-menu-subheader">
+              <button onClick={() => setMobileMenuSection(null)}><ChevronLeft size={18} />Разделы</button>
+              <strong>{mobileMenuSections.find((section) => section.id === mobileMenuSection)?.label}</strong>
+            </div>
+            {mobileMenuSection === 'system' ? <div className="mobile-menu-items">
+              <button onClick={() => { setMenuOpen(false); setMobileMenuSection(null); setSettingsModal(true) }}><SettingsIcon size={19} /><span><strong>Настройки</strong><small>Интерфейс, симуляция и сохранения</small></span><ChevronRight size={15} /></button>
+              <button onClick={() => { setMenuOpen(false); setMobileMenuSection(null); openWorldSetup() }}><RotateCcw size={19} /><span><strong>Новый мир</strong><small>Создать новую кампанию</small></span><ChevronRight size={15} /></button>
+            </div> : <div className="mobile-menu-items">
+              {mobileMenuItems.map((item) => {
+                const Icon = item.icon
+                const badge = badgeForView(item.id)
+                return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={19} /><span><strong>{item.label}</strong></span>{badge > 0 && <b>{badge}</b>}<ChevronRight size={15} /></button>
+              })}
+            </div>}
+          </>}
+        </div>
+
+        <div className="sidebar-world desktop-sidebar-meta">
           <p className="eyebrow">Текущий мир</p>
           <strong>{state.seed}</strong>
           <span>{state.world.realms.length} государства · {preferences.competitorsEnabled ? `${state.rivalGuilds.length} конкурентов` : 'без конкурентов'}</span>
           <span>{state.settings.preset} · {DIFFICULTY_RULES[state.settings.difficulty].label}</span>
           <button className="text-button" onClick={openWorldSetup}><RotateCcw size={15} />Новый мир</button>
         </div>
-        <div className="sidebar-footer">
+        <div className="sidebar-footer desktop-sidebar-meta">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.8.3.2 · Mobile Rebuild</small>
+          <small>v0.8.3.3 · Mobile IA</small>
         </div>
       </aside>
 
       <div className="main-shell">
         <header className="topbar">
-          <button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="Открыть меню"><Menu /></button>
+          <button className="menu-button" onClick={() => { setMobileMenuSection(null); setMenuOpen(true) }} aria-label="Открыть меню"><Menu /></button>
           <div className="topbar-date"><CalendarDays size={18} /><div><strong>{state.year} год · день {state.day}</strong><span>{seasons[state.season]}</span></div></div>
           <div className="time-controls desktop-time-controls">
             <Clock3 size={17} />
@@ -360,7 +417,7 @@ export default function App() {
         <main><Suspense fallback={<div className="view-loading">Загрузка раздела…</div>}>{renderView()}</Suspense></main>
       </div>
 
-      <nav className="mobile-bottom-nav" aria-label="Быстрая навигация">
+      <nav className={`mobile-bottom-nav ${menuOpen || settingsModal ? 'is-hidden' : ''}`} aria-label="Быстрая навигация">
         {mobileQuickNav.map((item) => {
           const Icon = item.icon
           const active = item.id !== 'menu' && view === item.id
@@ -368,7 +425,7 @@ export default function App() {
             <button
               key={item.id}
               className={active ? 'active' : ''}
-              onClick={() => item.id === 'menu' ? setMenuOpen(true) : changeView(item.id)}
+              onClick={() => item.id === 'menu' ? (setMobileMenuSection(null), setMenuOpen(true)) : changeView(item.id)}
               aria-label={item.label}
             >
               <span className="mobile-nav-icon">
@@ -382,7 +439,7 @@ export default function App() {
       </nav>
 
       {preferences.tutorialEnabled && <TutorialPanel completed={tutorialCompleted} onNavigate={changeView} onDismiss={() => updatePreferences({ ...preferences, tutorialEnabled: false })} />}
-      {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
+      {menuOpen && <div className="mobile-overlay" onClick={() => { setMenuOpen(false); setMobileMenuSection(null) }} />}
       <Suspense fallback={null}>
       {seedModal && <WorldSetupModal settings={worldSettings} seed={seedInput} onSeedChange={setSeedInput} onSettingsChange={setWorldSettings} onClose={() => setSeedModal(false)} onCreate={createWorld} />}
       {settingsModal && <SettingsModal state={state} preferences={preferences} onPreferencesChange={updatePreferences} onLoadState={(next) => setState(applyCompetitors(next, preferences.competitorsEnabled))} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}

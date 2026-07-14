@@ -16,6 +16,14 @@ const stageLabels = {
   found: 'Найдено', verified: 'Проверено', published: 'Опубликовано', contested: 'Оспаривается', spreading: 'Распространяется', used: 'Используется',
 }
 
+const tabs: Array<{ id: Tab; label: string; icon: typeof Coins }> = [
+  { id: 'economy', label: 'Экономика', icon: Coins },
+  { id: 'wars', label: 'Войны', icon: Swords },
+  { id: 'knowledge', label: 'Знания', icon: Network },
+  { id: 'history', label: 'Хроника', icon: ScrollText },
+  { id: 'map', label: 'Карта истории', icon: Landmark },
+]
+
 function MiniHistoryMap({ state, snapshot }: { state: GameState; snapshot: HistoricalMapSnapshot }) {
   const realmMap = useMemo(() => new Map(state.world.realms.map((realm) => [realm.id, realm])), [state.world.realms])
   const width = state.world.width * X_STEP + HEX_W + 40
@@ -45,77 +53,83 @@ function MiniHistoryMap({ state, snapshot }: { state: GameState; snapshot: Histo
 export default function LivingWorldView({ state }: Props) {
   const [tab, setTab] = useState<Tab>('economy')
   const [snapshotId, setSnapshotId] = useState(state.historySnapshots.at(-1)?.id ?? '')
+  const [showAllRoutes, setShowAllRoutes] = useState(false)
+  const [showAllHistory, setShowAllHistory] = useState(false)
   const snapshot = state.historySnapshots.find((entry) => entry.id === snapshotId) ?? state.historySnapshots.at(-1)
   const activeWars = state.wars.filter((war) => war.status !== 'ended')
   const activeRoutes = state.world.routes.filter((route) => route.type !== 'river' && route.status === 'active')
   const disruptedRoutes = state.world.routes.filter((route) => route.type !== 'river' && route.status !== 'active')
-  const growing = [...state.world.settlements].filter((settlement) => settlement.status !== 'ruined').sort((a, b) => b.growth - a.growth).slice(0, 6)
-  const declining = [...state.world.settlements].filter((settlement) => settlement.status !== 'ruined').sort((a, b) => a.growth - b.growth).slice(0, 6)
-  const history = [...state.world.history].sort((a, b) => b.year - a.year).slice(0, 80)
+  const growing = [...state.world.settlements].filter((settlement) => settlement.status !== 'ruined').sort((a, b) => b.growth - a.growth).slice(0, 4)
+  const declining = [...state.world.settlements].filter((settlement) => settlement.status !== 'ruined').sort((a, b) => a.growth - b.growth).slice(0, 4)
+  const routes = [...state.world.routes].filter((route) => route.type !== 'river').sort((a, b) => b.income - a.income)
+  const history = [...state.world.history].sort((a, b) => b.year - a.year).slice(0, showAllHistory ? 80 : 16)
+  const visibleRoutes = routes.slice(0, showAllRoutes ? 30 : 8)
 
   return (
-    <section className="view living-world-view">
-      <header className="view-heading">
-        <div><p className="eyebrow">Симуляция региона</p><h1>Живой мир</h1><p>Города производят товары, дороги зарабатывают деньги, войны меняют владельцев, а открытия проходят путь от слуха до политического инструмента.</p></div>
-        <div className="living-world-metrics">
-          <span><Swords size={16} /><b>{activeWars.length}</b> активных войн</span>
-          <span><Route size={16} /><b>{activeRoutes.length}</b> работающих путей</span>
-          <span><BookOpenCheck size={16} /><b>{state.knowledgeSpreads.filter((entry) => entry.stage !== 'used').length}</b> распространяемых открытий</span>
-        </div>
+    <section className="view living-world-view compact-living-world">
+      <header className="view-heading compact-page-heading">
+        <div><p className="eyebrow">Регион</p><h1>Живой мир</h1></div>
+        <span className="world-status-line">{activeWars.length} войн · {activeRoutes.length} путей · {state.knowledgeSpreads.filter((entry) => entry.stage !== 'used').length} открытий</span>
       </header>
 
-      <div className="segmented-control living-tabs">
-        <button className={tab === 'economy' ? 'active' : ''} onClick={() => setTab('economy')}><Coins size={15} />Экономика</button>
-        <button className={tab === 'wars' ? 'active' : ''} onClick={() => setTab('wars')}><Swords size={15} />Войны</button>
-        <button className={tab === 'knowledge' ? 'active' : ''} onClick={() => setTab('knowledge')}><Network size={15} />Знания</button>
-        <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}><ScrollText size={15} />Хроника мира</button>
-        <button className={tab === 'map' ? 'active' : ''} onClick={() => setTab('map')}><Landmark size={15} />Историческая карта</button>
+      <label className="mobile-tab-select">
+        <span>Раздел</span>
+        <select value={tab} onChange={(event) => setTab(event.target.value as Tab)}>
+          {tabs.map((entry) => <option value={entry.id} key={entry.id}>{entry.label}</option>)}
+        </select>
+      </label>
+
+      <div className="segmented-control living-tabs desktop-living-tabs">
+        {tabs.map((entry) => { const Icon = entry.icon; return <button key={entry.id} className={tab === entry.id ? 'active' : ''} onClick={() => setTab(entry.id)}><Icon size={15} />{entry.label}</button> })}
       </div>
 
-      {tab === 'economy' && <div className="living-grid">
-        <article className="paper-card living-panel wide-panel">
-          <div className="section-title"><Route size={20} /><div><p className="eyebrow">Торговая сеть</p><h2>Маршруты региона</h2></div></div>
-          <div className="route-economy-list">
-            {[...state.world.routes].filter((route) => route.type !== 'river').sort((a, b) => b.income - a.income).slice(0, 14).map((route) => <div key={route.id} className={`route-economy-row ${route.status}`}>
-              <span><strong>{route.name}</strong><small>{route.goods.length ? route.goods.join(' · ') : 'обычные грузы'} · основан {route.establishedYear} г.</small></span>
-              <span><b>{route.income}</b><small>доход</small></span><span><b>{Math.round(route.safety)}</b><small>безопасность</small></span><em>{route.status === 'active' ? 'работает' : route.status === 'disrupted' ? 'нарушен' : 'заброшен'}</em>
+      {tab === 'economy' && <div className="living-grid compact-living-grid">
+        <article className="paper-card living-panel wide-panel compact-world-panel">
+          <div className="compact-panel-heading"><Route size={18} /><h2>Маршруты</h2><span>{routes.length}</span></div>
+          <div className="route-economy-list compact-route-list">
+            {visibleRoutes.map((route) => <div key={route.id} className={`route-economy-row compact-route-row ${route.status}`}>
+              <span className="route-name"><strong>{route.name}</strong><small>{route.goods.length ? route.goods.slice(0, 3).join(' · ') : 'обычные грузы'}</small></span>
+              <span className="route-stat"><b>{route.income}</b><small>доход</small></span>
+              <span className="route-stat"><b>{Math.round(route.safety)}</b><small>защита</small></span>
+              <em>{route.status === 'active' ? 'работает' : route.status === 'disrupted' ? 'нарушен' : 'заброшен'}</em>
             </div>)}
           </div>
-          {disruptedRoutes.length > 0 && <p className="living-warning"><ShieldAlert size={16} />{disruptedRoutes.length} маршрутов теряют доход из-за войны, чудовищ или нестабильности.</p>}
+          {routes.length > 8 && <button className="compact-list-toggle" onClick={() => setShowAllRoutes((value) => !value)}>{showAllRoutes ? 'Скрыть лишние' : `Показать ещё ${routes.length - 8}`}</button>}
+          {disruptedRoutes.length > 0 && <p className="living-warning compact-warning"><ShieldAlert size={15} />Нарушено маршрутов: {disruptedRoutes.length}</p>}
         </article>
 
-        <article className="paper-card living-panel"><div className="section-title"><TrendingUp size={20} /><div><p className="eyebrow">Рост</p><h2>Набирают силу</h2></div></div><div className="settlement-economy-list">{growing.map((settlement) => <div key={settlement.id}><span><strong>{settlement.name}</strong><small>{settlement.production.join(' · ')}</small></span><b>+{settlement.growth.toFixed(1)}</b><small>{settlement.population.toLocaleString('ru-RU')} жителей</small></div>)}</div></article>
-        <article className="paper-card living-panel"><div className="section-title"><TrendingDown size={20} /><div><p className="eyebrow">Упадок</p><h2>Теряют людей</h2></div></div><div className="settlement-economy-list">{declining.map((settlement) => <div key={settlement.id}><span><strong>{settlement.name}</strong><small>волнения {Math.round(settlement.unrest)} · продовольствие {Math.round(settlement.foodSecurity)}</small></span><b>{settlement.growth.toFixed(1)}</b><small>{settlement.status}</small></div>)}</div></article>
+        <article className="paper-card living-panel compact-world-panel"><div className="compact-panel-heading"><TrendingUp size={18} /><h2>Рост</h2></div><div className="settlement-economy-list compact-settlement-list">{growing.map((settlement) => <div key={settlement.id}><span><strong>{settlement.name}</strong><small>{settlement.production.slice(0, 2).join(' · ')}</small></span><b>+{settlement.growth.toFixed(1)}</b></div>)}</div></article>
+        <article className="paper-card living-panel compact-world-panel"><div className="compact-panel-heading"><TrendingDown size={18} /><h2>Упадок</h2></div><div className="settlement-economy-list compact-settlement-list">{declining.map((settlement) => <div key={settlement.id}><span><strong>{settlement.name}</strong><small>волнения {Math.round(settlement.unrest)}</small></span><b>{settlement.growth.toFixed(1)}</b></div>)}</div></article>
       </div>}
 
-      {tab === 'wars' && <div className="living-grid">
-        {state.wars.length === 0 && <article className="paper-card empty-state wide-panel"><Castle size={28} /><h2>Крупных войн пока нет</h2><p>Отношения государств могут ухудшиться из-за границ, маршрутов, документов и ресурсов.</p></article>}
+      {tab === 'wars' && <div className="living-grid compact-living-grid">
+        {state.wars.length === 0 && <article className="paper-card empty-state wide-panel"><Castle size={24} /><h2>Войн нет</h2></article>}
         {state.wars.map((war) => {
           const attacker = state.world.realms.find((realm) => realm.id === war.attackerRealmId)
           const defender = state.world.realms.find((realm) => realm.id === war.defenderRealmId)
-          return <article key={war.id} className={`paper-card war-card ${war.status}`}>
-            <div className="war-card-head"><span><p className="eyebrow">{war.status === 'ended' ? 'Завершена' : war.status === 'preparing' ? 'Мобилизация' : 'Идёт война'}</p><h2>{war.name}</h2></span><Swords size={24} /></div>
-            <p><b>{attacker?.name}</b> против <b>{defender?.name}</b></p><p>{war.cause}. Цель: {war.goal}.</p>
+          return <article key={war.id} className={`paper-card war-card compact-war-card ${war.status}`}>
+            <div className="war-card-head"><span><p className="eyebrow">{war.status === 'ended' ? 'Завершена' : war.status === 'preparing' ? 'Мобилизация' : 'Идёт война'}</p><h2>{war.name}</h2></span><Swords size={20} /></div>
+            <p className="war-sides"><b>{attacker?.name}</b> → <b>{defender?.name}</b></p>
             <div className="war-progress"><span style={{ width: `${clampForUi(war.progress)}%` }} /></div>
-            <div className="war-stats"><span>Снабжение: {Math.round(war.attackerSupply)} / {Math.round(war.defenderSupply)}</span><span>Истощение: {Math.round(war.attackerExhaustion)} / {Math.round(war.defenderExhaustion)}</span><span>Потери: {war.casualties.toLocaleString('ru-RU')}</span></div>
-            {war.lastEvent && <p className="war-last-event">{war.lastEvent}</p>}
+            <div className="war-stats"><span>Снабжение {Math.round(war.attackerSupply)}/{Math.round(war.defenderSupply)}</span><span>Потери {war.casualties.toLocaleString('ru-RU')}</span></div>
+            <details className="compact-details"><summary>Причина и события</summary><p>{war.cause}. Цель: {war.goal}.</p>{war.lastEvent && <p>{war.lastEvent}</p>}</details>
           </article>
         })}
       </div>}
 
-      {tab === 'knowledge' && <div className="knowledge-spread-list">
-        {state.knowledgeSpreads.length === 0 && <article className="paper-card empty-state"><BookOpenCheck size={28} /><h2>Нет крупных открытий</h2><p>После возвращения экспедиции сведения начнут проверяться и распространяться.</p></article>}
+      {tab === 'knowledge' && <div className="knowledge-spread-list compact-knowledge-list">
+        {state.knowledgeSpreads.length === 0 && <article className="paper-card empty-state"><BookOpenCheck size={24} /><h2>Открытий нет</h2></article>}
         {state.knowledgeSpreads.map((spread) => {
           const discovery = state.discoveries.find((entry) => entry.id === spread.discoveryId)
-          return <article key={spread.id} className="paper-card knowledge-spread-card"><div><p className="eyebrow">{stageLabels[spread.stage]}</p><h2>{spread.title}</h2><p>{spread.lastUpdate}</p></div><div className="knowledge-spread-meta"><span>Достоверность <b>{Math.round(spread.credibility)}</b></span><span>Спорность <b>{Math.round(spread.controversy)}</b></span><span>Известно государствам <b>{spread.knownRealmIds.length}</b></span><span>Решение гильдии <b>{discovery?.disposition ?? 'не принято'}</b></span></div><div className="knowledge-progress"><span style={{ width: `${spread.progress}%` }} /></div></article>
+          return <article key={spread.id} className="paper-card knowledge-spread-card compact-knowledge-card"><div><p className="eyebrow">{stageLabels[spread.stage]}</p><h2>{spread.title}</h2></div><div className="knowledge-spread-meta"><span>Достоверность <b>{Math.round(spread.credibility)}</b></span><span>Спорность <b>{Math.round(spread.controversy)}</b></span><span>Государства <b>{spread.knownRealmIds.length}</b></span><span>Решение <b>{discovery?.disposition ?? 'нет'}</b></span></div><div className="knowledge-progress"><span style={{ width: `${spread.progress}%` }} /></div><details className="compact-details"><summary>Последнее изменение</summary><p>{spread.lastUpdate}</p></details></article>
         })}
       </div>}
 
-      {tab === 'history' && <div className="world-history-list">{history.map((event) => <article key={event.id} className="paper-card history-event-card"><span className="history-year">{event.year}</span><div><p className="eyebrow">{event.kind ?? event.tags[0] ?? 'событие'}</p><h2>{event.title}</h2><p>{event.description}</p>{event.cause && <p><b>Причина:</b> {event.cause}</p>}{event.consequence && <p><b>Последствие:</b> {event.consequence}</p>}{event.hiddenTruth && state.guild.scientificAuthority >= 35 && <details><summary>Скрытая версия</summary><p>{event.hiddenTruth}</p></details>}</div></article>)}</div>}
+      {tab === 'history' && <div className="world-history-list compact-history-list">{history.map((event) => <article key={event.id} className="paper-card history-event-card compact-history-card"><span className="history-year">{event.year}</span><div><p className="eyebrow">{event.kind ?? event.tags[0] ?? 'событие'}</p><h2>{event.title}</h2><p>{event.description}</p>{(event.cause || event.consequence) && <details className="compact-details"><summary>Причины и последствия</summary>{event.cause && <p><b>Причина:</b> {event.cause}</p>}{event.consequence && <p><b>Последствие:</b> {event.consequence}</p>}</details>}</div></article>)}{state.world.history.length > 16 && <button className="compact-list-toggle" onClick={() => setShowAllHistory((value) => !value)}>{showAllHistory ? 'Свернуть хронику' : 'Показать старые события'}</button>}</div>}
 
       {tab === 'map' && snapshot && <div className="historical-map-layout">
-        <article className="paper-card historical-map-card"><div className="section-title"><Landmark size={20} /><div><p className="eyebrow">Выбранный срез</p><h2>{snapshot.title}</h2></div></div><MiniHistoryMap state={state} snapshot={snapshot} /></article>
-        <aside className="paper-card snapshot-sidebar"><h2>Годы карты</h2><div className="snapshot-list">{state.historySnapshots.map((entry) => <button key={entry.id} className={entry.id === snapshot.id ? 'active' : ''} onClick={() => setSnapshotId(entry.id)}><strong>{entry.year}</strong><span>{entry.title}</span></button>)}</div><p>Каждый игровой год создаётся новый срез. Захваты, разрушенные города и закрытые пути остаются в истории карты.</p></aside>
+        <article className="paper-card historical-map-card"><div className="compact-panel-heading"><Landmark size={18} /><h2>{snapshot.title}</h2></div><MiniHistoryMap state={state} snapshot={snapshot} /></article>
+        <aside className="paper-card snapshot-sidebar"><h2>Годы</h2><div className="snapshot-list">{state.historySnapshots.map((entry) => <button key={entry.id} className={entry.id === snapshot.id ? 'active' : ''} onClick={() => setSnapshotId(entry.id)}><strong>{entry.year}</strong><span>{entry.title}</span></button>)}</div></aside>
       </div>}
     </section>
   )

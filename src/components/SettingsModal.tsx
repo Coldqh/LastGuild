@@ -53,10 +53,11 @@ interface ToggleProps {
   onChange: (checked: boolean) => void
 }
 
-type SettingsTab = 'general' | 'world' | 'saves' | 'dev'
+type SettingsTab = 'general' | 'interface' | 'world' | 'saves' | 'dev'
 
 const tabs: Array<{ id: SettingsTab; label: string; short: string; icon: typeof Settings }> = [
-  { id: 'general', label: 'Основное', short: 'Интерфейс и организации', icon: Settings },
+  { id: 'general', label: 'Игра', short: 'Версия, мир и организации', icon: Settings },
+  { id: 'interface', label: 'Интерфейс', short: 'Обучение и плотность', icon: Settings },
   { id: 'world', label: 'Симуляция', short: 'Войны, кризисы и старение', icon: Activity },
   { id: 'saves', label: 'Сохранения', short: 'Слоты, импорт и экспорт', icon: Save },
   { id: 'dev', label: 'Разработка', short: 'Тесты и аудит', icon: Bug },
@@ -154,7 +155,7 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
 
             {activeTab === 'general' && <>
               <section className="settings-hero-card">
-                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.2</strong><small>Полная мобильная перестройка интерфейса</small></span></div>
+                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.3</strong><small>Мобильная информационная архитектура</small></span></div>
                 <span className="version-chip">save v10</span>
               </section>
 
@@ -170,19 +171,19 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
                 <Toggle label="Отделение филиалов" description="Нелояльный филиал может стать отдельной гильдией." checked={preferences.branchSecessionEnabled} onChange={(value) => patchPreference('branchSecessionEnabled', value)} />
               </section>
 
-              <section className="settings-panel-section">
-                <div className="settings-section-title"><Settings size={18} /><div><h3>Интерфейс</h3><p>Только то, что влияет на плотность экрана.</p></div></div>
-                <Toggle label="Обучение" description="Показывать пошаговые задачи первого цикла." checked={preferences.tutorialEnabled} onChange={(value) => patchPreference('tutorialEnabled', value)} />
-                <Toggle label="Центр решений" description="Показывать важные события в штабе." checked={preferences.decisionCenterEnabled} onChange={(value) => patchPreference('decisionCenterEnabled', value)} />
-                <Toggle label="Компактные карточки" description="Ещё сильнее уменьшает списки и отступы." checked={preferences.compactCardsEnabled} onChange={(value) => patchPreference('compactCardsEnabled', value)} />
-              </section>
-
               <div className="settings-primary-actions">
                 <button className="secondary-button" onClick={onNewWorld}><RefreshCcw size={16} />Новый мир</button>
                 <button className="primary-button force-update-button" disabled={updating} onClick={runUpdate}><DownloadCloud size={17} />{updating ? 'Обновление…' : 'Обновить игру'}</button>
               </div>
               <p className="settings-note">Обновление очищает кэш, но не удаляет кампанию.</p>
             </>}
+
+            {activeTab === 'interface' && <section className="settings-panel-section settings-panel-section-first">
+              <div className="settings-section-title"><Settings size={18} /><div><h3>Интерфейс</h3><p>Отображение и плотность экранов.</p></div></div>
+              <Toggle label="Обучение" description="Пошаговые задачи первого цикла." checked={preferences.tutorialEnabled} onChange={(value) => patchPreference('tutorialEnabled', value)} />
+              <Toggle label="Центр решений" description="Важные события на экране штаба." checked={preferences.decisionCenterEnabled} onChange={(value) => patchPreference('decisionCenterEnabled', value)} />
+              <Toggle label="Компактные карточки" description="Меньше отступов и вторичного текста." checked={preferences.compactCardsEnabled} onChange={(value) => patchPreference('compactCardsEnabled', value)} />
+            </section>}
 
             {activeTab === 'world' && <section className="settings-panel-section settings-panel-section-first">
               <div className="settings-section-title"><Activity size={18} /><div><h3>Симуляция мира</h3><p>Отключай тяжёлые системы отдельно.</p></div></div>
