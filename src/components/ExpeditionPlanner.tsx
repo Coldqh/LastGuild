@@ -412,8 +412,8 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
 
   return (
     <section className="view contracts-view">
-      <header className="view-heading">
-        <div><p className="eyebrow">Экспедиционный отдел</p><h1>Контракты</h1><p>Выбери цель. Подготовка откроется отдельным пошаговым процессом.</p></div>
+      <header className="view-heading compact-heading">
+        <div><p className="eyebrow">Экспедиционный отдел</p><h1>Контракты</h1></div>
         <div className="capacity-badge"><Users size={18} /><span>Свободно {Math.max(0, state.guild.maxActiveExpeditions - activeCount)} слотов</span></div>
       </header>
 
@@ -430,18 +430,20 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
           {filteredOpportunities.map((opportunity) => {
             const mainRisk = (Object.entries(opportunity.riskProfile) as Array<[keyof ExpeditionRiskProfile, number]>).sort((a, b) => b[1] - a[1])[0]
             return (
-              <article className="contract-row paper-card" key={opportunity.id}>
-                <div className="contract-row-main"><div className="opportunity-top"><span className="type-chip">{opportunity.type}</span>{opportunity.storyChainId && <span className="story-contract-chip">цепочка</span>}<span className="deadline">до дня {opportunity.deadlineDay}</span></div><h2>{opportunity.title}</h2><p>{opportunity.description}</p><small>Источник: {opportunity.source}</small></div>
-                <div className="contract-row-meta">
-                  <span><Skull size={14} /><b>{opportunity.dangerEstimate}/10</b><small>общий риск</small></span>
-                  <span><AlertTriangle size={14} /><b>{riskLabels[mainRisk[0]]}</b><small>{mainRisk[1]}/10</small></span>
-                  <span><Package size={14} /><b>{opportunity.reward}</b><small>крон</small></span>
+              <article className="contract-row compact-contract-row paper-card" key={opportunity.id}>
+                <div className="contract-row-main">
+                  <div className="opportunity-top"><span className="type-chip">{opportunity.type}</span>{opportunity.storyChainId && <span className="story-contract-chip">цепочка</span>}<span className="deadline">до {opportunity.deadlineDay} дня</span></div>
+                  <h2>{opportunity.title}</h2>
+                  <details className="contract-description"><summary>Описание</summary><p>{opportunity.description}</p><small>Источник: {opportunity.source}</small></details>
                 </div>
-                <div className="contract-row-actions">
-                  <span>Нужны: {opportunity.requiredRoles.join(', ')}</span>
-                  {(opportunity.contestedByIds?.length ?? 0) > 0 && <em><Swords size={13} />есть конкуренты</em>}
-                  <button className="primary-button" onClick={() => openPlanner(opportunity)}><Plus size={15} />Подготовить</button>
+                <div className="contract-inline-meta">
+                  <span><Skull size={13} />риск <b>{opportunity.dangerEstimate}/10</b></span>
+                  <span><AlertTriangle size={13} />{riskLabels[mainRisk[0]]} <b>{mainRisk[1]}/10</b></span>
+                  <span><Package size={13} /><b>{opportunity.reward}</b> кр.</span>
+                  <span className="contract-role-line">нужны: {opportunity.requiredRoles.join(', ') || 'любые'}</span>
+                  {(opportunity.contestedByIds?.length ?? 0) > 0 && <em><Swords size={12} />конкуренты</em>}
                 </div>
+                <button className="primary-button compact-contract-action" onClick={() => openPlanner(opportunity)}><Plus size={14} />Подготовить</button>
               </article>
             )
           })}

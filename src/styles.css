@@ -5088,3 +5088,181 @@ body,
     pointer-events: none !important;
   }
 }
+
+/* v0.8.3.6 — compact data screens, portrait hiring and touch map */
+.hiring-character-grid .character-card { cursor: default; }
+.hire-character-card { align-items: flex-start; }
+.hire-inline-button { width: 100%; min-height: 32px; margin-top: 7px; padding: 6px 8px; }
+.hire-mini-stats { margin-top: 6px; }
+
+.compact-character-sheet { width: min(840px, 100%); }
+.compact-sheet-header { align-items: center; }
+.character-sheet-title { min-width: 0; }
+.character-inline-stats { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
+.character-inline-stats span { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--text-soft); font-size: .66rem; }
+.character-inline-stats svg { width: 14px; height: 14px; color: var(--accent); }
+.character-inline-stats b { color: var(--text); }
+.character-compact-facts { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 9px 10px; border: 1px solid var(--line); background: rgba(255,255,255,.018); color: var(--text-soft); font-size: .67rem; }
+.compact-profile-section { margin-top: 10px; }
+.compact-profile-section h3 { margin-bottom: 6px; }
+.compact-skill-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 5px; }
+.compact-skill-grid span { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 6px 7px; border: 1px solid var(--line); background: rgba(255,255,255,.016); }
+.compact-skill-grid small { overflow: hidden; color: var(--text-dim); font-size: .58rem; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
+.compact-skill-grid b { color: var(--accent); font-size: .72rem; }
+.compact-profile-details { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; margin-top: 10px; }
+.compact-profile-details details { min-width: 0; padding: 8px 9px; border: 1px solid var(--line); background: rgba(255,255,255,.014); }
+.compact-profile-details summary { color: var(--text-soft); font-size: .68rem; cursor: pointer; }
+.compact-profile-details details[open] { grid-column: 1 / -1; }
+.compact-relationship-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 12px; }
+.combat-behavior-inline { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.combat-behavior-inline span { padding: 4px 6px; border: 1px solid var(--line); color: var(--text-dim); font-size: .6rem; }
+
+.archive-summary-inline { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; }
+.archive-summary-inline span { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; color: var(--text-soft); font-size: .68rem; }
+.archive-summary-inline svg { width: 14px; height: 14px; color: var(--accent); }
+.archive-mobile-tab, .codex-mobile-tab { display: none; }
+.compact-archive-layout { align-items: start; }
+.compact-chronicle-list { gap: 5px; }
+.compact-chronicle-entry { grid-template-columns: 28px minmax(0,1fr); gap: 8px; padding: 8px 10px; }
+.compact-chronicle-entry .chronicle-icon { width: 26px; height: 26px; }
+.chronicle-title-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.chronicle-title-line h3 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chronicle-title-line span { flex: 0 0 auto; color: var(--text-dim); font-size: .57rem; }
+.compact-chronicle-entry p { margin: 2px 0 0; color: var(--text-dim); font-size: .65rem; }
+.compact-ancient-history { padding: 12px; }
+.compact-ancient-history > summary { cursor: pointer; color: var(--text-soft); font-size: .72rem; }
+.compact-archive-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+.compact-archive-card, .compact-consequence-card { min-width: 0; padding: 10px 11px; }
+.archive-card-title { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 7px; }
+.archive-card-title h3 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.archive-card-title em { color: var(--text-dim); font-size: .56rem; font-style: normal; white-space: nowrap; }
+.archive-inline-meta, .codex-inline-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 7px; color: var(--text-dim); font-size: .6rem; }
+.archive-inline-meta span, .codex-inline-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.archive-inline-meta b { color: var(--text-soft); }
+.compact-details { margin-top: 7px; }
+.compact-details > summary { color: var(--text-dim); font-size: .6rem; cursor: pointer; }
+.compact-details[open] > summary { margin-bottom: 6px; color: var(--accent); }
+.compact-details p { margin: 4px 0; color: var(--text-soft); font-size: .64rem; }
+.compact-consequence-list { gap: 6px; }
+
+.codex-compact-title { display: grid; grid-template-columns: auto minmax(0,1fr) minmax(62px,90px); align-items: center; gap: 7px; }
+.codex-compact-title h2 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.codex-compact-title > em { justify-self: end; color: var(--accent); font-size: .62rem; font-style: normal; }
+.codex-knowledge { margin: 0; }
+
+.compact-contract-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(270px,.7fr) auto; align-items: center; gap: 10px; padding: 10px 12px; }
+.compact-contract-row .contract-row-main { min-width: 0; }
+.compact-contract-row h2 { margin: 5px 0 0; overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+.contract-description { margin-top: 4px; }
+.contract-description summary { color: var(--text-dim); font-size: .59rem; cursor: pointer; }
+.contract-description p { margin: 5px 0 2px; color: var(--text-soft); font-size: .66rem; }
+.contract-inline-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; min-width: 0; color: var(--text-dim); font-size: .61rem; }
+.contract-inline-meta span, .contract-inline-meta em { display: inline-flex; align-items: center; gap: 3px; min-width: 0; font-style: normal; }
+.contract-inline-meta b { color: var(--text); }
+.contract-role-line { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compact-contract-action { min-width: 112px; }
+
+.pinch-zoom-map { touch-action: pan-x pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 980px) {
+  .hiring-view .capacity-badge { margin: 0 !important; }
+  .hiring-toolbar { display: grid !important; grid-template-columns: minmax(0,1fr) auto !important; }
+  .hiring-character-grid { grid-template-columns: 1fr 1fr !important; }
+  .hire-character-card { min-height: 76px !important; display: flex !important; gap: 6px !important; padding: 5px !important; }
+  .hire-character-card .portrait { width: 48px !important; min-width: 48px !important; height: 58px !important; }
+  .hire-character-card .tag-list { display: none !important; }
+  .hire-character-card .mini-stats { margin-top: 2px !important; }
+  .hire-inline-button { min-height: 25px !important; margin-top: 3px !important; padding: 3px 5px !important; font-size: .54rem !important; }
+
+  .character-sheet.compact-character-sheet { min-height: 100dvh !important; padding: 9px 8px calc(12px + env(safe-area-inset-bottom)) !important; border-radius: 0 !important; }
+  .compact-sheet-header { display: grid !important; grid-template-columns: 60px minmax(0,1fr) !important; gap: 8px !important; padding-right: 30px; }
+  .compact-sheet-header .portrait.large { width: 60px !important; min-width: 60px !important; height: 72px !important; }
+  .compact-sheet-header h2 { font-size: .9rem !important; }
+  .compact-sheet-header p { margin: 2px 0 !important; font-size: .55rem !important; }
+  .compact-sheet-header .tag-list { max-height: 20px; overflow: hidden; }
+  .character-inline-stats { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 3px; margin: 6px 0 4px; }
+  .character-inline-stats span { min-width: 0; justify-content: center; gap: 2px; padding: 4px 2px; font-size: .49rem; }
+  .character-inline-stats svg { display: none; }
+  .character-compact-facts { display: grid; gap: 3px; padding: 5px 6px; font-size: .53rem; }
+  .compact-profile-section { margin-top: 6px; }
+  .compact-profile-section h3 { margin-bottom: 3px; }
+  .compact-skill-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 3px; }
+  .compact-skill-grid span { padding: 4px 5px; }
+  .compact-skill-grid small { font-size: .48rem; }
+  .compact-skill-grid b { font-size: .58rem; }
+  .compact-profile-details { grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 5px; }
+  .compact-profile-details details { padding: 5px 6px; }
+  .compact-profile-details summary { font-size: .54rem; }
+  .compact-profile-details details[open] { grid-column: 1 / -1; max-height: 35dvh; overflow: auto; }
+  .compact-relationship-list { grid-template-columns: 1fr; }
+  .relationship-row, .injury-entry, .memory-entry { min-height: 28px !important; padding: 4px 0 !important; }
+  .personnel-action { min-height: 28px !important; margin: 5px 0 0 !important; }
+
+  .compact-archive-view .view-heading { display: flex !important; align-items: center; }
+  .archive-summary-inline { flex-wrap: nowrap; gap: 3px; margin-left: auto; }
+  .archive-summary-inline span { min-height: 24px; padding: 3px 5px; font-size: .52rem; }
+  .archive-summary-inline svg { width: 11px; height: 11px; }
+  .desktop-archive-tabs, .desktop-codex-tabs { display: none !important; }
+  .archive-mobile-tab, .codex-mobile-tab { display: block !important; min-width: 105px; }
+  .archive-mobile-tab select, .codex-mobile-tab select { width: 100%; }
+  .archive-toolbar, .codex-toolbar { display: grid !important; grid-template-columns: minmax(0,1fr) auto; }
+  .compact-archive-layout { display: block !important; }
+  .compact-chronicle-entry { grid-template-columns: 21px minmax(0,1fr); gap: 5px; padding: 5px 6px !important; }
+  .compact-chronicle-entry .chronicle-icon { width: 20px; height: 20px; }
+  .compact-chronicle-entry p { display: -webkit-box; overflow: hidden; margin-top: 1px; font-size: .52rem; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+  .chronicle-title-line h3 { font-size: .61rem !important; }
+  .chronicle-title-line span { font-size: .45rem; }
+  .compact-ancient-history { margin-top: 5px; padding: 6px !important; }
+  .compact-archive-grid { grid-template-columns: 1fr !important; gap: 4px !important; }
+  .compact-archive-card, .compact-consequence-card { padding: 6px 7px !important; }
+  .archive-card-title { gap: 5px; }
+  .archive-card-title h3 { font-size: .64rem !important; }
+  .archive-card-title em, .archive-card-title .type-chip { font-size: .45rem !important; }
+  .archive-inline-meta, .codex-inline-meta { display: grid; grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; gap: 7px; margin-top: 4px; padding-bottom: 1px; font-size: .49rem; scrollbar-width: none; }
+  .archive-inline-meta::-webkit-scrollbar, .codex-inline-meta::-webkit-scrollbar { display: none; }
+  .compact-details { margin-top: 4px; }
+  .compact-details > summary { font-size: .49rem; }
+  .compact-details p { font-size: .52rem; }
+  .site-layer-list, .official-report-line, .legendary-list { margin-top: 4px !important; }
+
+  .codex-compact-title { grid-template-columns: auto minmax(0,1fr) 58px; gap: 5px; }
+  .codex-compact-title h2 { font-size: .64rem !important; }
+  .codex-knowledge { height: 4px !important; }
+  .codex-knowledge small { font-size: .42rem !important; }
+  .compact-codex-grid, .compact-story-list { gap: 4px !important; }
+  .compact-codex-card, .compact-story-card { padding: 6px 7px !important; }
+
+  .contracts-view .capacity-badge { margin: 0 !important; }
+  .contract-toolbar { display: grid !important; grid-template-columns: minmax(0,1fr) auto auto; gap: 3px !important; }
+  .contract-list { gap: 4px !important; }
+  .compact-contract-row { grid-template-columns: minmax(0,1fr) auto; gap: 4px 6px; padding: 6px 7px !important; }
+  .compact-contract-row .contract-row-main { grid-column: 1; }
+  .compact-contract-row h2 { margin-top: 3px; font-size: .66rem !important; }
+  .compact-contract-row .opportunity-top { gap: 3px; }
+  .compact-contract-row .deadline, .compact-contract-row .type-chip, .story-contract-chip { font-size: .43rem !important; }
+  .contract-description { margin-top: 2px; }
+  .contract-description summary { font-size: .47rem; }
+  .contract-description[open] { grid-column: 1 / -1; }
+  .contract-inline-meta { grid-column: 1; display: grid; grid-template-columns: repeat(3,max-content); gap: 3px 7px; font-size: .48rem; }
+  .contract-role-line { grid-column: 1 / -1; max-width: 250px; }
+  .compact-contract-action { grid-column: 2; grid-row: 1 / 3; align-self: stretch; min-width: 72px !important; min-height: 54px !important; padding: 4px 5px !important; font-size: .53rem !important; }
+  .compact-contract-action svg { width: 12px; height: 12px; }
+
+  .pinch-zoom-map { touch-action: pan-x pan-y !important; }
+}
+
+@media (max-width: 430px) {
+  .hiring-character-grid { grid-template-columns: 1fr !important; }
+  .hire-character-card { min-height: 64px !important; }
+  .character-inline-stats { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .compact-profile-details { grid-template-columns: 1fr; }
+  .compact-contract-action { min-width: 68px !important; }
+}
+.compact-profile-details .relationship-row > span,
+.compact-profile-details .injury-entry > span,
+.compact-profile-details .memory-entry > span { min-width: 0; display: grid; gap: 2px; text-align: left; }
+.compact-profile-details .relationship-row small,
+.compact-profile-details .injury-entry small,
+.compact-profile-details .memory-entry small { color: var(--text-dim); font-size: .55rem; }
+.compact-profile-details .memory-entry > b,
+.compact-profile-details .injury-entry > b { color: var(--text-dim); font-size: .55rem; font-weight: 500; white-space: nowrap; }

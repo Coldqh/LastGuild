@@ -29,6 +29,9 @@ export default function WorldMap({ state }: Props) {
   const [detailExpanded, setDetailExpanded] = useState(() => !isMobileViewport())
   const mapScrollRef = useRef<HTMLDivElement>(null)
   const centeredRef = useRef(false)
+  const zoomRef = useRef(zoom)
+  const pinchRef = useRef<{ distance: number; startZoom: number; contentX: number; contentY: number } | null>(null)
+  const suppressClickRef = useRef(false)
 
   const tile = state.world.tiles.find((candidate) => candidate.id === selectedId)
   const tileMap = useMemo(() => new Map(state.world.tiles.map((entry) => [entry.id, entry])), [state.world.tiles])
@@ -49,6 +52,61 @@ export default function WorldMap({ state }: Props) {
       node.scrollTop = Math.max(0, cy * zoom - node.clientHeight * .46)
     })
   }, [initialFocusTile, zoom])
+
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
+
+  useEffect(() => {
+    const node = mapScrollRef.current
+    if (!node) return
+    const touchDistance = (touches: TouchList) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
+    const touchMidpoint = (touches: TouchList) => {
+      const rect = node.getBoundingClientRect()
+      return {
+        x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left,
+        y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top,
+      }
+    }
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 2) return
+      const midpoint = touchMidpoint(event.touches)
+      pinchRef.current = {
+        distance: Math.max(1, touchDistance(event.touches)),
+        startZoom: zoomRef.current,
+        contentX: (node.scrollLeft + midpoint.x) / zoomRef.current,
+        contentY: (node.scrollTop + midpoint.y) / zoomRef.current,
+      }
+      suppressClickRef.current = true
+      event.preventDefault()
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      const pinch = pinchRef.current
+      if (!pinch || event.touches.length !== 2) return
+      const midpoint = touchMidpoint(event.touches)
+      const nextZoom = Math.min(3.2, Math.max(.72, pinch.startZoom * touchDistance(event.touches) / pinch.distance))
+      zoomRef.current = nextZoom
+      setZoom(Number(nextZoom.toFixed(3)))
+      requestAnimationFrame(() => {
+        node.scrollLeft = Math.max(0, pinch.contentX * nextZoom - midpoint.x)
+        node.scrollTop = Math.max(0, pinch.contentY * nextZoom - midpoint.y)
+      })
+      event.preventDefault()
+    }
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length >= 2) return
+      pinchRef.current = null
+      window.setTimeout(() => { suppressClickRef.current = false }, 120)
+    }
+    node.addEventListener('touchstart', onTouchStart, { passive: false })
+    node.addEventListener('touchmove', onTouchMove, { passive: false })
+    node.addEventListener('touchend', onTouchEnd, { passive: true })
+    node.addEventListener('touchcancel', onTouchEnd, { passive: true })
+    return () => {
+      node.removeEventListener('touchstart', onTouchStart)
+      node.removeEventListener('touchmove', onTouchMove)
+      node.removeEventListener('touchend', onTouchEnd)
+      node.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [])
 
   const fillFor = (hex: WorldTile): string => {
     if (hex.knowledge === 0) return '#100f0c'
@@ -82,12 +140,13 @@ export default function WorldMap({ state }: Props) {
   const selectedTitle = tile?.knowledge === 0 ? 'Неизвестная земля' : selectedSettlement?.name ?? selectedSite?.name ?? (tile ? BIOME_LABELS[tile.biome] : '')
 
   const selectTile = (id: string) => {
+    if (suppressClickRef.current) return
     setSelectedId(id)
     setDetailExpanded(!isMobileViewport())
   }
 
   const changeZoom = (delta: number) => {
-    setZoom((current) => Math.min(2.4, Math.max(.8, Number((current + delta).toFixed(2)))))
+    setZoom((current) => Math.min(3.2, Math.max(.72, Number((current + delta).toFixed(2)))))
   }
 
   return (
@@ -116,7 +175,7 @@ export default function WorldMap({ state }: Props) {
 
       <div className="map-layout">
         <div className="map-stage">
-          <div className="map-scroll parchment-panel" ref={mapScrollRef}>
+          <div className="map-scroll parchment-panel pinch-zoom-map" ref={mapScrollRef}>
             <svg viewBox={`0 0 ${mapWidth} ${mapHeight}`} width={mapWidth * zoom} height={mapHeight * zoom} className="hex-map" role="img" aria-label="Процедурная карта мира">
               {state.world.tiles.map((hex) => {
                 const [cx, cy] = center(hex)

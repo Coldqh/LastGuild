@@ -336,6 +336,7 @@ export interface Character {
   careerStage: CharacterCareerStage
   status: CharacterStatus
   employed: boolean
+  formerGuildMember?: boolean
   salary: number
   health: number
   fatigue: number

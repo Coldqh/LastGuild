@@ -1314,7 +1314,7 @@ export function dismissCharacter(state: GameState, characterId: string): GameSta
   if (!character || !character.employed || character.status === 'expedition' || character.status === 'dead') return state
   return {
     ...state,
-    characters: state.characters.map((candidate) => candidate.id === characterId ? { ...candidate, employed: false, loyalty: Math.max(0, candidate.loyalty - 20) } : candidate),
+    characters: state.characters.map((candidate) => candidate.id === characterId ? { ...candidate, employed: false, formerGuildMember: true, loyalty: Math.max(0, candidate.loyalty - 20) } : candidate),
     chronicle: [...state.chronicle, { id: `chronicle-dismiss-${characterId}-${state.day}`, day: state.day, year: state.year, title: `${character.name} покидает штат`, text: 'Контракт расторгнут. Персонаж остаётся в мире и позднее может перейти к конкурентам.', category: 'character', importance: 1 }],
   }
 }
