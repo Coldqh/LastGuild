@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   Activity,
   BookOpen,
@@ -215,6 +215,19 @@ export default function App() {
     if (next === 'expeditions' || next === 'active_expeditions') markTutorial('expeditions')
   }
 
+  const activateMobileView = (event: ReactPointerEvent<HTMLButtonElement>, next: ViewId) => {
+    event.preventDefault()
+    event.stopPropagation()
+    changeView(next)
+  }
+
+  const activateMobileAction = (event: ReactPointerEvent<HTMLButtonElement>, action: () => void) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setMenuOpen(false)
+    action()
+  }
+
   const advance = (days: number) => {
     markTutorial('time')
     setState((current) => advanceDays(current, days))
@@ -320,7 +333,7 @@ export default function App() {
             <img className="brand-logo" src={BRAND_FULL} alt="The Last Guild" />
             <span className="brand-subtitle">Экспедиционный архив</span>
           </div>
-          <button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню"><X /></button>
+          <button type="button" className="mobile-close" onPointerUp={(event) => activateMobileAction(event, () => undefined)} aria-label="Закрыть меню"><X /></button>
         </div>
 
         <nav className="grouped-sidebar-nav desktop-sidebar-nav">
@@ -329,7 +342,7 @@ export default function App() {
             {group.items.map((item) => {
               const Icon = item.icon
               const badge = badgeForView(item.id)
-              return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}><Icon size={18} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={14} /></button>
+              return <button type="button" key={item.id} className={view === item.id ? 'active' : ''} onPointerUp={(event) => activateMobileView(event, item.id)} aria-current={view === item.id ? 'page' : undefined}><Icon size={18} /><span>{item.label}</span>{badge > 0 && <b>{badge}</b>}<ChevronRight className="nav-arrow" size={14} /></button>
             })}
           </section>)}
         </nav>
@@ -343,7 +356,7 @@ export default function App() {
                 {viewGroups.flatMap((entry) => entry.items).filter((item) => group.itemIds.includes(item.id)).map((item) => {
                   const Icon = item.icon
                   const badge = badgeForView(item.id)
-                  return <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => changeView(item.id)}>
+                  return <button type="button" key={item.id} className={view === item.id ? 'active' : ''} onPointerUp={(event) => activateMobileView(event, item.id)} aria-current={view === item.id ? 'page' : undefined}>
                     <span className="mobile-menu-grid-icon"><Icon size={18} />{badge > 0 && <b>{badge}</b>}</span>
                     <strong>{item.id === 'campaign' ? 'Цели' : item.label}</strong>
                   </button>
@@ -354,8 +367,8 @@ export default function App() {
           <section className="mobile-menu-group mobile-system-group">
             <p>Система</p>
             <div className="mobile-menu-grid">
-              <button onClick={() => { setMenuOpen(false); setSettingsModal(true) }}><SettingsIcon size={18} /><strong>Настройки</strong></button>
-              <button onClick={() => { setMenuOpen(false); openWorldSetup() }}><RotateCcw size={18} /><strong>Новый мир</strong></button>
+              <button type="button" onPointerUp={(event) => activateMobileAction(event, () => setSettingsModal(true))}><SettingsIcon size={18} /><strong>Настройки</strong></button>
+              <button type="button" onPointerUp={(event) => activateMobileAction(event, openWorldSetup)}><RotateCcw size={18} /><strong>Новый мир</strong></button>
             </div>
           </section>
         </div>
@@ -370,7 +383,7 @@ export default function App() {
         <div className="sidebar-footer desktop-sidebar-meta">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.8.3.4 · Compact UI</small>
+          <small>v0.8.3.5 · Mobile interaction fix</small>
         </div>
       </aside>
 
@@ -408,7 +421,13 @@ export default function App() {
             <button
               key={item.id}
               className={active ? 'active' : ''}
-              onClick={() => item.id === 'menu' ? setMenuOpen(true) : changeView(item.id)}
+              type="button"
+              onPointerUp={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                if (item.id === 'menu') setMenuOpen(true)
+                else changeView(item.id)
+              }}
               aria-label={item.label}
             >
               <span className="mobile-nav-icon">
@@ -422,7 +441,6 @@ export default function App() {
       </nav>
 
       {preferences.tutorialEnabled && <TutorialPanel completed={tutorialCompleted} onNavigate={changeView} onDismiss={() => updatePreferences({ ...preferences, tutorialEnabled: false })} />}
-      {menuOpen && <div className="mobile-overlay" onClick={() => setMenuOpen(false)} />}
       <Suspense fallback={null}>
       {seedModal && <WorldSetupModal settings={worldSettings} seed={seedInput} onSeedChange={setSeedInput} onSettingsChange={setWorldSettings} onClose={() => setSeedModal(false)} onCreate={createWorld} />}
       {settingsModal && <SettingsModal state={state} preferences={preferences} onPreferencesChange={updatePreferences} onLoadState={(next) => setState(applyCompetitors(next, preferences.competitorsEnabled))} onClose={() => setSettingsModal(false)} onNewWorld={openWorldSetup} onForceUpdate={forceUpdate} />}
