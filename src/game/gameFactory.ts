@@ -198,7 +198,7 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
     if (character.employed) character.generationId = foundingGeneration.id
   }
   const state: GameState = {
-    version: 12, seed, settings, day: 1, year: 912, season: 0,
+    version: 13, seed, settings, day: 1, year: 912, season: 0,
     guild, world, characters, expeditions: [],
     opportunities: createOpportunities(seed, world, 1, settings), pendingDecision: undefined, pendingDebrief: undefined, pendingCombat: undefined, pendingDungeon: undefined, discoveries: [], consequences: [], bestiary: [],
     politicalFactions: strategic.politicalFactions, rivalGuilds: strategic.rivalGuilds, rivalExpeditions: [], crises: strategic.crises, mentorships: [],
@@ -210,7 +210,7 @@ export function createNewGame(seedInput?: string, requestedSettings?: WorldGener
       id: 'chronicle-collapse', day: 317, year: 911, title: 'Последняя экспедиция прежнего главы', text: 'Отряд ушёл к северным руинам и не вернулся. Казна опустела, кредиторы забрали часть имущества, а имя гильдии стало предупреждением.', category: 'guild', importance: 5,
     }, {
       id: 'chronicle-start', day: 1, year: 912, title: 'Последняя гильдия открывает двери',
-      text: `После нескольких лет упадка старое здание снова принимает контракты. Мир создан в режиме «${settings.preset}», государств: ${world.realms.length}, известных руин: ${world.sites.filter((site) => site.state === 'rumored').length}.`,
+      text: `После нескольких лет упадка старое здание снова принимает контракты. Вокруг существуют ${world.realms.filter((realm) => !realm.collapsedYear).length} государств, ${world.armies.length} армий и ${world.sites.filter((site) => site.state === 'rumored').length} известных руин.`,
       category: 'guild', importance: 5,
     }],
   }

@@ -16,6 +16,7 @@ import { coordinateNoise, RNG } from './rng'
 import { loadPreferences, type AppPreferences } from './preferences'
 import { ecosystemMonthTick } from './ecosystem'
 import { societyYearTick } from './society'
+import { createInitialPoliticalWars, politicsMonthTick } from './politics'
 
 const STAGES: KnowledgeSpreadStage[] = ['found', 'verified', 'published', 'contested', 'spreading', 'used']
 const GOODS = ['зерно', 'соль', 'железо', 'древесина', 'лекарства', 'ткань', 'книги', 'магические реагенты']
@@ -104,12 +105,7 @@ export function initializeLivingWorld(seed: string, world: GameState['world'], s
   const span = settings.historyDepth === 'ancient' ? 900 : settings.historyDepth === 'young' ? 180 : 520
   const snapshotYears = [currentYear - span, currentYear - Math.round(span * 0.45), currentYear]
   const historySnapshots = snapshotYears.map((year, index) => historicalSnapshot(seed, year, world, index))
-  const desiredWars = settings.warFrequency === 'frequent' || settings.conflictLevel === 'war_torn' ? 2 : settings.warFrequency === 'rare' || settings.conflictLevel === 'calm' ? 0 : 1
-  const wars: WorldWar[] = []
-  for (let index = 0; index < desiredWars; index += 1) {
-    const war = createWar(seed, currentYear, 1, { world }, index)
-    if (war && !wars.some((entry) => [entry.attackerRealmId, entry.defenderRealmId].includes(war.attackerRealmId) && [entry.attackerRealmId, entry.defenderRealmId].includes(war.defenderRealmId))) wars.push(war)
-  }
+  const wars = createInitialPoliticalWars(seed, world, settings, currentYear)
   return { wars, knowledgeSpreads: [] as KnowledgeSpread[], historySnapshots }
 }
 
@@ -392,10 +388,7 @@ export function livingWorldDayTick(state: GameState): GameState {
     const rng = new RNG(`${next.seed}:living-world:${next.year}:${next.day}`)
     next = tickEconomy(next, rng, preferences)
     next = tickKnowledge(next, rng)
-    if (preferences.warsEnabled) {
-      next = tickWars(next, rng, preferences)
-      if (next.day % 120 === 0) next = maybeSpawnWar(next, rng)
-    }
+    next = politicsMonthTick(next, preferences)
     if (preferences.crisesEnabled && next.day % 180 === 0) next = maybeCatastrophe(next, rng, preferences)
   }
   if (next.day === 1) next = addAnnualSnapshot(next)

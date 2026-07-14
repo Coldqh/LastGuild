@@ -26,6 +26,7 @@ import type {
 import { coordinateNoise, RNG } from './rng'
 import { initializeEcosystem } from './ecosystem'
 import { initializeSociety } from './society'
+import { initializePolitics } from './politics'
 import { densityMultiplier, historyYears, worldSize } from './worldSettings'
 
 const tileId = (x: number, y: number) => `${x}:${y}`
@@ -591,9 +592,12 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
     ecosystem: { initializedYear: 904, lastTickYear: 904, lastTickDay: 1, totalFauna: 0, averageHealth: 0, migrations: 0, collapses: 0, extinctions: 0, recentEvents: [] },
     peoples: [], cultures: [], communities: [],
     society: { initializedYear: 912, lastTickYear: 912, totalPopulation: 0, migrations: 0, foundations: 0, abandonments: 0, culturalBlends: 0, recentEvents: [] },
+    armies: [],
+    politics: { initializedYear: 912, lastTickYear: 912, lastTickDay: 1, borderChanges: 0, occupations: 0, warsStarted: 0, warsEnded: 0, realmCollapses: 0, activeClaims: 0, recentEvents: [] },
     startSettlementId: startSettlement.id,
     history: createHistory(seed, realms, sites, settings),
   }
   const ecological = initializeEcosystem(seed, generated, settings, 912)
-  return initializeSociety(seed, ecological, settings, 912)
+  const social = initializeSociety(seed, ecological, settings, 912)
+  return initializePolitics(seed, social, settings, 912)
 }

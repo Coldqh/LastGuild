@@ -3,7 +3,7 @@ import { BookOpenCheck, Castle, Coins, Droplets, Home, Landmark, Mountain, Netwo
 import type { GameState, HistoricalMapSnapshot, WorldTile } from '../types/game'
 
 interface Props { state: GameState }
-type Tab = 'ecosystem' | 'society' | 'economy' | 'wars' | 'knowledge' | 'history' | 'map'
+type Tab = 'ecosystem' | 'society' | 'economy' | 'realms' | 'wars' | 'knowledge' | 'history' | 'map'
 
 const HEX_W = 20
 const HEX_H = 18
@@ -20,6 +20,7 @@ const tabs: Array<{ id: Tab; label: string; icon: typeof Coins }> = [
   { id: 'ecosystem', label: 'Экосистема', icon: Sprout },
   { id: 'society', label: 'Народы', icon: Users },
   { id: 'economy', label: 'Экономика', icon: Coins },
+  { id: 'realms', label: 'Государства', icon: Castle },
   { id: 'wars', label: 'Войны', icon: Swords },
   { id: 'knowledge', label: 'Знания', icon: Network },
   { id: 'history', label: 'Хроника', icon: ScrollText },
@@ -84,6 +85,15 @@ export default function LivingWorldView({ state }: Props) {
   const societyEvents = [...state.world.society.recentEvents].sort((a, b) => b.year - a.year).slice(0, 12)
   const migrationHotspots = [...activeSettlements].sort((a, b) => b.migrationPressure - a.migrationPressure).slice(0, 8)
   const cultureMap = new Map(state.world.cultures.map((entry) => [entry.id, entry]))
+  const livingRealms = state.world.realms.filter((realm) => !realm.collapsedYear)
+  const contestedTiles = state.world.tiles.filter((tile) => tile.controlStatus === 'contested' || tile.controlStatus === 'occupied')
+  const realmArmyMap = state.world.armies.reduce((map, army) => {
+    const list = map.get(army.realmId) ?? []
+    list.push(army)
+    map.set(army.realmId, list)
+    return map
+  }, new Map<string, GameState['world']['armies']>())
+  const politicalEvents = [...state.world.politics.recentEvents].sort((a, b) => b.year - a.year || b.day - a.day).slice(0, 10)
   const biomeHealth = [...landTiles.reduce((map, tile) => {
     const current = map.get(tile.biome) ?? { total: 0, count: 0 }
     current.total += tile.ecosystemHealth
@@ -98,7 +108,7 @@ export default function LivingWorldView({ state }: Props) {
     <section className="view living-world-view compact-living-world">
       <header className="view-heading compact-page-heading">
         <div><p className="eyebrow">Регион</p><h1>Живой мир</h1></div>
-        <span className="world-status-line">здоровье {Math.round(averageEcosystemHealth)} · {Math.round(state.world.ecosystem.totalFauna).toLocaleString('ru-RU')} фауны · {activeWars.length} войн</span>
+        <span className="world-status-line">{livingRealms.length} государств · {state.world.armies.reduce((sum, army) => sum + army.soldiers, 0).toLocaleString('ru-RU')} солдат · {activeWars.length} войн</span>
       </header>
 
       <label className="mobile-tab-select">
@@ -198,6 +208,43 @@ export default function LivingWorldView({ state }: Props) {
         <article className="paper-card living-panel compact-world-panel"><div className="compact-panel-heading"><TrendingDown size={18} /><h2>Упадок</h2></div><div className="settlement-economy-list compact-settlement-list">{declining.map((settlement) => <div key={settlement.id}><span><strong>{settlement.name}</strong><small>волнения {Math.round(settlement.unrest)}</small></span><b>{settlement.growth.toFixed(1)}</b></div>)}</div></article>
       </div>}
 
+      {tab === 'realms' && <div className="living-grid compact-living-grid politics-world-grid">
+        <article className="paper-card living-panel wide-panel compact-world-panel">
+          <div className="compact-panel-heading"><Castle size={18} /><h2>Государства</h2><span>{livingRealms.length}</span></div>
+          <div className="realm-simulation-list">
+            {livingRealms.sort((a, b) => (b.wealth + b.military) - (a.wealth + a.military)).map((realm) => {
+              const armies = realmArmyMap.get(realm.id) ?? []
+              const settlements = state.world.settlements.filter((entry) => entry.realmId === realm.id && entry.status !== 'ruined')
+              const subjects = realm.subjectRealmIds?.length ?? 0
+              return <div key={realm.id} className="realm-simulation-row">
+                <span className="realm-color-dot" style={{ background: realm.color }} />
+                <span className="realm-simulation-name"><strong>{realm.name}</strong><small>{realm.governmentType ?? realm.government} · {settlements.length} поселений</small></span>
+                <span><b>{Math.round(realm.stability)}</b><small>устойчивость</small></span>
+                <span><b>{Math.round(realm.legitimacy ?? 0)}</b><small>легитимность</small></span>
+                <span><b>{armies.reduce((sum, army) => sum + army.soldiers, 0).toLocaleString('ru-RU')}</b><small>армия</small></span>
+                <span className="realm-objective"><b>{realm.objective?.title ?? 'нет цели'}</b><small>{realm.objective?.reason ?? realm.currentIssue}{subjects ? ` · вассалы ${subjects}` : ''}</small></span>
+              </div>
+            })}
+          </div>
+        </article>
+        <article className="paper-card living-panel compact-world-panel">
+          <div className="compact-panel-heading"><Network size={18} /><h2>Территории</h2></div>
+          <div className="politics-summary-lines">
+            <span>Спорные и занятые <b>{contestedTiles.length}</b></span>
+            <span>Активные претензии <b>{state.world.politics.activeClaims}</b></span>
+            <span>Оккупации за историю <b>{state.world.politics.occupations}</b></span>
+            <span>Распады государств <b>{state.world.politics.realmCollapses}</b></span>
+          </div>
+        </article>
+        <article className="paper-card living-panel compact-world-panel">
+          <div className="compact-panel-heading"><ScrollText size={18} /><h2>Политические изменения</h2></div>
+          <div className="politics-event-list">
+            {politicalEvents.length === 0 && <p className="muted">Крупных изменений границ пока нет.</p>}
+            {politicalEvents.map((event) => <div key={event.id}><b>{event.year}</b><span><strong>{event.title}</strong><small>{event.description}</small></span></div>)}
+          </div>
+        </article>
+      </div>}
+
       {tab === 'wars' && <div className="living-grid compact-living-grid">
         {state.wars.length === 0 && <article className="paper-card empty-state wide-panel"><Castle size={24} /><h2>Войн нет</h2></article>}
         {state.wars.map((war) => {
@@ -207,8 +254,8 @@ export default function LivingWorldView({ state }: Props) {
             <div className="war-card-head"><span><p className="eyebrow">{war.status === 'ended' ? 'Завершена' : war.status === 'preparing' ? 'Мобилизация' : 'Идёт война'}</p><h2>{war.name}</h2></span><Swords size={20} /></div>
             <p className="war-sides"><b>{attacker?.name}</b> → <b>{defender?.name}</b></p>
             <div className="war-progress"><span style={{ width: `${clampForUi(war.progress)}%` }} /></div>
-            <div className="war-stats"><span>Снабжение {Math.round(war.attackerSupply)}/{Math.round(war.defenderSupply)}</span><span>Потери {war.casualties.toLocaleString('ru-RU')}</span></div>
-            <details className="compact-details"><summary>Причина и события</summary><p>{war.cause}. Цель: {war.goal}.</p>{war.lastEvent && <p>{war.lastEvent}</p>}</details>
+            <div className="war-stats"><span>Счёт {Math.round(war.warScore ?? war.progress)}</span><span>Снабжение {Math.round(war.attackerSupply)}/{Math.round(war.defenderSupply)}</span><span>Занято {war.occupiedTileIds?.length ?? 0}</span><span>Потери {war.casualties.toLocaleString('ru-RU')}</span></div>
+            <details className="compact-details"><summary>Причина, фронт и условия</summary><p>{war.cause}. Цель: {war.goal}.</p><p>Фронтовых территорий: {war.frontTileIds?.length ?? 0}. {war.peaceTerms ?? ''}</p>{war.lastEvent && <p>{war.lastEvent}</p>}</details>
           </article>
         })}
       </div>}

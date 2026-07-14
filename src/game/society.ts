@@ -284,6 +284,20 @@ function blendedCulture(seed: string, cultures: CultureProfile[], settlement: Se
   }
 }
 
+function settlementCapacity(settlement: Settlement, tile: WorldTile, foodSecurity: number, waterSecurity: number, housing: number, tradeAccess: number): number {
+  const baseByKind: Record<Settlement['kind'], number> = {
+    village: 3200,
+    town: 17000,
+    city: 52000,
+    capital: 105000,
+    fortress: 9000,
+    monastery: 6500,
+  }
+  const environment = .55 + foodSecurity / 250 + waterSecurity / 280 + housing / 300 + tradeAccess / 450
+  const terrain = tile.biome === 'plains' || tile.biome === 'coast' ? 1.12 : tile.biome === 'mountains' || tile.biome === 'swamp' || tile.biome === 'ashlands' ? .76 : .94
+  return Math.max(450, Math.round(baseByKind[settlement.kind] * environment * terrain))
+}
+
 function advanceSocietyYear(input: WorldData, seed: string, settings: WorldGenerationSettings, year: number): WorldData {
   const rng = new RNG(`${seed}:society:${year}`)
   const tileMap = new Map(input.tiles.map((tile) => [tile.id, tile]))
@@ -321,9 +335,13 @@ function advanceSocietyYear(input: WorldData, seed: string, settings: WorldGener
     const safety = clamp(settlement.safety + (5 - localThreat / 22) * 0.18)
     const prosperity = clamp(settlement.prosperity + (routeAccess - 45) * 0.025 + (foodSecurity - 50) * 0.018 - settlement.unrest * 0.008)
     const health = (foodSecurity + waterSecurity + sanitation + safety) / 4
-    const growthRate = clamp((health - 49) / 700 + (prosperity - 45) / 1400, -0.075, settings.cityGrowth === 'fast' ? 0.055 : settings.cityGrowth === 'slow' ? 0.027 : 0.04)
+    const capacity = settlementCapacity(settlement, tile, foodSecurity, waterSecurity, housing, routeAccess)
+    const capacityRatio = settlement.population / Math.max(1, capacity)
+    const naturalGrowth = (health - 50) / 1550 + (prosperity - 50) / 2700
+    const capacityPressure = capacityRatio > .72 ? (capacityRatio - .72) * .055 : 0
+    const growthRate = clamp(naturalGrowth - capacityPressure, -0.065, settings.cityGrowth === 'fast' ? 0.024 : settings.cityGrowth === 'slow' ? 0.009 : 0.016)
     const population = Math.max(0, Math.round(settlement.population * (1 + growthRate)))
-    const migrationPressure = clamp((48 - foodSecurity) * 0.72 + (46 - waterSecurity) * 0.75 + (42 - safety) * 0.58 + settlement.unrest * 0.3 + Math.max(0, population - housing * 520) / 600)
+    const migrationPressure = clamp((48 - foodSecurity) * 0.72 + (46 - waterSecurity) * 0.75 + (42 - safety) * 0.58 + settlement.unrest * 0.3 + Math.max(0, population - capacity * .9) / Math.max(90, capacity / 45))
     const outflow = migrationPressure > 58 && population > 180 ? Math.max(10, Math.round(population * clamp((migrationPressure - 48) / 620, 0.015, 0.12))) : 0
     if (outflow > 0) {
       migrants.push({ from: settlement, peopleId: settlement.peopleId, cultureId: settlement.cultureId, amount: outflow })
@@ -334,7 +352,7 @@ function advanceSocietyYear(input: WorldData, seed: string, settings: WorldGener
     if (status === 'ruined') {
       abandonments += 1
       events.push({ id: `society-abandoned-${settlement.id}-${year}`, year, kind: 'settlement_abandoned', title: `${settlement.name} покинуто`, description: `${settlement.name} потеряло жителей из-за нехватки пищи, воды или безопасности.`, tileIds: [settlement.tileId], settlementIds: [settlement.id], peopleIds: [settlement.peopleId], cultureIds: [settlement.cultureId], magnitude: clamp(100 - health) })
-    } else if (growthRate > 0.025 && remaining > settlement.population * 1.02) {
+    } else if (growthRate > 0.012 && remaining > settlement.population * 1.01) {
       events.push({ id: `society-growth-${settlement.id}-${year}`, year, kind: 'population_growth', title: `${settlement.name} растёт`, description: `Население увеличилось до ${remaining.toLocaleString('ru-RU')} благодаря устойчивому снабжению.`, tileIds: [settlement.tileId], settlementIds: [settlement.id], peopleIds: [settlement.peopleId], cultureIds: [settlement.cultureId], magnitude: clamp(growthRate * 900) })
     }
     return {

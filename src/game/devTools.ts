@@ -19,6 +19,12 @@ export interface SimulationAuditResult {
   societyMigrations: number
   foundedSettlements: number
   abandonedSettlements: number
+  livingRealms: number
+  armies: number
+  soldiers: number
+  contestedTiles: number
+  occupations: number
+  realmCollapses: number
   warnings: string[]
 }
 
@@ -64,6 +70,13 @@ export function runSimulationAudit(state: GameState, years: number): SimulationA
   if (ecosystemHealth < 28) warnings.push('Среднее здоровье экосистемы критически низкое.')
   if (simulated.world.peoples.length === 0 || simulated.world.cultures.length === 0) warnings.push('Народы или культуры не были созданы.')
   if (simulated.world.society.abandonments > simulated.world.settlements.length * 0.55) warnings.push('Слишком много поселений было покинуто.')
+  const livingRealms = simulated.world.realms.filter((realm) => !realm.collapsedYear).length
+  const contestedTiles = simulated.world.tiles.filter((tile) => tile.controlStatus === 'contested' || tile.controlStatus === 'occupied').length
+  const soldiers = simulated.world.armies.reduce((sum, army) => sum + army.soldiers, 0)
+  if (livingRealms === 0) warnings.push('Все государства распались.')
+  if (livingRealms > state.world.realms.filter((realm) => !realm.collapsedYear).length * 2.5) warnings.push('Число государств растёт слишком быстро.')
+  if (contestedTiles > simulated.world.tiles.filter((tile) => tile.biome !== 'ocean').length * 0.42) warnings.push('Слишком большая часть мира постоянно спорная или оккупированная.')
+  if (simulated.world.politics.realmCollapses > Math.max(8, simulated.world.realms.length * 1.5)) warnings.push('Государства распадаются слишком часто.')
   if (!warnings.length) warnings.push('Критических перекосов за выбранный период не найдено.')
   return {
     years: safeYears,
@@ -83,6 +96,12 @@ export function runSimulationAudit(state: GameState, years: number): SimulationA
     societyMigrations: simulated.world.society.migrations,
     foundedSettlements: simulated.world.society.foundations,
     abandonedSettlements: simulated.world.society.abandonments,
+    livingRealms,
+    armies: simulated.world.armies.filter((army) => army.status !== 'broken').length,
+    soldiers,
+    contestedTiles,
+    occupations: simulated.world.politics.occupations,
+    realmCollapses: simulated.world.politics.realmCollapses,
     warnings,
   }
 }
@@ -173,6 +192,10 @@ export function downloadDebugLog(state: GameState, audit?: SimulationAuditResult
       cultures: state.world.cultures.length,
       communities: state.world.communities.length,
       fauna: Math.round(state.world.ecosystem.totalFauna),
+      armies: state.world.armies.length,
+      soldiers: state.world.armies.reduce((sum, army) => sum + army.soldiers, 0),
+      contestedTiles: state.world.tiles.filter((tile) => tile.controlStatus === 'contested' || tile.controlStatus === 'occupied').length,
+      realmCollapses: state.world.politics.realmCollapses,
     },
     pending: {
       decision: Boolean(state.pendingDecision), debrief: Boolean(state.pendingDebrief), combat: Boolean(state.pendingCombat), dungeon: Boolean(state.pendingDungeon),

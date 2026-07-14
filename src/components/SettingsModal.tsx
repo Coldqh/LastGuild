@@ -155,7 +155,7 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
 
             {activeTab === 'general' && <>
               <section className="settings-hero-card">
-                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.5</strong><small>Народы, культуры и поселения</small></span></div>
+                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.6</strong><small>Государства, территории и войны</small></span></div>
                 <span className="version-chip">save v10</span>
               </section>
 

@@ -68,6 +68,11 @@ export type PeopleStatus = 'stable' | 'migrating' | 'declining' | 'displaced'
 export type CommunityStatus = 'settled' | 'migrating' | 'nomadic'
 export type SettlementSpecialization = 'subsistence' | 'farming' | 'fishing' | 'mining' | 'forestry' | 'trade' | 'fortress' | 'religious' | 'arcane' | 'craft'
 export type SocietyEventKind = 'migration' | 'settlement_founded' | 'settlement_abandoned' | 'cultural_blend' | 'famine' | 'recovery' | 'population_growth'
+export type TerritoryControlStatus = 'core' | 'controlled' | 'frontier' | 'contested' | 'occupied' | 'unclaimed'
+export type RealmObjectiveKind = 'secure_border' | 'control_route' | 'capture_resource' | 'recover_claim' | 'subjugate_neighbor' | 'suppress_revolt' | 'clear_monsters' | 'gain_river_access'
+export type ArmyStatus = 'garrison' | 'moving' | 'frontline' | 'retreating' | 'broken'
+export type WarType = 'border' | 'conquest' | 'religious' | 'civil' | 'separatist' | 'dynastic' | 'trade' | 'defensive'
+export type PoliticalEventKind = 'realm_founded' | 'realm_collapsed' | 'claim_created' | 'war_started' | 'border_shift' | 'army_moved' | 'occupation' | 'peace' | 'rebellion' | 'vassalage'
 
 
 export interface ResourceDeposit {
@@ -210,6 +215,64 @@ export interface SocietyState {
   recentEvents: SocietyEvent[]
 }
 
+export interface RealmObjective {
+  id: string
+  kind: RealmObjectiveKind
+  title: string
+  targetRealmId?: string
+  targetTileIds: string[]
+  targetSettlementIds: string[]
+  priority: number
+  progress: number
+  reason: string
+  createdYear: number
+}
+
+export interface RealmArmy {
+  id: string
+  realmId: string
+  name: string
+  tileId: string
+  homeSettlementId: string
+  targetTileId?: string
+  status: ArmyStatus
+  soldiers: number
+  quality: number
+  morale: number
+  supply: number
+  experience: number
+  movement: number
+  casualties: number
+  objectiveId?: string
+  warId?: string
+}
+
+export interface PoliticalEvent {
+  id: string
+  year: number
+  day: number
+  kind: PoliticalEventKind
+  title: string
+  description: string
+  realmIds: string[]
+  tileIds: string[]
+  settlementIds: string[]
+  magnitude: number
+}
+
+export interface PoliticalSimulationState {
+  initializedYear: number
+  lastTickYear: number
+  lastTickDay: number
+  borderChanges: number
+  occupations: number
+  warsStarted: number
+  warsEnded: number
+  realmCollapses: number
+  activeClaims: number
+  recentEvents: PoliticalEvent[]
+}
+
 export interface WorldGenerationSettings {
   preset: WorldPresetId
   mapSize: MapSizeId
@@ -259,6 +322,14 @@ export interface WorldTile {
   dominantCultureId?: string
   populationDensity?: number
   migrationPressure?: number
+  legalRealmId?: string
+  controllerRealmId?: string
+  claimedByRealmIds?: string[]
+  controlStrength?: number
+  controlStatus?: TerritoryControlStatus
+  supplyAccess?: number
+  resistance?: number
+  fortification?: number
 }
 
 export interface Realm {
@@ -277,6 +348,21 @@ export interface Realm {
   dominantFaith: string
   currentIssue: string
   relations: Record<string, number>
+  foundedYear?: number
+  governmentType?: string
+  legitimacy?: number
+  taxCapacity?: number
+  administrativeReach?: number
+  warExhaustion?: number
+  treasury?: number
+  manpower?: number
+  cohesion?: number
+  objective?: RealmObjective
+  coreTileIds?: string[]
+  claimTileIds?: string[]
+  subjectRealmIds?: string[]
+  overlordRealmId?: string
+  collapsedYear?: number
 }
 
 export interface Settlement {
@@ -313,6 +399,13 @@ export interface Settlement {
   parentSettlementId?: string
   abandonedYear?: number
   lastOwnerRealmId?: string
+  legalRealmId?: string
+  occupationRealmId?: string
+  loyalty?: number
+  fortification?: number
+  garrison?: number
+  taxValue?: number
+  resistance?: number
 }
 
 export interface DungeonZone {
@@ -414,6 +507,8 @@ export interface WorldData {
   cultures: CultureProfile[]
   communities: PopulationCommunity[]
   society: SocietyState
+  armies: RealmArmy[]
+  politics: PoliticalSimulationState
   startSettlementId: string
   history: HistoricalEvent[]
 }
@@ -858,6 +953,15 @@ export interface WorldWar {
   frontSettlementIds: string[]
   capturedSettlementIds: string[]
   casualties: number
+  type?: WarType
+  warScore?: number
+  frontTileIds?: string[]
+  occupiedTileIds?: string[]
+  claimedSettlementIds?: string[]
+  allianceRealmIds?: string[]
+  peaceTerms?: string
+  attackerArmyIds?: string[]
+  defenderArmyIds?: string[]
   lastEvent?: string
 }
 

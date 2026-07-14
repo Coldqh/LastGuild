@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Castle, ChevronDown, ChevronUp, Compass, Droplets, Flag, MapPin, Minus, Plus, Route, Skull, Sparkles, Sprout, TentTree, Waves, X } from 'lucide-react'
+import { Castle, ChevronDown, ChevronUp, Compass, Droplets, Flag, MapPin, Minus, Plus, Route, Shield, Skull, Sparkles, Sprout, Swords, TentTree, Waves, X } from 'lucide-react'
 import { BIOME_COLORS, BIOME_LABELS } from '../data/content'
 import type { GameState, WorldTile } from '../types/game'
 
@@ -30,7 +30,7 @@ function isMobileViewport(): boolean {
 
 export default function WorldMap({ state }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [layer, setLayer] = useState<'geography' | 'ecosystem' | 'population' | 'culture' | 'politics' | 'danger' | 'knowledge' | 'history'>('geography')
+  const [layer, setLayer] = useState<'geography' | 'ecosystem' | 'population' | 'culture' | 'politics' | 'military' | 'danger' | 'knowledge' | 'history'>('geography')
   const [zoom, setZoom] = useState(() => isMobileViewport() ? 1.65 : 1)
   const [detailExpanded, setDetailExpanded] = useState(() => !isMobileViewport())
   const mapScrollRef = useRef<HTMLDivElement>(null)
@@ -126,7 +126,11 @@ export default function WorldMap({ state }: Props) {
       return `hsl(34 68% ${light}%)`
     }
     if (layer === 'culture') return hex.dominantCultureId ? colorFromId(hex.dominantCultureId) : '#242521'
-    if (layer === 'politics') return realmMap.get(hex.stateId ?? '')?.color ?? '#2c2922'
+    if (layer === 'politics') return realmMap.get(hex.controllerRealmId ?? hex.stateId ?? '')?.color ?? '#2c2922'
+    if (layer === 'military') {
+      const supply = Math.max(0, Math.min(100, hex.supplyAccess ?? 0))
+      return `hsl(${Math.round(supply * 1.15)} 48% ${Math.round(18 + supply * .25)}%)`
+    }
     if (layer === 'danger') return `hsl(${Math.max(0, 115 - hex.danger * 13)} 42% ${Math.max(17, 52 - hex.danger * 3.2)}%)`
     if (layer === 'knowledge') return ['#100f0c', '#292820', '#46493a', '#687050', '#8d945e', '#b6ad75'][hex.knowledge]
     if (layer === 'history') {
@@ -156,6 +160,10 @@ export default function WorldMap({ state }: Props) {
   const selectedCulture = tile?.dominantCultureId ? cultureMap.get(tile.dominantCultureId) : undefined
   const localRoutes = tile ? state.world.routes.filter((route) => route.tileIds.includes(tile.id)) : []
   const localDeposits = tile ? depositsByTile.get(tile.id) ?? [] : []
+  const localArmies = tile ? state.world.armies.filter((army) => army.tileId === tile.id && army.status !== 'broken') : []
+  const legalRealm = tile?.legalRealmId ? realmMap.get(tile.legalRealmId) : undefined
+  const controllerRealm = tile?.controllerRealmId ? realmMap.get(tile.controllerRealmId) : selectedRealm
+  const claimantRealms = (tile?.claimedByRealmIds ?? []).map((id) => realmMap.get(id)).filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
   const selectedTitle = tile?.knowledge === 0 ? 'Неизвестная земля' : selectedSettlement?.name ?? selectedSite?.name ?? (tile ? BIOME_LABELS[tile.biome] : '')
 
   const selectTile = (id: string) => {
@@ -182,7 +190,8 @@ export default function WorldMap({ state }: Props) {
             <button className={layer === 'ecosystem' ? 'active' : ''} onClick={() => setLayer('ecosystem')}>Экология</button>
             <button className={layer === 'population' ? 'active' : ''} onClick={() => setLayer('population')}>Население</button>
             <button className={layer === 'culture' ? 'active' : ''} onClick={() => setLayer('culture')}>Культуры</button>
-            <button className={layer === 'politics' ? 'active' : ''} onClick={() => setLayer('politics')}>Границы</button>
+            <button className={layer === 'politics' ? 'active' : ''} onClick={() => setLayer('politics')}>Контроль</button>
+            <button className={layer === 'military' ? 'active' : ''} onClick={() => setLayer('military')}>Война</button>
             <button className={layer === 'danger' ? 'active' : ''} onClick={() => setLayer('danger')}>Опасность</button>
             <button className={layer === 'knowledge' ? 'active' : ''} onClick={() => setLayer('knowledge')}>Знания</button>
             <button className={layer === 'history' ? 'active' : ''} onClick={() => setLayer('history')}>Древность</button>
@@ -210,6 +219,21 @@ export default function WorldMap({ state }: Props) {
                 )
               })}
 
+              {layer === 'politics' && state.world.tiles.map((hex) => {
+                if (hex.knowledge === 0 || hex.biome === 'ocean') return null
+                const [cx, cy] = center(hex)
+                const occupied = hex.controlStatus === 'occupied'
+                const contested = hex.controlStatus === 'contested'
+                if (!occupied && !contested && (hex.claimedByRealmIds?.length ?? 0) === 0) return null
+                return <polygon key={`control-overlay-${hex.id}`} points={points(cx, cy)} fill="none" stroke={occupied ? '#f06b59' : contested ? '#e4b45d' : '#d7c18e'} strokeWidth={occupied ? 2.2 : 1.4} strokeDasharray={occupied ? '3 2' : '2 3'} opacity=".9" pointerEvents="none" />
+              })}
+
+              {layer === 'military' && state.wars.filter((war) => war.status !== 'ended').flatMap((war) => (war.frontTileIds ?? []).map((id) => tileMap.get(id)).filter((entry): entry is WorldTile => Boolean(entry))).map((front, index) => {
+                if (front.knowledge === 0) return null
+                const [cx, cy] = center(front)
+                return <polygon key={`front-${front.id}-${index}`} points={points(cx, cy)} fill="none" stroke="#f08a5d" strokeWidth="2" strokeDasharray="4 2" opacity=".92" pointerEvents="none" />
+              })}
+
               {state.world.routes.filter((route) => route.type === 'river').map((route) => {
                 const visible = route.tileIds.map((id) => tileMap.get(id)).filter((entry): entry is WorldTile => Boolean(entry && entry.knowledge > 0))
                 if (visible.length < 2) return null
@@ -233,6 +257,14 @@ export default function WorldMap({ state }: Props) {
                 </g>
               })}
 
+              {layer === 'military' && state.world.armies.filter((army) => army.status !== 'broken').map((army) => {
+                const current = tileMap.get(army.tileId)
+                if (!current || current.knowledge === 0) return null
+                const realm = realmMap.get(army.realmId)
+                const [cx, cy] = center(current)
+                return <g key={army.id} className="army-marker" pointerEvents="none"><rect x={cx - 6} y={cy - 6} width="12" height="12" rx="2" fill={realm?.color ?? '#9b7a4d'} stroke="#120c08" strokeWidth="1.4" /><path d={`M ${cx - 3} ${cy + 2} L ${cx} ${cy - 4} L ${cx + 3} ${cy + 2} Z`} fill="#f2dfb4" /><text x={cx + 8} y={cy + 3} className="army-map-label">{Math.max(1, Math.round(army.soldiers / 100))}</text></g>
+              })}
+
               {expeditionPositions.map(({ expedition, tileId }) => {
                 const current = tileMap.get(tileId)
                 if (!current) return null
@@ -248,7 +280,7 @@ export default function WorldMap({ state }: Props) {
             </svg>
           </div>
           <div className="map-legend">
-            <span><i className="legend-road" />дорога</span><span><i className="legend-trade" />торговый путь</span><span><i className="legend-river" />река</span><span><i className="legend-settlement" />поселение</span><span><i className="legend-site" />руины</span><span><i className="legend-rival" />чужая экспедиция</span>
+            <span><i className="legend-road" />дорога</span><span><i className="legend-trade" />торговый путь</span><span><i className="legend-river" />река</span><span><i className="legend-settlement" />поселение</span><span><i className="legend-site" />руины</span>{layer === 'military' && <span><Swords size={11} />армии и фронты</span>}{layer === 'politics' && <span><Shield size={11} />спорные земли</span>}
           </div>
         </div>
 
@@ -282,10 +314,13 @@ export default function WorldMap({ state }: Props) {
                       <div className="detail-row"><Droplets size={15} /><span>Вода {Math.round(tile.waterAvailability)} · почва {Math.round(tile.soilFertility)}</span></div>
                       <div className="detail-row"><MapPin size={15} /><span>Изученность {tile.knowledge}/5</span></div>
                     </div>
+                    {(controllerRealm || legalRealm) && <div className="detail-row"><Shield size={15} /><span>Контроль: {controllerRealm?.name ?? 'нет'} · право: {legalRealm?.name ?? 'ничья земля'} · сила {Math.round(tile.controlStrength ?? 0)} · снабжение {Math.round(tile.supplyAccess ?? 0)}</span></div>}
+                    {claimantRealms.length > 0 && <div className="detail-row"><Flag size={15} /><span>Претензии: {claimantRealms.map((realm) => realm.name).join(' · ')}</span></div>}
+                    {localArmies.map((army) => <div className="detail-row" key={army.id}><Swords size={15} /><span>{army.name}: {army.soldiers.toLocaleString('ru-RU')} · мораль {Math.round(army.morale)} · снабжение {Math.round(army.supply)}</span></div>)}
                     {tile.hasRiver && <div className="detail-row"><Waves size={15} /><span>Через район проходит река</span></div>}
                     {tile.knowledge >= 3 && localDeposits.length > 0 && <div className="detail-row"><Sprout size={15} /><span>Ресурсы: {localDeposits.slice(0, 4).map((entry) => `${entry.kind} ${Math.round(entry.abundance)}`).join(' · ')}</span></div>}
                     {localRoutes.filter((entry) => entry.type !== 'river').map((entry) => <div className="detail-row" key={entry.id}><Route size={15} /><span>{entry.name} · {entry.status === 'active' ? `${entry.income} дохода` : entry.status === 'disrupted' ? 'движение нарушено' : 'заброшен'}</span></div>)}
-                    {selectedRealm && <div className="detail-block realm-detail" style={{ borderColor: selectedRealm.color }}><h3><Castle size={16} /> {selectedRealm.name}</h3><p>{selectedRealm.government}; правитель — {selectedRealm.ruler}.</p><p>Культура: {selectedRealm.culture}. Вера: {selectedRealm.dominantFaith}.</p><p className="danger-text">{selectedRealm.currentIssue}</p></div>}
+                    {selectedRealm && <div className="detail-block realm-detail" style={{ borderColor: selectedRealm.color }}><h3><Castle size={16} /> {selectedRealm.name}</h3><p>{selectedRealm.governmentType ?? selectedRealm.government}; правитель — {selectedRealm.ruler}.</p><p>Устойчивость {Math.round(selectedRealm.stability)} · легитимность {Math.round(selectedRealm.legitimacy ?? 0)} · казна {Math.round(selectedRealm.treasury ?? 0)}.</p><p>Цель: {selectedRealm.objective?.title ?? selectedRealm.currentIssue}.</p></div>}
                     {(selectedPeople || selectedCulture) && <div className="detail-block"><h3><Flag size={16} /> Население</h3><p>{selectedPeople?.name ?? 'Смешанное население'} · {selectedPeople?.ancestry ?? 'разные народы'}.</p>{selectedCulture && <p>{selectedCulture.name}: {selectedCulture.subsistence}. {selectedCulture.architecture}.</p>}{tile.populationDensity !== undefined && <p>Плотность {Math.round(tile.populationDensity)} · миграционное давление {Math.round(tile.migrationPressure ?? 0)}.</p>}</div>}
                     {selectedSettlement && <div className="detail-block"><h3><Flag size={16} /> {selectedSettlement.name}</h3><p>Благополучие {Math.round(selectedSettlement.prosperity)}/100 · безопасность {Math.round(selectedSettlement.safety)}/100</p><p>Рост {selectedSettlement.growth.toFixed(1)} · волнения {Math.round(selectedSettlement.unrest)} · продовольствие {Math.round(selectedSettlement.foodSecurity)}</p><p>Производит: {selectedSettlement.production.join(', ')}. Нуждается: {selectedSettlement.demand.join(', ')}.</p></div>}
                     {selectedSite && tile.knowledge >= 2 && <div className="detail-block danger-block"><h3>{selectedSite.type}</h3><p>{selectedSite.origin}. Возраст около {selectedSite.age} лет.</p><p>Глубина {selectedSite.depth}, опасность {selectedSite.danger}/10.</p><div className="zone-mini-list">{selectedSite.zones.slice(0, 5).map((zone) => <span key={zone.id}>{zone.explored ? '✓' : '○'} {zone.name}</span>)}</div></div>}

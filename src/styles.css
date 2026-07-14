@@ -5094,3 +5094,183 @@ html, body, #root {
   .society-people-list em { font-size: .49rem; }
   .society-event-list > div { grid-template-columns: 32px minmax(0,1fr) auto; }
 }
+
+/* v0.8.6 — political simulation layer */
+.politics-world-grid {
+  align-items: start;
+}
+
+.realm-simulation-list,
+.politics-event-list,
+.politics-summary-lines {
+  display: grid;
+  gap: 7px;
+}
+
+.realm-simulation-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 10px minmax(170px, 1.35fr) repeat(3, minmax(72px, .45fr)) minmax(210px, 1.35fr);
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid rgba(58, 42, 22, .2);
+  background: rgba(255,255,255,.09);
+}
+
+.realm-color-dot {
+  width: 8px;
+  height: 32px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+}
+
+.realm-simulation-row > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.realm-simulation-row strong,
+.realm-simulation-row b {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: .72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.realm-simulation-row small {
+  overflow: hidden;
+  color: #776b5c;
+  font-size: .58rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.realm-objective b {
+  color: #6a4320;
+}
+
+.politics-summary-lines span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(58,42,22,.17);
+  color: #6f6354;
+  font-size: .68rem;
+}
+
+.politics-summary-lines span:last-child {
+  border-bottom: 0;
+}
+
+.politics-summary-lines b {
+  color: #3e2c1a;
+  font-size: .78rem;
+}
+
+.politics-event-list > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(58,42,22,.15);
+}
+
+.politics-event-list > div:last-child {
+  border-bottom: 0;
+}
+
+.politics-event-list > div > b {
+  color: #8a5d29;
+  font-size: .65rem;
+}
+
+.politics-event-list span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.politics-event-list strong {
+  overflow: hidden;
+  font-size: .67rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.politics-event-list small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #776b5c;
+  font-size: .57rem;
+  line-height: 1.25;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.army-map-label {
+  fill: #f1ddb2;
+  stroke: #16100a;
+  stroke-width: 1.8px;
+  paint-order: stroke fill;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 7px;
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .realm-simulation-row {
+    grid-template-columns: 7px minmax(0, 1fr) auto auto;
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .realm-color-dot {
+    width: 5px;
+    height: 28px;
+  }
+
+  .realm-simulation-row > span:nth-of-type(4),
+  .realm-simulation-row > span:nth-of-type(5) {
+    display: none;
+  }
+
+  .realm-simulation-row strong,
+  .realm-simulation-row b {
+    font-size: .61rem;
+  }
+
+  .realm-simulation-row small {
+    font-size: .49rem;
+  }
+
+  .realm-objective {
+    grid-column: 2 / -1;
+    padding-top: 4px;
+    border-top: 1px solid rgba(58,42,22,.12);
+  }
+
+  .politics-summary-lines {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 4px;
+  }
+
+  .politics-summary-lines span {
+    min-height: 34px;
+    display: grid;
+    gap: 2px;
+    padding: 5px 6px;
+    border: 1px solid rgba(58,42,22,.15);
+  }
+
+  .politics-summary-lines b {
+    grid-row: 1;
+    font-size: .7rem;
+  }
+}
