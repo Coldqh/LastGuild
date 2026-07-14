@@ -250,13 +250,36 @@ export interface ExpeditionDraft {
   retreatThreshold: number
 }
 
+export function getExpeditionLaunchIssues(state: GameState, draft: ExpeditionDraft): string[] {
+  const issues: string[] = []
+  const opportunity = state.opportunities.find((entry) => entry.id === draft.opportunity.id)
+  const uniqueMemberIds = [...new Set(draft.memberIds)]
+  const members = state.characters.filter((character) => uniqueMemberIds.includes(character.id))
+  const eligibleMembers = members.filter((character) => character.employed && character.status === 'available')
+  const home = state.world.settlements.find((settlement) => settlement.id === state.world.startSettlementId)
+  const route = home && opportunity ? findRoute(state, home.tileId, opportunity.targetTileId) : []
+  const activeCount = state.expeditions.filter((expedition) => expedition.status === 'active' || expedition.status === 'returning').length
+
+  if (!opportunity || opportunity.accepted || opportunity.deadlineDay < state.day) issues.push('Контракт больше недоступен.')
+  if (uniqueMemberIds.length < 2) issues.push('Нужно минимум два участника.')
+  if (eligibleMembers.length !== uniqueMemberIds.length) issues.push('В составе есть недоступный сотрудник.')
+  if (!draft.leaderId || !uniqueMemberIds.includes(draft.leaderId)) issues.push('Лидер должен входить в состав отряда.')
+  if (route.length === 0) issues.push('Маршрут до цели не найден.')
+  if (!Number.isFinite(draft.food) || draft.food < 12) issues.push('Провизии меньше минимального запаса.')
+  if (!Number.isFinite(draft.medicine) || draft.medicine < 2) issues.push('Медицины меньше минимального запаса.')
+  if (!Number.isFinite(draft.budget) || draft.budget < 0) issues.push('Некорректная стоимость экспедиции.')
+  if (state.guild.treasury < draft.budget) issues.push(`Не хватает ${Math.ceil(draft.budget - state.guild.treasury)} крон.`)
+  if (state.guild.supplies < draft.food) issues.push(`Не хватает ${Math.ceil(draft.food - state.guild.supplies)} провизии.`)
+  if (state.guild.medicine < draft.medicine) issues.push(`Не хватает ${Math.ceil(draft.medicine - state.guild.medicine)} медицины.`)
+  if (activeCount >= state.guild.maxActiveExpeditions) issues.push('Нет свободного слота экспедиции.')
+  return [...new Set(issues)]
+}
+
 export function createExpeditionFromDraft(state: GameState, draft: ExpeditionDraft): GameState {
+  if (getExpeditionLaunchIssues(state, draft).length > 0) return state
   const home = state.world.settlements.find((settlement) => settlement.id === state.world.startSettlementId)!
   const route = findRoute(state, home.tileId, draft.opportunity.targetTileId)
   const members = state.characters.filter((character) => draft.memberIds.includes(character.id))
-  if (members.length < 2 || route.length === 0) return state
-  if (state.guild.treasury < draft.budget || state.guild.supplies < draft.food || state.guild.medicine < draft.medicine) return state
-  if (state.expeditions.filter((expedition) => expedition.status === 'active' || expedition.status === 'returning').length >= state.guild.maxActiveExpeditions) return state
 
   const policyMultiplier = draft.riskPolicy === 'cautious' ? 1.25 : draft.riskPolicy === 'bold' ? 0.82 : 1
   const expectedDays = Math.max(4, Math.ceil(route.length * 1.5 * policyMultiplier + 3))
@@ -1311,10 +1334,26 @@ export function hireCharacter(state: GameState, characterId: string): GameState 
 
 export function dismissCharacter(state: GameState, characterId: string): GameState {
   const character = state.characters.find((candidate) => candidate.id === characterId)
-  if (!character || !character.employed || character.status === 'expedition' || character.status === 'dead') return state
+  if (!character || !character.employed || ['expedition', 'dead', 'missing'].includes(character.status)) return state
+  const remainingCharacters = state.characters
+    .filter((candidate) => candidate.id !== characterId)
+    .map((candidate) => ({
+      ...candidate,
+      mentorId: candidate.mentorId === characterId ? undefined : candidate.mentorId,
+      apprenticeIds: candidate.apprenticeIds.filter((id) => id !== characterId),
+      relativeIds: candidate.relativeIds.filter((id) => id !== characterId),
+      relationships: Object.fromEntries(Object.entries(candidate.relationships).filter(([id]) => id !== characterId)),
+    }))
   return {
     ...state,
-    characters: state.characters.map((candidate) => candidate.id === characterId ? { ...candidate, employed: false, formerGuildMember: true, loyalty: Math.max(0, candidate.loyalty - 20) } : candidate),
-    chronicle: [...state.chronicle, { id: `chronicle-dismiss-${characterId}-${state.day}`, day: state.day, year: state.year, title: `${character.name} покидает штат`, text: 'Контракт расторгнут. Персонаж остаётся в мире и позднее может перейти к конкурентам.', category: 'character', importance: 1 }],
+    characters: remainingCharacters,
+    guild: {
+      ...state.guild,
+      leaderId: state.guild.leaderId === characterId ? undefined : state.guild.leaderId,
+      positions: state.guild.positions.map((position) => position.holderId === characterId ? { ...position, holderId: undefined } : position),
+    },
+    mentorships: state.mentorships.filter((entry) => entry.mentorId !== characterId && entry.apprenticeId !== characterId),
+    generations: state.generations.map((entry) => ({ ...entry, memberIds: entry.memberIds.filter((id) => id !== characterId) })),
+    chronicle: [...state.chronicle, { id: `chronicle-dismiss-${characterId}-${state.day}`, day: state.day, year: state.year, title: `${character.name} уволен`, text: 'Сотрудник удалён из текущей кампании и больше не появится на рынке найма.', category: 'character', importance: 1 }],
   }
 }

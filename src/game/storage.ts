@@ -3,7 +3,7 @@ import { DEFAULT_WORLD_SETTINGS } from './worldSettings'
 import { createStrategicLayer } from './strategy'
 import { initializeLivingWorld } from './livingWorld'
 import { loadPreferences } from './preferences'
-import { createGuildInstitutions, DEFAULT_CHARTER, ACADEMY_PROGRAMS } from './guildPolitics'
+import { createGuildLegacy } from './guildPolitics'
 import { ensureStoryOpportunities, initializeContentEngine, validateContent } from './contentEngine'
 import { createCampaignProgress, refreshCampaignProgress } from './campaign'
 
@@ -26,9 +26,17 @@ export function saveGame(state: GameState): void {
 }
 
 function normalizeCharacter(character: any, state: any): Character {
-  const stage = character.careerStage ?? (character.fame >= 50 ? 'legend' : character.expeditions >= 7 ? 'veteran' : character.expeditions >= 2 ? 'field' : 'recruit')
+  const {
+    formerGuildMember: _formerGuildMember,
+    assignedBranchId: _assignedBranchId,
+    academyEnrollmentId: _academyEnrollmentId,
+    academyGraduate: _academyGraduate,
+    councilInfluence: _councilInfluence,
+    ...cleanCharacter
+  } = character
+  const stage = cleanCharacter.careerStage ?? (cleanCharacter.fame >= 50 ? 'legend' : cleanCharacter.expeditions >= 7 ? 'veteran' : cleanCharacter.expeditions >= 2 ? 'field' : 'recruit')
   return {
-    ...character,
+    ...cleanCharacter,
     origin: character.origin ?? 'Происхождение не записано',
     homeSettlementId: character.homeSettlementId ?? state.world?.startSettlementId ?? '',
     experience: character.experience ?? (character.level ?? 1) * 35,
@@ -48,13 +56,9 @@ function normalizeCharacter(character: any, state: any): Character {
     mentorId: character.mentorId,
     apprenticeIds: character.apprenticeIds ?? [],
     rivalGuildId: character.rivalGuildId,
-    assignedBranchId: character.assignedBranchId,
     generationId: character.generationId,
     familyName: character.familyName ?? (character.name?.split(' ').at(-1) ?? character.name),
     relativeIds: character.relativeIds ?? [],
-    academyEnrollmentId: character.academyEnrollmentId,
-    academyGraduate: character.academyGraduate ?? false,
-    councilInfluence: character.councilInfluence ?? 0,
     memories: (character.memories ?? []).map((memory: any, index: number) => ({
       id: memory.id ?? `legacy-memory-${character.id}-${index}`,
       title: memory.title ?? 'Старое воспоминание',
@@ -89,8 +93,6 @@ function normalizeState(parsed: any): GameState | null {
       ...parsed.guild,
       positions: parsed.guild?.positions ?? defaultPositions(),
       leaderId: parsed.guild?.leaderId,
-      charterInfluence: parsed.guild?.charterInfluence ?? 0,
-      academyReputation: parsed.guild?.academyReputation ?? 0,
       institutionalMemory: parsed.guild?.institutionalMemory ?? 1,
     },
     world: {
@@ -109,7 +111,7 @@ function normalizeState(parsed: any): GameState | null {
       monsterSpecies: (parsed.world?.monsterSpecies ?? []).map((species: any) => ({ ...species, abilities: species.abilities ?? ['особая атака'], trophy: species.trophy ?? 'неизвестный трофей', armor: species.armor ?? Math.max(0, Math.floor((species.threat ?? 2) / 2)), movement: species.movement ?? 2 })),
       monsterPopulations: (parsed.world?.monsterPopulations ?? []).map((population: any) => ({ ...population, legendary: population.legendary ?? false, scars: population.scars ?? [] })),
     },
-    characters: (parsed.characters ?? []).map((character: any) => normalizeCharacter(character, parsed)),
+    characters: (parsed.characters ?? []).filter((character: any) => !character.formerGuildMember).map((character: any) => normalizeCharacter(character, parsed)),
     opportunities: (parsed.opportunities ?? []).map((opportunity: any) => ({
       ...opportunity,
       requiredRoles: opportunity.requiredRoles ?? ['Следопыт'],
@@ -126,19 +128,13 @@ function normalizeState(parsed: any): GameState | null {
     politicalFactions: parsed.politicalFactions ?? [],
     rivalGuilds: parsed.rivalGuilds ?? [],
     rivalExpeditions: parsed.rivalExpeditions ?? [],
-    branches: parsed.branches ?? [],
     crises: parsed.crises ?? [],
     mentorships: parsed.mentorships ?? [],
     wars: parsed.wars ?? [],
     knowledgeSpreads: parsed.knowledgeSpreads ?? [],
     historySnapshots: parsed.historySnapshots ?? [],
-    academy: parsed.academy ?? { level: 1, seats: 4, reputation: 4, monthlyCost: 24, programs: ACADEMY_PROGRAMS, enrollments: [] },
     doctrines: parsed.doctrines ?? [],
     generations: parsed.generations ?? [],
-    council: parsed.council ?? [],
-    councilProposals: parsed.councilProposals ?? [],
-    guildFactions: parsed.guildFactions ?? [],
-    charter: { ...DEFAULT_CHARTER, ...(parsed.charter ?? {}) },
     memorials: parsed.memorials ?? [],
     civilizations: parsed.civilizations ?? [],
     artifactsCatalog: parsed.artifactsCatalog ?? [],
@@ -177,15 +173,11 @@ function normalizeState(parsed: any): GameState | null {
     normalized.opportunities = normalized.opportunities.filter((entry) => !entry.storyChainId || entry.accepted || !dormantIds.has(entry.storyChainId))
   }
 
-  if (normalized.generations.length === 0 || normalized.council.length === 0 || normalized.guildFactions.length === 0) {
-    const institutions = createGuildInstitutions(normalized.seed, { characters: normalized.characters, guild: normalized.guild, year: normalized.year, day: normalized.day, branches: normalized.branches })
-    normalized.academy = parsed.academy ?? institutions.academy
-    normalized.doctrines = normalized.doctrines.length ? normalized.doctrines : institutions.doctrines
-    normalized.generations = normalized.generations.length ? normalized.generations : institutions.generations
-    normalized.council = normalized.council.length ? normalized.council : institutions.council
-    normalized.guildFactions = normalized.guildFactions.length ? normalized.guildFactions : institutions.guildFactions
-    normalized.charter = { ...DEFAULT_CHARTER, ...(parsed.charter ?? {}) }
-    normalized.memorials = normalized.memorials.length ? normalized.memorials : institutions.memorials
+  if (normalized.generations.length === 0) {
+    const legacy = createGuildLegacy({ characters: normalized.characters, year: normalized.year })
+    normalized.doctrines = normalized.doctrines.length ? normalized.doctrines : legacy.doctrines
+    normalized.generations = legacy.generations
+    normalized.memorials = normalized.memorials.length ? normalized.memorials : legacy.memorials
     const currentGenerationId = normalized.generations.find((entry) => !entry.endedYear)?.id
     normalized.characters = normalized.characters.map((entry) => entry.employed && !entry.generationId ? { ...entry, generationId: currentGenerationId } : entry)
   }
@@ -205,6 +197,10 @@ function normalizeState(parsed: any): GameState | null {
     normalized.knowledgeSpreads = normalized.knowledgeSpreads.length ? normalized.knowledgeSpreads : living.knowledgeSpreads
     normalized.historySnapshots = normalized.historySnapshots.length ? normalized.historySnapshots : living.historySnapshots
   }
+  const runtimeState = normalized as GameState & Record<string, unknown>
+  for (const key of ['academy', 'council', 'councilProposals', 'guildFactions', 'charter', 'branches']) delete runtimeState[key]
+  const runtimeGuild = normalized.guild as GameState['guild'] & Record<string, unknown>
+  for (const key of ['academyReputation', 'charterInfluence']) delete runtimeGuild[key]
   return ensureStoryOpportunities(refreshCampaignProgress(normalized))
 }
 

@@ -9,7 +9,6 @@ export interface AppPreferences {
   cityDestructionEnabled: boolean
   agingEnabled: boolean
   oldAgeDeathEnabled: boolean
-  branchSecessionEnabled: boolean
   poachingEnabled: boolean
   devToolsEnabled: boolean
   compactCardsEnabled: boolean
@@ -30,7 +29,6 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   cityDestructionEnabled: true,
   agingEnabled: true,
   oldAgeDeathEnabled: true,
-  branchSecessionEnabled: true,
   poachingEnabled: true,
   devToolsEnabled: false,
   compactCardsEnabled: false,

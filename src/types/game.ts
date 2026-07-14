@@ -15,7 +15,7 @@ export type KnowledgeLevel = 0 | 1 | 2 | 3 | 4 | 5
 export type CharacterStatus = 'available' | 'expedition' | 'recovering' | 'missing' | 'dead' | 'retired'
 export type CharacterCareerStage = 'recruit' | 'field' | 'veteran' | 'leader' | 'mentor' | 'legend'
 export type ExpeditionStatus = 'planned' | 'active' | 'returning' | 'completed' | 'missing' | 'failed'
-export type ViewId = 'headquarters' | 'campaign' | 'hiring' | 'roster' | 'rooms' | 'positions' | 'academy' | 'council' | 'legacy' | 'world' | 'expeditions' | 'active_expeditions' | 'archive' | 'influence' | 'living_world' | 'lore'
+export type ViewId = 'headquarters' | 'campaign' | 'hiring' | 'roster' | 'rooms' | 'positions' | 'legacy' | 'world' | 'expeditions' | 'active_expeditions' | 'archive' | 'influence' | 'living_world' | 'lore'
 export type DifficultyId = 'story' | 'standard' | 'hard' | 'brutal'
 export type MapSizeId = 'compact' | 'regional' | 'vast'
 export type DensityId = 'sparse' | 'normal' | 'dense'
@@ -33,8 +33,7 @@ export type CombatCommandType = 'focus' | 'protect' | 'rally' | 'retreat'
 export type CombatUnitStatus = 'ready' | 'wounded' | 'panicked' | 'down' | 'dead'
 export type RivalGuildArchetype = 'royal' | 'academic' | 'hunters' | 'traders' | 'relic_raiders' | 'religious' | 'free_company' | 'secret'
 export type RivalGuildStance = 'allied' | 'cooperative' | 'neutral' | 'competitive' | 'hostile'
-export type BranchAutonomy = 'controlled' | 'limited' | 'autonomous'
-export type BranchSpecialization = 'cartography' | 'archaeology' | 'monsters' | 'diplomacy' | 'magic' | 'trade'
+export type RivalGuildFocus = 'cartography' | 'archaeology' | 'monsters' | 'diplomacy' | 'magic' | 'trade'
 export type CrisisKind = 'war' | 'succession' | 'epidemic' | 'religious' | 'monster_migration' | 'trade_collapse' | 'magical_storm' | 'rebellion'
 export type CrisisStatus = 'emerging' | 'active' | 'resolved' | 'collapsed'
 export type RivalExpeditionStatus = 'preparing' | 'traveling' | 'completed' | 'failed'
@@ -48,18 +47,6 @@ export type SettlementStatus = 'active' | 'declining' | 'ruined'
 export type RouteStatus = 'active' | 'disrupted' | 'abandoned'
 export type WarStatus = 'preparing' | 'active' | 'truce' | 'ended'
 export type KnowledgeSpreadStage = 'found' | 'verified' | 'published' | 'contested' | 'spreading' | 'used'
-export type AcademyProgramId = 'scout' | 'warrior' | 'healer' | 'cartographer' | 'archaeologist' | 'diplomat' | 'arcanist' | 'monster_hunter'
-export type AcademyEnrollmentStatus = 'training' | 'ready' | 'graduated' | 'failed'
-export type GuildFactionType = 'veterans' | 'scholars' | 'field' | 'commerce' | 'secrecy' | 'reformers' | 'branches'
-export type CouncilProposalType = 'finance' | 'rescue' | 'publication' | 'charter' | 'succession' | 'branch' | 'artifact'
-export type CouncilProposalStatus = 'pending' | 'passed' | 'rejected' | 'resolved'
-export type CouncilVoteChoice = 'support' | 'oppose' | 'abstain'
-export type LeadershipSelectionRule = 'appointed' | 'council' | 'veterans'
-export type ArtifactRightsRule = 'guild' | 'finder_share' | 'sponsor'
-export type MissingExpeditionRule = 'mandatory' | 'case_by_case' | 'optional'
-export type ArchiveAccessRule = 'open' | 'ranked' | 'restricted'
-export type FamilyCompensationRule = 'none' | 'standard' | 'generous'
-export type BranchAuthorityRule = 'centralized' | 'limited' | 'autonomous'
 export type StoryChainKind = 'lost_expedition' | 'fallen_civilization' | 'legendary_monster' | 'artifact' | 'religious_secret' | 'lost_route' | 'vanished_city' | 'state_conspiracy'
 export type StoryChainRarity = 'common' | 'uncommon' | 'rare' | 'legendary'
 export type StoryChainStatus = 'dormant' | 'active' | 'completed' | 'failed'
@@ -336,7 +323,6 @@ export interface Character {
   careerStage: CharacterCareerStage
   status: CharacterStatus
   employed: boolean
-  formerGuildMember?: boolean
   salary: number
   health: number
   fatigue: number
@@ -358,13 +344,9 @@ export interface Character {
   mentorId?: string
   apprenticeIds: string[]
   rivalGuildId?: string
-  assignedBranchId?: string
   generationId?: string
   familyName?: string
   relativeIds: string[]
-  academyEnrollmentId?: string
-  academyGraduate?: boolean
-  councilInfluence: number
 }
 
 export interface GuildRoom {
@@ -407,8 +389,6 @@ export interface GuildData {
   maxActiveExpeditions: number
   daysSincePayment: number
   leaderId?: string
-  charterInfluence: number
-  academyReputation: number
   institutionalMemory: number
 }
 
@@ -729,7 +709,7 @@ export interface PoliticalFaction {
   id: string
   realmId: string
   name: string
-  kind: 'court' | 'army' | 'faith' | 'merchants' | 'academy' | 'local'
+  kind: 'court' | 'army' | 'faith' | 'merchants' | 'scholars' | 'local'
   influence: number
   attitude: number
   agenda: string
@@ -743,7 +723,7 @@ export interface RivalGuild {
   headquartersSettlementId: string
   leaderName: string
   leaderTrait: string
-  specialization: BranchSpecialization
+  specialization: RivalGuildFocus
   budget: number
   reputation: number
   scientificAuthority: number
@@ -774,25 +754,6 @@ export interface RivalExpedition {
   secrecy: number
 }
 
-export interface GuildBranch {
-  id: string
-  name: string
-  settlementId: string
-  leaderId: string
-  specialization: BranchSpecialization
-  autonomy: BranchAutonomy
-  level: number
-  treasury: number
-  reputation: number
-  loyalty: number
-  staff: number
-  upkeep: number
-  income: number
-  openedYear: number
-  openedDay: number
-  hiddenFunds: number
-}
-
 export interface WorldCrisis {
   id: string
   kind: CrisisKind
@@ -821,39 +782,6 @@ export interface Mentorship {
 }
 
 
-export interface AcademyProgram {
-  id: AcademyProgramId
-  name: string
-  profession: string
-  durationMonths: number
-  tuition: number
-  primarySkill: keyof CharacterSkills
-  secondarySkill: keyof CharacterSkills
-  description: string
-}
-
-export interface AcademyEnrollment {
-  id: string
-  characterId: string
-  programId: AcademyProgramId
-  mentorId?: string
-  startedYear: number
-  startedDay: number
-  progress: number
-  performance: number
-  examsPassed: number
-  status: AcademyEnrollmentStatus
-}
-
-export interface GuildAcademy {
-  level: number
-  seats: number
-  reputation: number
-  monthlyCost: number
-  programs: AcademyProgram[]
-  enrollments: AcademyEnrollment[]
-}
-
 export interface GuildDoctrine {
   id: string
   name: string
@@ -876,60 +804,6 @@ export interface GuildGeneration {
   memberIds: string[]
   doctrineIds: string[]
   definingEvents: string[]
-}
-
-export interface GuildCouncilSeat {
-  id: string
-  name: string
-  holderId?: string
-  influence: number
-  source: 'leader' | 'position' | 'veterans' | 'branches' | 'academy'
-}
-
-export interface CouncilVote {
-  voterId: string
-  choice: CouncilVoteChoice
-  weight: number
-}
-
-export interface CouncilProposal {
-  id: string
-  type: CouncilProposalType
-  title: string
-  description: string
-  createdYear: number
-  createdDay: number
-  deadlineDay: number
-  deadlineYear: number
-  sponsorFactionId?: string
-  cost: number
-  votes: CouncilVote[]
-  playerChoice?: CouncilVoteChoice
-  status: CouncilProposalStatus
-  supportScore: number
-  resultText?: string
-}
-
-export interface GuildInternalFaction {
-  id: string
-  type: GuildFactionType
-  name: string
-  leaderId?: string
-  memberIds: string[]
-  influence: number
-  loyalty: number
-  agenda: string
-  demand: string
-  relationToLeader: number
-}
-
-export interface GuildCharter {
-  leadershipSelection: LeadershipSelectionRule
-  artifactRights: ArtifactRightsRule
-  missingExpeditions: MissingExpeditionRule
-  archiveAccess: ArchiveAccessRule
-  familyCompensation: FamilyCompensationRule
-  branchAuthority: BranchAuthorityRule
 }
 
 export interface GuildMemorial {
@@ -1122,19 +996,13 @@ export interface GameState {
   politicalFactions: PoliticalFaction[]
   rivalGuilds: RivalGuild[]
   rivalExpeditions: RivalExpedition[]
-  branches: GuildBranch[]
   crises: WorldCrisis[]
   mentorships: Mentorship[]
   wars: WorldWar[]
   knowledgeSpreads: KnowledgeSpread[]
   historySnapshots: HistoricalMapSnapshot[]
-  academy: GuildAcademy
   doctrines: GuildDoctrine[]
   generations: GuildGeneration[]
-  council: GuildCouncilSeat[]
-  councilProposals: CouncilProposal[]
-  guildFactions: GuildInternalFaction[]
-  charter: GuildCharter
   memorials: GuildMemorial[]
   civilizations: AncientCivilization[]
   artifactsCatalog: ArtifactRecord[]

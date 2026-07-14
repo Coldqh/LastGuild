@@ -76,8 +76,6 @@ function phaseScore(state: GameState): number {
     + state.guild.politicalInfluence * 1.6
     + state.discoveries.length * 5
     + completedStories * 18
-    + state.branches.length * 12
-    + state.academy.level * 7
     + state.doctrines.length * 5
     + Math.min(45, years * 2.5),
   )
@@ -95,10 +93,8 @@ function goalProgress(state: GameState, type: CampaignGoalType): number {
   if (type === 'great_artifact') return state.artifactsCatalog.filter((artifact) => artifact.status === 'recovered').length
   const rank = Math.min(30, state.guild.rank * 7)
   const science = Math.min(30, state.guild.scientificAuthority * 0.35)
-  const branches = Math.min(18, state.branches.length * 9)
-  const academy = Math.min(12, state.academy.level * 4)
   const legacy = Math.min(10, state.doctrines.length * 3 + state.generations.length * 2)
-  return Math.round(rank + science + branches + academy + legacy)
+  return Math.round(rank + science + legacy)
 }
 
 function identityScores(state: GameState): Record<GuildIdentityPathId, number> {
@@ -113,7 +109,7 @@ function identityScores(state: GameState): Record<GuildIdentityPathId, number> {
     hunters: clamp(state.guild.adventurerPrestige * 0.65 + victories * 4 + state.bestiary.filter((entry) => entry.discoveredWeakness).length * 4),
     royal: clamp(state.guild.politicalInfluence * 2.2 + resolvedCrises * 9 + state.politicalFactions.filter((entry) => entry.attitude >= 35).length * 3),
     independent: clamp(state.discoveries.length * 3 + secret * 4 + state.expeditions.filter((entry) => entry.status === 'completed').length * 1.5),
-    traders: clamp(Math.min(45, state.guild.treasury / 90) + activeRoutes * 2 + state.branches.length * 12),
+    traders: clamp(Math.min(45, state.guild.treasury / 90) + activeRoutes * 2),
     wardens: clamp(secret * 5 + state.artifactsCatalog.filter((entry) => ['partial', 'recovered'].includes(entry.status)).length * 7 + state.guild.institutionalMemory * 0.25),
   }
 }

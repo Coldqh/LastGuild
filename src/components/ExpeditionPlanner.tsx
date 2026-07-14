@@ -23,7 +23,7 @@ import {
   UserRoundCheck,
   Users,
 } from 'lucide-react'
-import { findRoute, type ExpeditionDraft } from '../game/simulation'
+import { findRoute, getExpeditionLaunchIssues, type ExpeditionDraft } from '../game/simulation'
 import type { Character, ExpeditionRiskProfile, GameState, Opportunity } from '../types/game'
 
 interface Props {
@@ -117,7 +117,7 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
     return matchesType && matchesQuery
   })
   const selectedOpportunity = opportunities.find((opportunity) => opportunity.id === selectedOpportunityId)
-  const availableCharacters = state.characters.filter((character) => character.employed && character.status === 'available' && !character.assignedBranchId)
+  const availableCharacters = state.characters.filter((character) => character.employed && character.status === 'available')
   const selectedMembers = availableCharacters.filter((character) => memberIds.includes(character.id))
   const home = state.world.settlements.find((settlement) => settlement.id === state.world.startSettlementId)
   const route = useMemo(() => selectedOpportunity && home ? findRoute(state, home.tileId, selectedOpportunity.targetTileId) : [], [selectedOpportunity, home, state])
@@ -126,7 +126,9 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
   const recommendedFood = Math.ceil(expectedDays * Math.max(2, memberIds.length) * .78)
   const budget = 45 + selectedMembers.length * 18 + Math.ceil(food * .7) + medicine * 4
   const activeCount = state.expeditions.filter((expedition) => expedition.status === 'active' || expedition.status === 'returning').length
-  const canLaunch = Boolean(selectedOpportunity && memberIds.length >= 2 && leaderId && route.length > 0 && state.guild.treasury >= budget && state.guild.supplies >= food && state.guild.medicine >= medicine && activeCount < state.guild.maxActiveExpeditions)
+  const launchDraft = selectedOpportunity ? { opportunity: selectedOpportunity, memberIds, leaderId, riskPolicy, food, medicine, budget, retreatThreshold } : undefined
+  const launchIssues = launchDraft ? getExpeditionLaunchIssues(state, launchDraft) : ['Контракт не выбран.']
+  const canLaunch = launchIssues.length === 0
 
   const roleCoverage = useMemo(() => {
     if (!selectedOpportunity) return []
@@ -177,6 +179,17 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
     setRiskPolicy(selectedTemplate.riskPolicy)
     setRetreatThreshold(selectedTemplate.retreatThreshold)
   }, [templateId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selectedMembers.length === 0) {
+      setLeaderId('')
+      return
+    }
+    if (!selectedMembers.some((member) => member.id === leaderId)) {
+      const bestLeader = [...selectedMembers].sort((a, b) => b.skills.leadership - a.skills.leadership)[0]
+      setLeaderId(bestLeader?.id ?? '')
+    }
+  }, [selectedMembers, leaderId])
 
   const applyTemplate = (template: ExpeditionTemplate) => {
     setTemplateId(template.id)
@@ -256,8 +269,8 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
   }
 
   const launch = () => {
-    if (!selectedOpportunity || !canLaunch) return
-    onLaunch({ opportunity: selectedOpportunity, memberIds, leaderId, riskPolicy, food, medicine, budget, retreatThreshold })
+    if (!launchDraft || launchIssues.length > 0) return
+    onLaunch(launchDraft)
     closePlanner()
   }
 
@@ -353,17 +366,19 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
           {step === 4 && (
             <section className="wizard-step supply-step">
               <div className="wizard-section-heading"><Package /><div><p className="eyebrow">Шаг 4</p><h2>Снабжение</h2></div></div>
-              <div className="template-selector">
-                {allTemplates.map((template) => <button key={template.id} className={templateId === template.id ? 'active' : ''} onClick={() => applyTemplate(template)}><strong>{template.name}</strong><span>{template.note}</span>{template.custom && <em onClick={(event) => { event.stopPropagation(); deleteTemplate(template.id) }}>удалить</em>}</button>)}
+              <div className="supply-template-row">
+                <label><span>Профиль снабжения</span><select value={templateId} onChange={(event) => { const template = allTemplates.find((entry) => entry.id === event.target.value); if (template) applyTemplate(template) }}>{allTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label>
+                <small>{selectedTemplate.note}</small>
+                {selectedTemplate.custom && <button className="text-button" onClick={() => deleteTemplate(selectedTemplate.id)}>Удалить шаблон</button>}
               </div>
-              <div className="supply-controls-grid">
-                <label><span>Провизия <b>{food}</b><small>рекомендация: {recommendedFood}</small></span><input type="range" min="12" max="160" value={food} onChange={(event) => setFood(Number(event.target.value))} /></label>
-                <label><span>Медицина <b>{medicine}</b><small>на складе: {state.guild.medicine}</small></span><input type="range" min="2" max="35" value={medicine} onChange={(event) => setMedicine(Number(event.target.value))} /></label>
+              <div className="supply-controls-grid compact-supply-controls">
+                <label><span><b>Провизия {food}</b><small>норма {recommendedFood} · склад {state.guild.supplies}</small></span><input type="range" min="12" max="160" value={food} onChange={(event) => setFood(Number(event.target.value))} /></label>
+                <label><span><b>Медицина {medicine}</b><small>склад {state.guild.medicine}</small></span><input type="range" min="2" max="35" value={medicine} onChange={(event) => setMedicine(Number(event.target.value))} /></label>
               </div>
-              <div className="supply-summary-grid">
-                <div><span>Стоимость</span><strong>{budget} кр.</strong><small>в казне {state.guild.treasury}</small></div>
-                <div><span>Запас провизии</span><strong className={food < recommendedFood ? 'danger-text' : ''}>{food < recommendedFood ? 'Недостаточный' : 'Достаточный'}</strong><small>{food - recommendedFood >= 0 ? `резерв +${food - recommendedFood}` : `дефицит ${recommendedFood - food}`}</small></div>
-                <div><span>Груз</span><strong>{Math.round((food + medicine * 2) / Math.max(1, memberIds.length))}</strong><small>условных единиц на человека</small></div>
+              <div className="supply-summary-line">
+                <span>Стоимость <b>{budget} кр.</b> / казна {state.guild.treasury}</span>
+                <span className={food < recommendedFood ? 'danger-text' : ''}>Провизия: {food < recommendedFood ? `дефицит ${recommendedFood - food}` : `резерв +${food - recommendedFood}`}</span>
+                <span>Груз: {Math.round((food + medicine * 2) / Math.max(1, memberIds.length))}/чел.</span>
               </div>
             </section>
           )}
@@ -371,12 +386,11 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
           {step === 5 && (
             <section className="wizard-step orders-step">
               <div className="wizard-section-heading"><Shield /><div><p className="eyebrow">Шаг 5</p><h2>Командование и приказы</h2></div></div>
-              <div className="orders-grid">
-                <label><span>Лидер отряда</span><select value={leaderId} onChange={(event) => setLeaderId(event.target.value)}><option value="">Назначить лидера</option>{selectedMembers.map((member) => <option key={member.id} value={member.id}>{member.name} · лидерство {member.skills.leadership}</option>)}</select></label>
-                <div><span>Политика риска</span><div className="risk-options">{(['cautious', 'standard', 'bold'] as const).map((risk) => <button className={riskPolicy === risk ? 'active' : ''} key={risk} onClick={() => changePolicy(risk)}>{risk === 'cautious' ? 'Осторожно' : risk === 'standard' ? 'Стандартно' : 'Смело'}</button>)}</div></div>
-                <label className="range-field"><span>Отступать при морали <b>{retreatThreshold}%</b></span><input type="range" min="10" max="60" value={retreatThreshold} onChange={(event) => setRetreatThreshold(Number(event.target.value))} /></label>
+              <div className="orders-grid compact-orders-grid">
+                <label><span>Лидер</span><select value={leaderId} onChange={(event) => setLeaderId(event.target.value)}><option value="">Назначить</option>{selectedMembers.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.skills.leadership}</option>)}</select></label>
+                <div><span>Риск</span><div className="risk-options">{(['cautious', 'standard', 'bold'] as const).map((risk) => <button className={riskPolicy === risk ? 'active' : ''} key={risk} onClick={() => changePolicy(risk)}>{risk === 'cautious' ? 'Осторожно' : risk === 'standard' ? 'Обычно' : 'Смело'}</button>)}</div></div>
+                <label className="range-field"><span>Отступление <b>{retreatThreshold}% морали</b></span><input type="range" min="10" max="60" value={retreatThreshold} onChange={(event) => setRetreatThreshold(Number(event.target.value))} /></label>
               </div>
-              <div className="orders-explanation"><UserRoundCheck size={18} /><p>Лидер самостоятельно решает мелкие ситуации. Штаб вмешивается только при критическом событии, открытии, бое или изменении цели.</p></div>
             </section>
           )}
 
@@ -394,8 +408,8 @@ export default function ExpeditionPlanner({ state, onLaunch }: Props) {
                 <article><Package /><span><strong>{food} еды · {medicine} медицины</strong><small>{budget} крон</small></span></article>
                 <article><Shield /><span><strong>{riskPolicy === 'cautious' ? 'Осторожный' : riskPolicy === 'bold' ? 'Смелый' : 'Стандартный'} приказ</strong><small>отступление при {retreatThreshold}%</small></span></article>
               </div>
-              <div className="template-save-row"><Save size={16} /><input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Название собственного шаблона" /><button className="secondary-button" disabled={!templateName.trim()} onClick={saveTemplate}>Сохранить шаблон</button></div>
-              {!canLaunch && <div className="warning-line"><AlertTriangle size={15} />Проверь состав, лидера, маршрут, казну и складские запасы.</div>}
+              <div className="template-save-row compact-template-save"><Save size={15} /><input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Имя шаблона" /><button className="secondary-button" disabled={!templateName.trim()} onClick={saveTemplate}>Сохранить</button></div>
+              {!canLaunch && <div className="launch-issue-list"><AlertTriangle size={15} /><span>{launchIssues.map((issue) => <small key={issue}>{issue}</small>)}</span></div>}
               <button className="primary-button launch-expedition-final" disabled={!canLaunch} onClick={launch}><Compass size={17} />Утвердить мандат и отправить отряд</button>
             </section>
           )}

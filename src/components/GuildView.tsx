@@ -12,9 +12,8 @@ export default function GuildView({ state, onPayDebt }: Props) {
   const payroll = state.characters.filter((entry) => entry.employed && !['dead', 'retired'].includes(entry.status)).reduce((sum, entry) => sum + entry.salary, 0)
   const maintenance = state.guild.rooms.reduce((sum, room) => sum + room.maintenance, 0)
   const interest = Math.ceil(state.guild.debt * state.guild.debtInterest)
-  const academyCost = state.academy.monthlyCost
   const quartermasterDiscount = state.guild.positions.some((entry) => entry.id === 'quartermaster' && entry.holderId) ? 0.92 : 1
-  const monthlyTotal = Math.ceil((payroll + maintenance + interest + academyCost) * quartermasterDiscount)
+  const monthlyTotal = Math.ceil((payroll + maintenance + interest) * quartermasterDiscount)
   const roomCondition = Math.round(state.guild.rooms.reduce((sum, room) => sum + room.condition, 0) / Math.max(1, state.guild.rooms.length))
   const currentGeneration = state.generations.find((entry) => !entry.endedYear)
 
@@ -24,7 +23,7 @@ export default function GuildView({ state, onPayDebt }: Props) {
         <div>
           <p className="eyebrow">Штаб · ранг {state.guild.rank}</p>
           <h1>{state.guild.name}</h1>
-          <p>Главный обзор организации. Наём, помещения, академия, должности, совет и наследие вынесены в отдельные разделы боковой панели.</p>
+
         </div>
         <div className="date-seal">{state.year}<small>год</small></div>
       </header>
@@ -42,7 +41,6 @@ export default function GuildView({ state, onPayDebt }: Props) {
           <div className="compact-ledger">
             <span>Жалование <b>−{payroll}</b></span>
             <span>Помещения <b>−{maintenance}</b></span>
-            <span>Академия <b>−{academyCost}</b></span>
             <span>Проценты <b>−{interest}</b></span>
           </div>
           <div className="finance-total"><span>Обязательные расходы</span><strong>{monthlyTotal} кр.</strong></div>
@@ -57,9 +55,6 @@ export default function GuildView({ state, onPayDebt }: Props) {
           <div className="compact-status-list">
             <span>Глава <b>{state.characters.find((entry) => entry.id === state.guild.leaderId)?.name ?? 'не назначен'}</b></span>
             <span>Поколение <b>{currentGeneration?.name ?? 'не определено'}</b></span>
-            <span>Совет <b>{state.council.filter((entry) => entry.holderId).length}/{state.council.length}</b></span>
-            <span>Академия <b>ур. {state.academy.level}</b></span>
-            <span>Филиалы <b>{state.branches.length}</b></span>
             <span>Память <b>{state.guild.institutionalMemory}</b></span>
           </div>
         </article>

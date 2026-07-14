@@ -10,23 +10,12 @@ function characterGradient(seed: number): string {
   return `linear-gradient(145deg, hsl(${hueA} 28% 34%), hsl(${hueB} 24% 17%))`
 }
 
-function wasGuildMember(character: Character): boolean {
-  return Boolean(
-    character.formerGuildMember
-    || character.academyGraduate
-    || character.expeditions > 0
-    || character.memories.some((memory) => ['career', 'expedition', 'discovery', 'injury', 'loss', 'rescue', 'betrayal'].includes(memory.type)),
-  )
-}
-
 export default function HiringPanel({ state, onHire }: Props) {
   const [query, setQuery] = useState('')
   const [profession, setProfession] = useState('all')
   const marketCandidates = useMemo(() => state.characters.filter((entry) => (
     !entry.employed
     && !entry.rivalGuildId
-    && !entry.academyEnrollmentId
-    && !wasGuildMember(entry)
     && !['dead', 'missing', 'retired'].includes(entry.status)
   )), [state.characters])
   const candidates = useMemo(() => marketCandidates.filter((entry) => {

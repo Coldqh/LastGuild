@@ -155,7 +155,7 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
 
             {activeTab === 'general' && <>
               <section className="settings-hero-card">
-                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.3</strong><small>Мобильная информационная архитектура</small></span></div>
+                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.3.7</strong><small>Очистка ядра и планировщика</small></span></div>
                 <span className="version-chip">save v10</span>
               </section>
 
@@ -168,7 +168,6 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
                 <div className="settings-section-title"><Swords size={18} /><div><h3>Организации</h3><p>Внешняя конкуренция и автономия филиалов.</p></div></div>
                 <Toggle label="Конкурирующие гильдии" description={preferences.competitorsEnabled ? `${state.rivalGuilds.length} организаций активны` : 'Полностью отключены'} checked={preferences.competitorsEnabled} onChange={(value) => patchPreference('competitorsEnabled', value)} />
                 <Toggle label="Переманивание сотрудников" description="Конкуренты могут забирать сильных кандидатов." checked={preferences.poachingEnabled} onChange={(value) => patchPreference('poachingEnabled', value)} />
-                <Toggle label="Отделение филиалов" description="Нелояльный филиал может стать отдельной гильдией." checked={preferences.branchSecessionEnabled} onChange={(value) => patchPreference('branchSecessionEnabled', value)} />
               </section>
 
               <div className="settings-primary-actions">

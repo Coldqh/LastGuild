@@ -1,10 +1,8 @@
 import type {
-  BranchAutonomy,
-  BranchSpecialization,
+  RivalGuildFocus,
   Character,
   CharacterSkills,
   GameState,
-  GuildBranch,
   Mentorship,
   PoliticalFaction,
   RivalExpedition,
@@ -16,21 +14,17 @@ import type {
 } from '../types/game'
 import { RNG } from './rng'
 import { loadPreferences, type AppPreferences } from './preferences'
-import { guildInstitutionDayTick } from './guildPolitics'
+import { guildLegacyDayTick } from './guildPolitics'
 
 const GUILD_FIRST = ['Северная', 'Лазурная', 'Королевская', 'Пепельная', 'Золотая', 'Вольная', 'Тихая', 'Чёрная', 'Серебряная', 'Старая']
 const GUILD_SECOND = ['экспедиция', 'компания', 'палата', 'коллегия', 'стража', 'артель', 'лига', 'канцелярия', 'обсерватория', 'дружина']
 const LEADERS = ['Марек Дейн', 'Селена Вейл', 'Торвальд Кроу', 'Ирма Рилл', 'Эдран Фарен', 'Кассия Тал', 'Рагнар Брант', 'Мирель Харт']
 const LEADER_TRAITS = ['холодный расчёт', 'одержимость славой', 'религиозная строгость', 'уважение к науке', 'готовность к грязной работе', 'верность покровителю']
-const SPECIALIZATIONS: BranchSpecialization[] = ['cartography', 'archaeology', 'monsters', 'diplomacy', 'magic', 'trade']
+const SPECIALIZATIONS: RivalGuildFocus[] = ['cartography', 'archaeology', 'monsters', 'diplomacy', 'magic', 'trade']
 const ARCHETYPES: RivalGuildArchetype[] = ['royal', 'academic', 'hunters', 'traders', 'relic_raiders', 'religious', 'free_company', 'secret']
 
-export const specializationLabels: Record<BranchSpecialization, string> = {
+export const specializationLabels: Record<RivalGuildFocus, string> = {
   cartography: 'Картография', archaeology: 'Археология', monsters: 'Охота на чудовищ', diplomacy: 'Дипломатия', magic: 'Магические аномалии', trade: 'Торговые маршруты',
-}
-
-export const autonomyLabels: Record<BranchAutonomy, string> = {
-  controlled: 'Полный контроль', limited: 'Ограниченная автономия', autonomous: 'Самостоятельный филиал',
 }
 
 export function stanceFromRelation(relation: number): RivalGuildStance {
@@ -74,13 +68,13 @@ export function createStrategicLayer(seed: string, world: WorldData, characters:
     }
   })
 
-  const factionKinds: PoliticalFaction['kind'][] = ['court', 'army', 'faith', 'merchants', 'academy', 'local']
+  const factionKinds: PoliticalFaction['kind'][] = ['court', 'army', 'faith', 'merchants', 'scholars', 'local']
   const factionNames: Record<PoliticalFaction['kind'], string[]> = {
     court: ['Королевский двор', 'Княжеская канцелярия', 'Совет наследников'],
     army: ['Пограничное командование', 'Военный совет', 'Орден маршалов'],
     faith: ['Высший храм', 'Собор хранителей', 'Священный синод'],
     merchants: ['Союз торговых домов', 'Караванная палата', 'Совет портов'],
-    academy: ['Королевская академия', 'Коллегия магистров', 'Общество древностей'],
+    scholars: ['Королевская коллегия', 'Коллегия магистров', 'Общество древностей'],
     local: ['Провинциальные лорды', 'Союз свободных городов', 'Совет старост'],
   }
   const politicalFactions: PoliticalFaction[] = world.realms.flatMap((realm) => rng.shuffle(factionKinds).slice(0, 4).map((kind, index) => ({
@@ -167,7 +161,7 @@ function launchRivalExpedition(state: GameState, guild: RivalGuild, rng: RNG): G
   const targets = state.opportunities.filter((opportunity) => !opportunity.accepted && opportunity.deadlineDay >= state.day && !(opportunity.contestedByIds ?? []).includes(guild.id))
   if (!targets.length) return state
   const preferred = targets.filter((opportunity) => {
-    const map: Record<BranchSpecialization, string[]> = {
+    const map: Record<RivalGuildFocus, string[]> = {
       cartography: ['картография', 'разведка'], archaeology: ['руины', 'артефакт', 'поиск'], monsters: ['охота', 'спасение'], diplomacy: ['дипломатия', 'разведка'], magic: ['артефакт', 'исследование', 'руины'], trade: ['картография', 'дипломатия'],
     }
     return map[guild.specialization].includes(opportunity.type)
@@ -236,40 +230,6 @@ function tickRivalExpeditions(state: GameState, rng: RNG): GameState {
   return next
 }
 
-function tickBranches(state: GameState, rng: RNG, preferences: AppPreferences): GameState {
-  let treasuryDelta = 0
-  let nextRivals = [...state.rivalGuilds]
-  let characters = [...state.characters]
-  let nextBranches: GuildBranch[] = []
-  let chronicle = [...state.chronicle]
-  for (const branch of state.branches) {
-    const share = branch.autonomy === 'controlled' ? 0.7 : branch.autonomy === 'limited' ? 0.45 : 0.2
-    const gross = Math.max(0, branch.income + rng.int(-15, 28) + branch.level * 8)
-    const upkeep = branch.upkeep + branch.staff * 2
-    const net = gross - upkeep
-    treasuryDelta += Math.max(0, Math.round(net * share))
-    const hidden = branch.autonomy === 'autonomous' ? Math.max(0, net - Math.round(net * share)) : Math.max(0, branch.hiddenFunds - 2)
-    const loyaltyShift = branch.autonomy === 'controlled' ? rng.int(-3, 1) : branch.autonomy === 'limited' ? rng.int(-1, 2) : rng.int(-2, 3)
-    const loyalty = Math.max(0, Math.min(100, branch.loyalty + loyaltyShift + (net >= 0 ? 1 : -3)))
-    if (preferences.competitorsEnabled && preferences.branchSecessionEnabled && branch.autonomy === 'autonomous' && loyalty <= 15) {
-      const settlement = state.world.settlements.find((entry) => entry.id === branch.settlementId)
-      const splinterId = `rival-splinter-${branch.id}`
-      nextRivals.push({
-        id: splinterId, name: branch.name, archetype: 'free_company', headquartersSettlementId: branch.settlementId,
-        leaderName: state.characters.find((entry) => entry.id === branch.leaderId)?.name ?? 'бывший руководитель филиала', leaderTrait: 'обида на центральный штаб', specialization: branch.specialization,
-        budget: branch.treasury + hidden + 300, reputation: branch.reputation, scientificAuthority: 15, fieldStrength: 42 + branch.level * 5, secrecy: 35, ethics: 45,
-        relation: -75, stance: 'hostile', methods: ['переманивание сотрудников', 'борьба за старые контакты', 'присвоение архивов'], favoredRealmId: settlement?.realmId ?? state.world.realms[0].id,
-        discoveries: 0, losses: 0, activeExpeditionIds: [],
-      })
-      characters = characters.map((character) => character.id === branch.leaderId ? { ...character, employed: false, rivalGuildId: splinterId, assignedBranchId: undefined, loyalty: Math.max(0, character.loyalty - 30) } : character)
-      chronicle.push({ id: `chronicle-branch-split-${branch.id}`, day: state.day, year: state.year, title: `${branch.name} отделяется`, text: 'Филиал отказался подчиняться центральному штабу и стал независимым конкурентом.', category: 'guild', importance: 5 })
-      continue
-    }
-    nextBranches.push({ ...branch, treasury: Math.max(0, branch.treasury + net - Math.max(0, Math.round(net * share))), hiddenFunds: hidden, loyalty })
-  }
-  return { ...state, guild: { ...state.guild, treasury: state.guild.treasury + treasuryDelta }, characters, branches: nextBranches, rivalGuilds: nextRivals, chronicle }
-}
-
 function tickCrises(state: GameState, rng: RNG): GameState {
   let world = state.world
   const crises = state.crises.map((crisis) => {
@@ -315,40 +275,18 @@ function tickMentorships(state: GameState): GameState {
 
 function ensureGuildLeader(state: GameState): GameState {
   const current = state.characters.find((character) => character.id === state.guild.leaderId)
-  if (current && current.employed && !current.assignedBranchId && !['dead', 'missing', 'retired'].includes(current.status)) return state
-  const eligible = state.characters.filter((character) => character.employed && !character.assignedBranchId && !['dead', 'missing', 'retired', 'expedition'].includes(character.status))
-  if (!eligible.length) return state
-  const baseScore = (character: Character) => character.skills.leadership * 10 + character.fame + character.loyalty / 2 + character.councilInfluence
-  let pool = eligible
-  let methodText = 'старшие сотрудники признали нового главу'
-  if (state.charter?.leadershipSelection === 'council') {
-    const councilIds = new Set(state.council.filter((seat) => seat.holderId).map((seat) => seat.holderId!))
-    const councilPool = eligible.filter((character) => councilIds.has(character.id))
-    if (councilPool.length) pool = councilPool
-    methodText = 'решение принято голосованием совета'
-  } else if (state.charter?.leadershipSelection === 'veterans') {
-    const veterans = eligible.filter((character) => ['veteran', 'leader', 'mentor', 'legend'].includes(character.careerStage) || character.expeditions >= 5)
-    if (veterans.length) pool = veterans
-    methodText = 'ветераны выбрали преемника из опытного состава'
-  } else {
-    const apprenticeIds = new Set(current?.apprenticeIds ?? [])
-    const appointed = eligible.filter((character) => apprenticeIds.has(character.id) || character.id === state.guild.positions.find((position) => position.id === 'expedition_master')?.holderId)
-    if (appointed.length) pool = appointed
-    methodText = 'сработал порядок назначенного преемника'
-  }
-  const candidate = [...pool].sort((a, b) => baseScore(b) - baseScore(a))[0]
-  const loserIds = eligible.filter((entry) => entry.id !== candidate.id).sort((a, b) => baseScore(b) - baseScore(a)).slice(0, 2).map((entry) => entry.id)
+  if (current && current.employed && !['dead', 'missing', 'retired'].includes(current.status)) return state
+  const eligible = state.characters.filter((character) => character.employed && !['dead', 'missing', 'retired', 'expedition'].includes(character.status))
+  if (!eligible.length) return { ...state, guild: { ...state.guild, leaderId: undefined, stability: Math.max(0, state.guild.stability - 4) } }
+  const score = (character: Character) => character.skills.leadership * 10 + character.fame + character.loyalty / 2 + character.expeditions * 2
+  const candidate = [...eligible].sort((a, b) => score(b) - score(a))[0]
   return {
     ...state,
-    guild: { ...state.guild, leaderId: candidate.id, stability: Math.max(5, state.guild.stability - (state.charter?.leadershipSelection === 'council' ? 1 : 3)) },
-    characters: state.characters.map((entry) => entry.id === candidate.id ? { ...entry, careerStage: entry.careerStage === 'legend' ? 'legend' : 'leader', fame: entry.fame + 6, councilInfluence: entry.councilInfluence + 5 } : loserIds.includes(entry.id) ? { ...entry, loyalty: Math.max(0, entry.loyalty - 4) } : entry),
-    guildFactions: state.guildFactions.map((faction) => loserIds.includes(faction.leaderId ?? '') ? { ...faction, loyalty: Math.max(0, faction.loyalty - 5), relationToLeader: Math.max(-100, faction.relationToLeader - 8) } : faction),
-    chronicle: [...state.chronicle, { id: `chronicle-leader-${state.year}-${state.day}-${candidate.id}`, day: state.day, year: state.year, title: `${candidate.name} возглавляет гильдию`, text: `После кризиса руководства ${methodText}. Проигравшие кандидаты сохраняют влияние.`, category: 'guild', importance: 5 }],
+    guild: { ...state.guild, leaderId: candidate.id, stability: Math.max(5, state.guild.stability - 3) },
+    characters: state.characters.map((entry) => entry.id === candidate.id ? { ...entry, careerStage: entry.careerStage === 'legend' ? 'legend' : 'leader', fame: entry.fame + 6 } : entry),
+    chronicle: [...state.chronicle, { id: `chronicle-succession-${state.year}-${state.day}`, day: state.day, year: state.year, title: `${candidate.name} принимает руководство`, text: 'После смены руководства гильдия продолжает работу.', category: 'guild', importance: 4 }],
   }
 }
-
-
-
 function spawnCrisis(state: GameState, rng: RNG): GameState {
   const unresolved = state.crises.filter((crisis) => !['resolved', 'collapsed'].includes(crisis.status))
   if (unresolved.length >= Math.max(2, Math.round(state.world.realms.length / 2))) return state
@@ -469,7 +407,6 @@ export function strategicDayTick(state: GameState): GameState {
     }
   }
   if (next.day % 30 === 0) {
-    next = tickBranches(next, rng, preferences)
     if (preferences.crisesEnabled) next = tickCrises(next, rng)
     next = tickMentorships(next)
     if (competitorsEnabled && preferences.poachingEnabled) next = poachCharacters(next, rng)
@@ -482,35 +419,8 @@ export function strategicDayTick(state: GameState): GameState {
     const archive = next.rivalExpeditions.filter((expedition) => !['preparing', 'traveling'].includes(expedition.status)).slice(-400)
     next = { ...next, rivalExpeditions: [...archive, ...active] }
   }
-  next = guildInstitutionDayTick(next)
+  next = guildLegacyDayTick(next)
   return next
-}
-
-export function openBranch(state: GameState, settlementId: string, leaderId: string, specialization: BranchSpecialization, autonomy: BranchAutonomy): GameState {
-  const settlement = state.world.settlements.find((entry) => entry.id === settlementId)
-  const leader = state.characters.find((entry) => entry.id === leaderId)
-  if (!settlement || !leader || !leader.employed || leader.assignedBranchId || state.guild.leaderId === leaderId || ['dead', 'missing', 'retired', 'expedition'].includes(leader.status)) return state
-  if (state.branches.some((branch) => branch.settlementId === settlementId)) return state
-  const cost = 900 + state.branches.length * 450
-  if (state.guild.treasury < cost || state.guild.rank < 2) return state
-  const branch: GuildBranch = {
-    id: `branch-${state.year}-${state.day}-${state.branches.length + 1}`,
-    name: `${state.guild.name}: ${settlement.name}`,
-    settlementId, leaderId, specialization, autonomy, level: 1,
-    treasury: 180, reputation: 8, loyalty: Math.max(35, leader.loyalty), staff: 4, upkeep: 38, income: 62,
-    openedYear: state.year, openedDay: state.day, hiddenFunds: 0,
-  }
-  return {
-    ...state,
-    guild: { ...state.guild, treasury: state.guild.treasury - cost, politicalInfluence: state.guild.politicalInfluence + 2, charterInfluence: state.guild.charterInfluence + 1 },
-    characters: state.characters.map((entry) => entry.id === leaderId ? { ...entry, fame: entry.fame + 6, loyalty: Math.min(100, entry.loyalty + 5), assignedBranchId: branch.id } : entry),
-    branches: [...state.branches, branch],
-    chronicle: [...state.chronicle, { id: `chronicle-branch-${branch.id}`, day: state.day, year: state.year, title: `Открыт филиал в ${settlement.name}`, text: `${leader.name} назначен руководителем. Специализация: ${specializationLabels[specialization]}.`, category: 'guild', importance: 4 }],
-  }
-}
-
-export function changeBranchAutonomy(state: GameState, branchId: string, autonomy: BranchAutonomy): GameState {
-  return { ...state, branches: state.branches.map((branch) => branch.id === branchId ? { ...branch, autonomy, loyalty: Math.max(0, Math.min(100, branch.loyalty + (autonomy === 'autonomous' ? 8 : autonomy === 'controlled' ? -8 : 2))) } : branch) }
 }
 
 export function conductRivalAction(state: GameState, rivalId: string, action: 'cooperate' | 'exchange' | 'pressure'): GameState {
@@ -586,7 +496,7 @@ export function assignMentorship(state: GameState, mentorId: string, apprenticeI
 
 export function appointGuildLeader(state: GameState, characterId: string): GameState {
   const candidate = state.characters.find((entry) => entry.id === characterId)
-  if (!candidate || !candidate.employed || candidate.assignedBranchId || ['dead', 'missing', 'retired', 'expedition'].includes(candidate.status) || candidate.skills.leadership < 4) return state
+  if (!candidate || !candidate.employed || ['dead', 'missing', 'retired', 'expedition'].includes(candidate.status) || candidate.skills.leadership < 4) return state
   return {
     ...state,
     guild: { ...state.guild, leaderId: characterId, stability: Math.max(0, state.guild.stability - 2 + Math.round(candidate.loyalty / 30)) },
