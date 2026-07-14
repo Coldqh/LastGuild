@@ -1,5 +1,9 @@
 import type { GameState, WorldCrisis, WorldWar } from '../types/game'
 import { advanceDays } from './simulation'
+import { simulateEcosystemYears } from './ecosystem'
+import { simulateSocietyYears } from './society'
+import { politicsMonthTick } from './politics'
+import { DEFAULT_APP_PREFERENCES } from './preferences'
 
 export interface SimulationAuditResult {
   years: number
@@ -25,6 +29,11 @@ export interface SimulationAuditResult {
   contestedTiles: number
   occupations: number
   realmCollapses: number
+  largestRealmShare: number
+  militaryPopulationShare: number
+  longestWarYears: number
+  historicalYears: number
+  historicalEvents: number
   warnings: string[]
 }
 
@@ -41,12 +50,33 @@ function preparedAuditState(state: GameState): GameState {
   }
 }
 
+function advanceWorldAudit(state: GameState, years: number): GameState {
+  if (years <= 2) return advanceDays(preparedAuditState(state), years * 360)
+  let next = preparedAuditState(state)
+  const epochYears = years >= 100 ? 5 : years >= 30 ? 3 : 2
+  const endYear = state.year + years
+  for (let epochStart = state.year; epochStart < endYear; epochStart += epochYears) {
+    const epochEndYear = Math.min(endYear, epochStart + epochYears)
+    const environmentYear = epochEndYear - 1
+    let world = simulateEcosystemYears(next.world, next.seed, next.settings, 1, environmentYear)
+    world = simulateSocietyYears(world, next.seed, next.settings, 1, environmentYear)
+    next = { ...next, world }
+    // Politics still advances year by year: otherwise a five-year audit epoch can hide a decade-long war.
+    for (let year = epochStart; year < epochEndYear; year += 1) {
+      next = { ...next, year, day: 1 }
+      for (const day of [90, 180, 270, 360]) next = politicsMonthTick({ ...next, day }, DEFAULT_APP_PREFERENCES)
+    }
+    next = { ...next, year: epochEndYear, day: 1 }
+  }
+  return next
+}
+
 export function runSimulationAudit(state: GameState, years: number): SimulationAuditResult {
-  const safeYears = Math.max(1, Math.min(300, Math.round(years)))
+  const safeYears = Math.max(1, Math.min(500, Math.round(years)))
   const startPopulation = state.world.settlements.reduce((sum, settlement) => sum + settlement.population, 0)
   const startFauna = state.world.ecologyPopulations.reduce((sum, population) => sum + population.amount, 0)
   const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const simulated = advanceDays(preparedAuditState(state), safeYears * 360)
+  const simulated = advanceWorldAudit(state, safeYears)
   const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
   const endPopulation = simulated.world.settlements.reduce((sum, settlement) => sum + settlement.population, 0)
   const endFauna = simulated.world.ecologyPopulations.reduce((sum, population) => sum + population.amount, 0)
@@ -73,10 +103,22 @@ export function runSimulationAudit(state: GameState, years: number): SimulationA
   const livingRealms = simulated.world.realms.filter((realm) => !realm.collapsedYear).length
   const contestedTiles = simulated.world.tiles.filter((tile) => tile.controlStatus === 'contested' || tile.controlStatus === 'occupied').length
   const soldiers = simulated.world.armies.reduce((sum, army) => sum + army.soldiers, 0)
+  const controlledLand = simulated.world.tiles.filter((tile) => tile.biome !== 'ocean' && tile.controllerRealmId)
+  const realmTileCounts = controlledLand.reduce((map, tile) => { map.set(tile.controllerRealmId!, (map.get(tile.controllerRealmId!) ?? 0) + 1); return map }, new Map<string, number>())
+  const largestRealmShare = controlledLand.length ? Math.max(0, ...realmTileCounts.values()) / controlledLand.length : 0
+  const militaryPopulationShare = endPopulation > 0 ? soldiers / endPopulation : 0
+  const longestWarYears = simulated.wars.reduce((longest, war) => {
+    const endTick = (war.endedYear ?? simulated.year) * 360 + (war.endedDay ?? simulated.day)
+    const startTick = war.startedYear * 360 + war.startedDay
+    return Math.max(longest, (endTick - startTick) / 360)
+  }, 0)
   if (livingRealms === 0) warnings.push('Все государства распались.')
   if (livingRealms > state.world.realms.filter((realm) => !realm.collapsedYear).length * 2.5) warnings.push('Число государств растёт слишком быстро.')
   if (contestedTiles > simulated.world.tiles.filter((tile) => tile.biome !== 'ocean').length * 0.42) warnings.push('Слишком большая часть мира постоянно спорная или оккупированная.')
   if (simulated.world.politics.realmCollapses > Math.max(8, simulated.world.realms.length * 1.5)) warnings.push('Государства распадаются слишком часто.')
+  if (largestRealmShare > 0.72) warnings.push('Одна держава контролирует более 72% управляемой суши.')
+  if (militaryPopulationShare > 0.16) warnings.push('Армии забирают слишком большую долю населения.')
+  if (longestWarYears > 9) warnings.push('Одна из войн длится больше девяти лет.')
   if (!warnings.length) warnings.push('Критических перекосов за выбранный период не найдено.')
   return {
     years: safeYears,
@@ -102,6 +144,11 @@ export function runSimulationAudit(state: GameState, years: number): SimulationA
     contestedTiles,
     occupations: simulated.world.politics.occupations,
     realmCollapses: simulated.world.politics.realmCollapses,
+    largestRealmShare: Math.round(largestRealmShare * 100),
+    militaryPopulationShare: Math.round(militaryPopulationShare * 1000) / 10,
+    longestWarYears: Math.round(longestWarYears * 10) / 10,
+    historicalYears: simulated.world.historicalSimulation?.yearsSimulated ?? 0,
+    historicalEvents: simulated.world.history.length,
     warnings,
   }
 }

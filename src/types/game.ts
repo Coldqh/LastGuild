@@ -73,6 +73,7 @@ export type RealmObjectiveKind = 'secure_border' | 'control_route' | 'capture_re
 export type ArmyStatus = 'garrison' | 'moving' | 'frontline' | 'retreating' | 'broken'
 export type WarType = 'border' | 'conquest' | 'religious' | 'civil' | 'separatist' | 'dynastic' | 'trade' | 'defensive'
 export type PoliticalEventKind = 'realm_founded' | 'realm_collapsed' | 'claim_created' | 'war_started' | 'border_shift' | 'army_moved' | 'occupation' | 'peace' | 'rebellion' | 'vassalage'
+export type HistoricalPersonRole = 'founder' | 'ruler' | 'commander' | 'prophet' | 'rebel' | 'scholar' | 'explorer' | 'artifact_creator'
 
 
 export interface ResourceDeposit {
@@ -273,6 +274,47 @@ export interface PoliticalSimulationState {
   recentEvents: PoliticalEvent[]
 }
 
+export interface HistoricalPerson {
+  id: string
+  name: string
+  role: HistoricalPersonRole
+  ancestry: string
+  cultureId?: string
+  realmId?: string
+  settlementId?: string
+  bornYear: number
+  diedYear?: number
+  ambition: string
+  reputation: number
+  legacy: string
+  eventIds: string[]
+  artifactIds: string[]
+}
+
+export interface ArtifactOwnershipRecord {
+  year: number
+  ownerType: ArtifactOwnerType
+  ownerId?: string
+  eventId?: string
+  note: string
+}
+
+export interface HistoricalSimulationState {
+  startYear: number
+  endYear: number
+  yearsSimulated: number
+  snapshotsCreated: number
+  majorEvents: number
+  warsRecorded: number
+  realmsFounded: number
+  realmsCollapsed: number
+  settlementsRuined: number
+  artifactsCreated: number
+  figuresCreated: number
+  auditWarnings: string[]
+  elapsedMs: number
+}
+
 export interface WorldGenerationSettings {
   preset: WorldPresetId
   mapSize: MapSizeId
@@ -363,6 +405,8 @@ export interface Realm {
   subjectRealmIds?: string[]
   overlordRealmId?: string
   collapsedYear?: number
+  predecessorOfRealmId?: string
+  successorOfRealmId?: string
 }
 
 export interface Settlement {
@@ -442,6 +486,11 @@ export interface Site {
   campEstablished: boolean
   civilizationId?: string
   regionalIdentityId?: string
+  foundedYear?: number
+  destroyedYear?: number
+  originalSettlementId?: string
+  formerRealmIds?: string[]
+  historicalPersonIds?: string[]
 }
 
 export interface MonsterSpecies {
@@ -511,11 +560,18 @@ export interface WorldData {
   politics: PoliticalSimulationState
   startSettlementId: string
   history: HistoricalEvent[]
+  historicalPeople: HistoricalPerson[]
+  historicalArtifacts: ArtifactRecord[]
+  historicalCivilizations: AncientCivilization[]
+  historicalSnapshots: HistoricalMapSnapshot[]
+  historicalCurrentWars: WorldWar[]
+  historicalSimulation: HistoricalSimulationState
 }
 
 export interface HistoricalEvent {
   id: string
   year: number
+  day?: number
   title: string
   description: string
   tags: string[]
@@ -528,6 +584,12 @@ export interface HistoricalEvent {
   realmIds?: string[]
   settlementIds?: string[]
   siteIds?: string[]
+  tileIds?: string[]
+  personIds?: string[]
+  causeEventIds?: string[]
+  consequenceEventIds?: string[]
+  evidenceIds?: string[]
+  actualOutcome?: string
 }
 
 export interface CharacterStats {
@@ -963,6 +1025,8 @@ export interface WorldWar {
   attackerArmyIds?: string[]
   defenderArmyIds?: string[]
   lastEvent?: string
+  endedYear?: number
+  endedDay?: number
 }
 
 export interface KnowledgeSpread {
@@ -1141,6 +1205,9 @@ export interface ArtifactRecord {
   status: ArtifactStatus
   relatedDiscoveryIds: string[]
   knownLevel: number
+  createdYear?: number
+  creatorPersonId?: string
+  ownerHistory?: ArtifactOwnershipRecord[]
 }
 
 export interface RegionalIdentity {

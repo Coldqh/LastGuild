@@ -104,8 +104,12 @@ export function initializeLivingWorld(seed: string, world: GameState['world'], s
   const currentYear = 912
   const span = settings.historyDepth === 'ancient' ? 900 : settings.historyDepth === 'young' ? 180 : 520
   const snapshotYears = [currentYear - span, currentYear - Math.round(span * 0.45), currentYear]
-  const historySnapshots = snapshotYears.map((year, index) => historicalSnapshot(seed, year, world, index))
-  const wars = createInitialPoliticalWars(seed, world, settings, currentYear)
+  const historySnapshots = world.historicalSnapshots?.length
+    ? world.historicalSnapshots
+    : snapshotYears.map((year, index) => historicalSnapshot(seed, year, world, index))
+  const wars = world.historicalCurrentWars?.length
+    ? world.historicalCurrentWars
+    : createInitialPoliticalWars(seed, world, settings, currentYear)
   return { wars, knowledgeSpreads: [] as KnowledgeSpread[], historySnapshots }
 }
 

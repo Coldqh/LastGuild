@@ -363,7 +363,7 @@ export default function App() {
         <div className="sidebar-footer desktop-sidebar-meta">
           <button className="sidebar-settings-button" onClick={() => setSettingsModal(true)}><SettingsIcon size={15} />Настройки</button>
           <span className={`save-indicator ${savePulse ? 'pulse' : ''}`}><Save size={14} />{savePulse ? 'Сохранено' : 'Автосохранение'}</span>
-          <small>v0.8.6 · Realms, territory and war</small>
+          <small>v0.8.7 · Historical simulation</small>
         </div>
       </aside>
 

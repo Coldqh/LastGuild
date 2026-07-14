@@ -334,9 +334,13 @@ export function ensureStoryOpportunities(state: GameState): GameState {
 export function initializeContentEngine(seed: string, worldInput: WorldData, settings: WorldGenerationSettings) {
   const regionalIdentities = createRegionalIdentities(seed, worldInput)
   const assigned = assignCivilizations(seed, worldInput, settings, regionalIdentities)
-  const civilizations = assigned.civilizations
-  const artifactsCatalog = createArtifacts(seed, assigned.world, settings, civilizations)
-  for (const civilization of civilizations) civilization.artifactIds = artifactsCatalog.filter((artifact) => artifact.civilizationId === civilization.id).map((artifact) => artifact.id)
+  const generatedCivilizations = assigned.civilizations
+  const historicalCivilizations = worldInput.historicalCivilizations ?? []
+  const civilizations = [...historicalCivilizations, ...generatedCivilizations.filter((entry) => !historicalCivilizations.some((historical) => historical.id === entry.id))]
+  const generatedArtifacts = createArtifacts(seed, assigned.world, settings, civilizations)
+  const historicalArtifacts = worldInput.historicalArtifacts ?? []
+  const artifactsCatalog = [...historicalArtifacts, ...generatedArtifacts.filter((entry) => !historicalArtifacts.some((historical) => historical.id === entry.id))]
+  for (const civilization of civilizations) civilization.artifactIds = Array.from(new Set([...civilization.artifactIds, ...artifactsCatalog.filter((artifact) => artifact.civilizationId === civilization.id).map((artifact) => artifact.id)]))
   const storyChains = createStoryChains(seed, assigned.world, settings, civilizations, artifactsCatalog)
   const regional = regionalIdentities.map((region) => ({ ...region, siteIds: assigned.world.sites.filter((site) => region.tileIds.includes(site.tileId)).map((site) => site.id) }))
   const partial = { world: assigned.world, civilizations, artifactsCatalog, storyChains, regionalIdentities: regional }

@@ -96,7 +96,7 @@ function computeSupply(tile: WorldTile, realmId: string, world: WorldData, settl
   return clamp(100 - nearest.distance * 9 - terrainPenalty + routeBonus)
 }
 
-function chooseObjective(realm: Realm, world: WorldData, rng: RNG): RealmObjective {
+function chooseObjective(realm: Realm, world: WorldData, rng: RNG, currentYear = 912): RealmObjective {
   const ownTiles = world.tiles.filter((tile) => (tile.controllerRealmId ?? tile.stateId) === realm.id && tile.biome !== 'ocean')
   const claims = world.tiles.filter((tile) => tile.claimedByRealmIds?.includes(realm.id) && (tile.controllerRealmId ?? tile.stateId) !== realm.id)
   const contested = claims.filter((tile) => tile.controlStatus === 'contested' || tile.controlStatus === 'occupied')
@@ -133,7 +133,7 @@ function chooseObjective(realm: Realm, world: WorldData, rng: RNG): RealmObjecti
     priority: clamp(45 + targets.length * 7 + rng.int(-8, 14)),
     progress: 0,
     reason,
-    createdYear: 912,
+    createdYear: currentYear,
   }
 }
 
@@ -264,7 +264,7 @@ export function initializePolitics(seed: string, input: WorldData, settings: Wor
   })
 
   const provisional: WorldData = { ...input, tiles, settlements, realms, armies: [], politics: input.politics ?? { initializedYear: currentYear, lastTickYear: currentYear, lastTickDay: 1, borderChanges: 0, occupations: 0, warsStarted: 0, warsEnded: 0, realmCollapses: 0, activeClaims: 0, recentEvents: [] } }
-  realms = realms.map((realm) => ({ ...realm, objective: chooseObjective(realm, provisional, rng) }))
+  realms = realms.map((realm) => ({ ...realm, objective: chooseObjective(realm, provisional, rng, currentYear) }))
   realms = realms.map((realm) => ({ ...realm, relations: Object.fromEntries(realms.filter((other) => other.id !== realm.id).map((other) => [other.id, relationFor(realm, other, { ...provisional, realms })])) }))
   const worldWithRealms: WorldData = { ...provisional, realms }
   const armies = realms.flatMap((realm) => {
@@ -458,7 +458,7 @@ function processWars(state: GameState, armies: RealmArmy[], rng: RNG, preference
     if (war.status === 'ended') return war
     const attacker = world.realms.find((realm) => realm.id === war.attackerRealmId)
     const defender = world.realms.find((realm) => realm.id === war.defenderRealmId)
-    if (!attacker || !defender || attacker.collapsedYear || defender.collapsedYear) return { ...war, status: 'ended' as const, peaceTerms: 'Война прекратилась после распада одной из сторон.' }
+    if (!attacker || !defender || attacker.collapsedYear || defender.collapsedYear) return { ...war, status: 'ended' as const, endedYear: state.year, endedDay: state.day, peaceTerms: 'Война прекратилась после распада одной из сторон.' }
     const fronts = frontTiles(attacker.id, defender.id, world)
     const attackerPower = armiesPower(armies, attacker.id, fronts, world) + attacker.military * 35
     const defenderPower = armiesPower(armies, defender.id, fronts, world) + defender.military * 35
@@ -520,7 +520,7 @@ function processWars(state: GameState, armies: RealmArmy[], rng: RNG, preference
     }
     const terms = formalized.length ? `${attacker.name} получает ${formalized.length} пограничных территорий.` : 'Стороны возвращаются к прежней границе.'
     events.push({ id: `politics-peace-${war.id}-${state.year}-${state.day}`, year: state.year, day: state.day, kind: 'peace', title: `Завершена ${war.name}`, description: `${terms} Потери: ${casualties.toLocaleString('ru-RU')}.`, realmIds: [attacker.id, defender.id], tileIds: formalized, settlementIds: captured, magnitude: 85 })
-    return { ...war, status: 'ended' as const, progress: score, warScore: score, attackerSupply: round1(supplyA), defenderSupply: round1(supplyD), attackerExhaustion: round1(exhaustionA), defenderExhaustion: round1(exhaustionD), casualties, occupiedTileIds: occupied, capturedSettlementIds: captured, peaceTerms: terms, lastEvent: terms }
+    return { ...war, status: 'ended' as const, endedYear: state.year, endedDay: state.day, progress: score, warScore: score, attackerSupply: round1(supplyA), defenderSupply: round1(supplyD), attackerExhaustion: round1(exhaustionA), defenderExhaustion: round1(exhaustionD), casualties, occupiedTileIds: occupied, capturedSettlementIds: captured, peaceTerms: terms, lastEvent: terms }
   })
   return { world, wars, events }
 }
@@ -593,7 +593,7 @@ function refreshRealmState(world: WorldData, year: number, rng: RNG): WorldData 
     const legitimacy = clamp((realm.legitimacy ?? 50) + (unrest < 35 ? .7 : -1.4) - (occupiedCapital ? 8 : 0))
     const stability = clamp(realm.stability + (legitimacy - 50) / 50 - Math.max(0, unrest - 55) / 30 - (occupiedCapital ? 6 : 0))
     const manpower = Math.max(0, Math.round(owned.reduce((sum, entry) => sum + entry.population, 0) * (.03 + realm.military / 5500)))
-    return { ...realm, treasury: round1(treasury), legitimacy: round1(legitimacy), stability: round1(stability), manpower, cohesion: round1(clamp((realm.cohesion ?? 50) + (stability - 50) / 45)), objective: realm.objective && realm.objective.createdYear >= year - 8 ? realm.objective : chooseObjective(realm, world, rng) }
+    return { ...realm, treasury: round1(treasury), legitimacy: round1(legitimacy), stability: round1(stability), manpower, cohesion: round1(clamp((realm.cohesion ?? 50) + (stability - 50) / 45)), objective: realm.objective && realm.objective.createdYear >= year - 8 ? realm.objective : chooseObjective(realm, world, rng, year) }
   })
   return { ...world, settlements, realms }
 }
@@ -658,7 +658,7 @@ function refreshClaimsAndDiplomacy(world: WorldData, year: number, rng: RNG): Wo
     })
     const objective = realm.objective && realm.objective.createdYear >= year - 8 && targetStillValid
       ? { ...realm.objective, progress: round1(clamp(realm.objective.progress + rng.float(-2, 5))) }
-      : chooseObjective({ ...realm, relations }, provisional, rng)
+      : chooseObjective({ ...realm, relations }, provisional, rng, year)
     return { ...realm, relations, objective }
   })
   return { ...provisional, realms: updatedRealms, politics: { ...provisional.politics, activeClaims: tiles.reduce((sum, tile) => sum + (tile.claimedByRealmIds?.length ?? 0), 0) } }
@@ -715,7 +715,7 @@ function maybeFoundRealm(state: GameState, world: WorldData, armies: RealmArmy[]
   const settlements = world.settlements.map((settlement) => territoryIds.includes(settlement.tileId) && (!realmById.get(settlement.realmId) || realmById.get(settlement.realmId)?.collapsedYear) ? { ...settlement, realmId: id, legalRealmId: id, occupationRealmId: undefined, loyalty: 52, resistance: 8 } : settlement)
   const tiles = world.tiles.map((tile) => territoryIds.includes(tile.id) ? { ...tile, stateId: id, controllerRealmId: id, legalRealmId: id, controlStatus: distance(tile, capitalTile) <= 2 ? 'core' as const : 'frontier' as const, controlStrength: 48, supplyAccess: 45, resistance: 6 } : tile)
   let nextWorld: WorldData = { ...world, realms: [...world.realms, realm], settlements, tiles }
-  const objective = chooseObjective(realm, nextWorld, rng)
+  const objective = chooseObjective(realm, nextWorld, rng, state.year)
   nextWorld = { ...nextWorld, realms: nextWorld.realms.map((entry) => entry.id === id ? { ...entry, objective, coreTileIds: territoryIds.filter((tileId) => {
     const tile = tiles.find((candidate) => candidate.id === tileId)
     return tile ? distance(tile, capitalTile) <= 2 : false

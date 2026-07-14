@@ -155,13 +155,13 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
 
             {activeTab === 'general' && <>
               <section className="settings-hero-card">
-                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.6</strong><small>Государства, территории и войны</small></span></div>
-                <span className="version-chip">save v10</span>
+                <div><ShieldCheck size={20} /><span><strong>THE LAST GUILD v0.8.7</strong><small>Историческая симуляция мира</small></span></div>
+                <span className="version-chip">save v14</span>
               </section>
 
               <div className="settings-summary-grid">
                 <article><Save size={18} /><div><h3>Кампания</h3><p>{state.year} год, день {state.day}</p><small>{state.characters.filter((character) => character.employed).length} сотрудников</small></div></article>
-                <article><RefreshCcw size={18} /><div><h3>Мир</h3><p>{state.settings.preset}</p><small>{DIFFICULTY_RULES[state.settings.difficulty].label}</small></div></article>
+                <article><RefreshCcw size={18} /><div><h3>Мир</h3><p>{state.world.historicalSimulation.yearsSimulated} лет истории</p><small>{state.world.historicalSimulation.majorEvents} крупных событий · {state.world.historicalSimulation.elapsedMs} мс</small></div></article>
               </div>
 
               <section className="settings-panel-section">
@@ -234,7 +234,7 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
                   <div><b>{state.storyChains.filter((chain) => chain.status === 'active').length}</b><small>цепочек</small></div>
                 </div>
                 <div className="audit-controls">
-                  <label><span>Аудит</span><select value={auditYears} onChange={(event) => setAuditYears(Number(event.target.value))}><option value={1}>1 год</option><option value={10}>10 лет</option><option value={50}>50 лет</option><option value={100}>100 лет</option><option value={300}>300 лет</option></select></label>
+                  <label><span>Аудит</span><select value={auditYears} onChange={(event) => setAuditYears(Number(event.target.value))}><option value={1}>1 год</option><option value={10}>10 лет</option><option value={50}>50 лет</option><option value={100}>100 лет</option><option value={300}>300 лет</option><option value={500}>500 лет</option></select></label>
                   <button className="secondary-button" disabled={auditing} onClick={runAudit}><Activity size={15} />{auditing ? 'Считаю…' : 'Запустить'}</button>
                   <button className="secondary-button" onClick={() => downloadDebugLog(state, audit)}><Download size={15} />Журнал</button>
                 </div>
@@ -247,6 +247,9 @@ export default function SettingsModal({ state, preferences, onPreferencesChange,
                   <div><b>{audit.faunaChange > 0 ? '+' : ''}{audit.faunaChange}%</b><small>фауна</small></div>
                   <div><b>{audit.ecosystemHealth}</b><small>экосистема</small></div>
                   <div><b>{audit.peoples}/{audit.cultures}</b><small>народы/культуры</small></div>
+                  <div><b>{audit.largestRealmShare}%</b><small>крупнейшая держава</small></div>
+                  <div><b>{audit.longestWarYears}</b><small>долгая война, лет</small></div>
+                  <div><b>{audit.militaryPopulationShare}%</b><small>население в армиях</small></div>
                   <ul>{audit.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
                 </div>}
               </div>}

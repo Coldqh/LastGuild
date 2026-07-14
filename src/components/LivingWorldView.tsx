@@ -59,6 +59,7 @@ export default function LivingWorldView({ state }: Props) {
   const [showAllRoutes, setShowAllRoutes] = useState(false)
   const [showAllHistory, setShowAllHistory] = useState(false)
   const snapshot = state.historySnapshots.find((entry) => entry.id === snapshotId) ?? state.historySnapshots.at(-1)
+  const historySimulation = state.world.historicalSimulation
   const activeWars = state.wars.filter((war) => war.status !== 'ended')
   const activeRoutes = state.world.routes.filter((route) => route.type !== 'river' && route.status === 'active')
   const disruptedRoutes = state.world.routes.filter((route) => route.type !== 'river' && route.status !== 'active')
@@ -268,7 +269,17 @@ export default function LivingWorldView({ state }: Props) {
         })}
       </div>}
 
-      {tab === 'history' && <div className="world-history-list compact-history-list">{history.map((event) => <article key={event.id} className="paper-card history-event-card compact-history-card"><span className="history-year">{event.year}</span><div><p className="eyebrow">{event.kind ?? event.tags[0] ?? 'событие'}</p><h2>{event.title}</h2><p>{event.description}</p>{(event.cause || event.consequence) && <details className="compact-details"><summary>Причины и последствия</summary>{event.cause && <p><b>Причина:</b> {event.cause}</p>}{event.consequence && <p><b>Последствие:</b> {event.consequence}</p>}</details>}</div></article>)}{state.world.history.length > 16 && <button className="compact-list-toggle" onClick={() => setShowAllHistory((value) => !value)}>{showAllHistory ? 'Свернуть хронику' : 'Показать старые события'}</button>}</div>}
+      {tab === 'history' && <div className="world-history-list compact-history-list">
+        <div className="ecosystem-metrics history-simulation-metrics">
+          <article><ScrollText size={16} /><b>{historySimulation.yearsSimulated}</b><span>лет прожито</span></article>
+          <article><Landmark size={16} /><b>{historySimulation.realmsCollapsed}</b><span>держав исчезло</span></article>
+          <article><Mountain size={16} /><b>{historySimulation.settlementsRuined}</b><span>новых руин</span></article>
+          <article><BookOpenCheck size={16} /><b>{historySimulation.figuresCreated}/{historySimulation.artifactsCreated}</b><span>людей/артефактов</span></article>
+        </div>
+        {historySimulation.auditWarnings.length > 0 && <details className="paper-card compact-details history-audit-summary"><summary>Аудит исторического мира</summary>{historySimulation.auditWarnings.map((warning) => <p key={warning}>{warning}</p>)}</details>}
+        {history.map((event) => <article key={event.id} className="paper-card history-event-card compact-history-card"><span className="history-year">{event.year}</span><div><p className="eyebrow">{event.kind ?? event.tags[0] ?? 'событие'}</p><h2>{event.title}</h2><p>{event.description}</p>{(event.cause || event.consequence || event.causeEventIds?.length) && <details className="compact-details"><summary>Причины и последствия</summary>{event.cause && <p><b>Причина:</b> {event.cause}</p>}{event.consequence && <p><b>Последствие:</b> {event.consequence}</p>}{event.actualOutcome && <p><b>Реальный итог:</b> {event.actualOutcome}</p>}{event.causeEventIds?.length ? <small>Связанных причин: {event.causeEventIds.length}</small> : null}</details>}</div></article>)}
+        {state.world.history.length > 16 && <button className="compact-list-toggle" onClick={() => setShowAllHistory((value) => !value)}>{showAllHistory ? 'Свернуть хронику' : 'Показать старые события'}</button>}
+      </div>}
 
       {tab === 'map' && snapshot && <div className="historical-map-layout">
         <article className="paper-card historical-map-card"><div className="compact-panel-heading"><Landmark size={18} /><h2>{snapshot.title}</h2></div><MiniHistoryMap state={state} snapshot={snapshot} /></article>

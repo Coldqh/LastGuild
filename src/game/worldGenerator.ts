@@ -25,8 +25,7 @@ import type {
 } from '../types/game'
 import { coordinateNoise, RNG } from './rng'
 import { initializeEcosystem } from './ecosystem'
-import { initializeSociety } from './society'
-import { initializePolitics } from './politics'
+import { simulateWorldHistory, historySpan } from './historySimulation'
 import { densityMultiplier, historyYears, worldSize } from './worldSettings'
 
 const tileId = (x: number, y: number) => `${x}:${y}`
@@ -596,8 +595,14 @@ export function generateWorld(seed: string, settings: WorldGenerationSettings): 
     politics: { initializedYear: 912, lastTickYear: 912, lastTickDay: 1, borderChanges: 0, occupations: 0, warsStarted: 0, warsEnded: 0, realmCollapses: 0, activeClaims: 0, recentEvents: [] },
     startSettlementId: startSettlement.id,
     history: createHistory(seed, realms, sites, settings),
+    historicalPeople: [],
+    historicalArtifacts: [],
+    historicalCivilizations: [],
+    historicalSnapshots: [],
+    historicalCurrentWars: [],
+    historicalSimulation: { startYear: 912 - historySpan(settings), endYear: 912, yearsSimulated: 0, snapshotsCreated: 0, majorEvents: 0, warsRecorded: 0, realmsFounded: realms.length, realmsCollapsed: 0, settlementsRuined: 0, artifactsCreated: 0, figuresCreated: 0, auditWarnings: [], elapsedMs: 0 },
   }
-  const ecological = initializeEcosystem(seed, generated, settings, 912)
-  const social = initializeSociety(seed, ecological, settings, 912)
-  return initializePolitics(seed, social, settings, 912)
+  const historicalStart = 912 - historySpan(settings)
+  const ecological = initializeEcosystem(seed, generated, settings, historicalStart)
+  return simulateWorldHistory(seed, ecological, settings, 912).world
 }

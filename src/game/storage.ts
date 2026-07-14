@@ -9,11 +9,12 @@ import { createCampaignProgress, refreshCampaignProgress } from './campaign'
 import { ensureEcosystem } from './ecosystem'
 import { ensureSociety } from './society'
 import { ensurePolitics } from './politics'
+import { ensureHistoricalWorld, historySpan } from './historySimulation'
 
-const SAVE_KEY = 'last-guild-save-v13'
-const LEGACY_KEYS = ['last-guild-save-v12', 'last-guild-save-v11', 'last-guild-save-v10', 'last-guild-save-v9', 'last-guild-save-v8', 'last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
+const SAVE_KEY = 'last-guild-save-v14'
+const LEGACY_KEYS = ['last-guild-save-v13', 'last-guild-save-v12', 'last-guild-save-v11', 'last-guild-save-v10', 'last-guild-save-v9', 'last-guild-save-v8', 'last-guild-save-v7', 'last-guild-save-v6', 'last-guild-save-v5', 'last-guild-save-v4', 'last-guild-save-v3', 'last-guild-save-v2']
 const SLOT_PREFIX = 'last-guild-slot-v1-'
-const BACKUP_KEY = 'last-guild-backup-v13'
+const BACKUP_KEY = 'last-guild-backup-v14'
 
 const defaultPositions = (): GuildPosition[] => [
   { id: 'expedition_master', name: 'Мастер экспедиций', description: 'Отвечает за составы, маршруты и дисциплину.', effect: '+5 к слаженности новых отрядов' },
@@ -78,12 +79,12 @@ function normalizeCharacter(character: any, state: any): Character {
 }
 
 function normalizeState(parsed: any): GameState | null {
-  if (!parsed || ![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].includes(parsed.version)) return null
+  if (!parsed || ![2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(parsed.version)) return null
   const settings = { ...DEFAULT_WORLD_SETTINGS, ...(parsed.settings ?? {}) }
   const hadCampaign = Boolean(parsed.campaign)
   const normalized: GameState = {
     ...parsed,
-    version: 13,
+    version: 14,
     settings,
     pendingDecision: parsed.pendingDecision,
     pendingDebrief: parsed.pendingDebrief,
@@ -123,6 +124,12 @@ function normalizeState(parsed: any): GameState | null {
       society: parsed.world?.society ?? { initializedYear: parsed.year ?? 912, lastTickYear: (parsed.year ?? 912) - 1, totalPopulation: 0, migrations: 0, foundations: 0, abandonments: 0, culturalBlends: 0, recentEvents: [] },
       armies: parsed.world?.armies ?? [],
       politics: parsed.world?.politics ?? { initializedYear: parsed.year ?? 912, lastTickYear: parsed.year ?? 912, lastTickDay: parsed.day ?? 1, borderChanges: 0, occupations: 0, warsStarted: 0, warsEnded: 0, realmCollapses: 0, activeClaims: 0, recentEvents: [] },
+      historicalPeople: parsed.world?.historicalPeople ?? [],
+      historicalArtifacts: parsed.world?.historicalArtifacts ?? [],
+      historicalCivilizations: parsed.world?.historicalCivilizations ?? [],
+      historicalSnapshots: parsed.world?.historicalSnapshots ?? parsed.historySnapshots ?? [],
+      historicalCurrentWars: parsed.world?.historicalCurrentWars ?? [],
+      historicalSimulation: parsed.world?.historicalSimulation ?? { startYear: (parsed.year ?? 912) - historySpan(settings), endYear: parsed.year ?? 912, yearsSimulated: 0, snapshotsCreated: 0, majorEvents: 0, warsRecorded: parsed.world?.politics?.warsStarted ?? 0, realmsFounded: parsed.world?.realms?.length ?? 0, realmsCollapsed: 0, settlementsRuined: 0, artifactsCreated: 0, figuresCreated: 0, auditWarnings: ['Старое сохранение ожидает историческую индексацию.'], elapsedMs: 0 },
     },
     characters: (parsed.characters ?? []).filter((character: any) => !character.formerGuildMember).map((character: any) => normalizeCharacter(character, parsed)),
     opportunities: (parsed.opportunities ?? []).map((opportunity: any) => ({
@@ -160,6 +167,7 @@ function normalizeState(parsed: any): GameState | null {
   normalized.world = ensureEcosystem(normalized.seed, normalized.world, normalized.settings, normalized.year)
   normalized.world = ensureSociety(normalized.seed, normalized.world, normalized.settings, normalized.year)
   normalized.world = ensurePolitics(normalized.seed, normalized.world, normalized.settings, normalized.year)
+  normalized.world = ensureHistoricalWorld(normalized.seed, normalized.world, normalized.settings, normalized.year)
 
   if (normalized.civilizations.length === 0 || normalized.artifactsCatalog.length === 0 || normalized.storyChains.length === 0 || normalized.regionalIdentities.length === 0) {
     const content = initializeContentEngine(normalized.seed, normalized.world, normalized.settings)
